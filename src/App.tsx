@@ -73,6 +73,17 @@ type Branch = {
   motDePasse: string;
 };
 
+type UserRole = 'owner' | 'seller';
+
+type User = {
+  id: string;
+  name: string;
+  password: string;
+  profilePic: string;
+  role: UserRole;
+  branchId: string | null;
+};
+
 type VenteViewProps = {
   categorie: string;
   setCategorie: Dispatch<SetStateAction<string>>;
@@ -208,8 +219,36 @@ const SUCURSALES: Branch[] = [
 
 const OWNER_PASSWORD = 'tchileyowner2026';
 
+const INITIAL_USERS: User[] = [
+  {
+    id: 'owner-1',
+    name: 'Propriétaire Tchiley',
+    password: OWNER_PASSWORD,
+    profilePic: 'https://ui-avatars.com/api/?name=Owner&background=C1440E&color=fff&size=128',
+    role: 'owner',
+    branchId: null,
+  },
+  {
+    id: 'seller-gros-morne',
+    name: 'Jean A.',
+    password: 'grosmorne2026',
+    profilePic: 'https://ui-avatars.com/api/?name=Jean+A&background=16181A&color=fff&size=128',
+    role: 'seller',
+    branchId: 'gros-morne',
+  },
+  {
+    id: 'seller-saint-marc',
+    name: 'Michel R.',
+    password: 'saintmarc2026',
+    profilePic: 'https://ui-avatars.com/api/?name=Michel+R&background=4B5560&color=fff&size=128',
+    role: 'seller',
+    branchId: 'saint-marc',
+  },
+];
+
 export default function GestionMateriaux() {
   const [view, setView] = useState<View>('vente');
+  const [appRoute, setAppRoute] = useState<'branchSelection' | 'sellerBoard' | 'ownerBoard'>('branchSelection');
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [pendingBranchId, setPendingBranchId] = useState<string | null>(null);
   const [branchPasswordInput, setBranchPasswordInput] = useState<string>('');
@@ -218,6 +257,7 @@ export default function GestionMateriaux() {
   const [ownerPasswordInput, setOwnerPasswordInput] = useState<string>('');
   const [ownerPasswordError, setOwnerPasswordError] = useState<string>('');
   const [ownerModalOpen, setOwnerModalOpen] = useState<boolean>(false);
+  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [categorie, setCategorie] = useState<string>('Tout');
@@ -366,6 +406,7 @@ export default function GestionMateriaux() {
 
     if (ownerAccess) {
       setSelectedBranchId(branchId);
+      setAppRoute('sellerBoard');
       return;
     }
 
@@ -380,6 +421,8 @@ export default function GestionMateriaux() {
       setOwnerModalOpen(false);
       setOwnerPasswordInput('');
       setOwnerPasswordError('');
+      setAppRoute('ownerBoard');
+      setSelectedBranchId(null);
       return;
     }
 
@@ -391,6 +434,7 @@ export default function GestionMateriaux() {
 
     if (brancheEnAttente.motDePasse === branchPasswordInput.trim()) {
       setSelectedBranchId(brancheEnAttente.id);
+      setAppRoute('sellerBoard');
       setPendingBranchId(null);
       setBranchPasswordInput('');
       setBranchPasswordError('');
@@ -399,6 +443,67 @@ export default function GestionMateriaux() {
 
     setBranchPasswordError('Mot de passe incorrect. Veuillez réessayer.');
   };
+
+  if (appRoute === 'branchSelection') {
+    return (
+      <>
+        <BranchSelectionView
+          branches={SUCURSALES}
+          onSelect={ouvrirSuccursale}
+          ownerAccess={ownerAccess}
+          onOwnerLogin={() => setOwnerModalOpen(true)}
+          onOwnerLogout={() => {
+            setOwnerAccess(false);
+            setOwnerPasswordInput('');
+            setOwnerPasswordError('');
+            setAppRoute('branchSelection');
+          }}
+        />
+        {ownerModalOpen && (
+          <OwnerAccessModal
+            passwordValue={ownerPasswordInput}
+            setPasswordValue={setOwnerPasswordInput}
+            errorMessage={ownerPasswordError}
+            onClose={() => {
+              setOwnerModalOpen(false);
+              setOwnerPasswordInput('');
+              setOwnerPasswordError('');
+            }}
+            onConfirm={validerAccesProprietaire}
+          />
+        )}
+        {brancheEnAttente && (
+          <BranchAccessModal
+            branch={brancheEnAttente}
+            passwordValue={branchPasswordInput}
+            setPasswordValue={setBranchPasswordInput}
+            errorMessage={branchPasswordError}
+            onClose={() => {
+              setPendingBranchId(null);
+              setBranchPasswordInput('');
+              setBranchPasswordError('');
+            }}
+            onConfirm={validerAccesSuccursale}
+          />
+        )}
+      </>
+    );
+  }
+
+  if (appRoute === 'ownerBoard') {
+    return (
+      <OwnerBoard
+        users={users}
+        setUsers={setUsers}
+        onBackToBranches={() => {
+          setOwnerAccess(false);
+          setSelectedBranchId(null);
+          setAppRoute('branchSelection');
+        }}
+        branches={SUCURSALES}
+      />
+    );
+  }
 
   if (!selectedBranchId) {
     return (
@@ -412,6 +517,7 @@ export default function GestionMateriaux() {
             setOwnerAccess(false);
             setOwnerPasswordInput('');
             setOwnerPasswordError('');
+            setAppRoute('branchSelection');
           }}
         />
         {ownerModalOpen && (
@@ -648,6 +754,259 @@ export default function GestionMateriaux() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function OwnerBoard({
+  users,
+  setUsers,
+  onBackToBranches,
+  branches,
+}: {
+  users: User[];
+  setUsers: Dispatch<SetStateAction<User[]>>;
+  onBackToBranches: () => void;
+  branches: Branch[];
+}) {
+  const emptyForm = {
+    id: '',
+    name: '',
+    password: '',
+    profilePic: '',
+    role: 'seller' as UserRole,
+    branchId: branches[0]?.id ?? '',
+  };
+
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState('');
+
+  const resetForm = (nextMessage = '') => {
+    setForm(emptyForm);
+    setEditingId(null);
+    setStatusMessage(nextMessage);
+  };
+
+  const resetFormAction = () => {
+    resetForm();
+  };
+
+  const handleChange = (field: keyof typeof emptyForm, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: field === 'role' ? (value as UserRole) : value,
+    }));
+  };
+
+  const handleSubmit = () => {
+    const trimmedName = form.name.trim();
+    const trimmedPassword = form.password.trim();
+
+    if (!trimmedName || !trimmedPassword) {
+      setStatusMessage('Le nom et le mot de passe sont obligatoires.');
+      return;
+    }
+
+    if (form.role === 'seller' && !form.branchId) {
+      setStatusMessage('Une succursale est requise pour un vendeur.');
+      return;
+    }
+
+    const nextUser: User = {
+      id: editingId ?? `user-${Date.now()}`,
+      name: trimmedName,
+      password: trimmedPassword,
+      profilePic: form.profilePic.trim() || `https://ui-avatars.com/api/?name=${encodeURIComponent(trimmedName)}&background=C1440E&color=fff&size=128`,
+      role: form.role,
+      branchId: form.role === 'owner' ? null : form.branchId,
+    };
+
+    setUsers((prev) => {
+      if (editingId) {
+        return prev.map((u) => (u.id === editingId ? nextUser : u));
+      }
+      return [nextUser, ...prev];
+    });
+
+    resetForm(editingId ? 'Utilisateur modifié avec succès.' : 'Utilisateur créé avec succès.');
+  };
+
+  const handleEdit = (user: User) => {
+    setEditingId(user.id);
+    setForm({
+      id: user.id,
+      name: user.name,
+      password: user.password,
+      profilePic: user.profilePic,
+      role: user.role,
+      branchId: user.branchId ?? branches[0]?.id ?? '',
+    });
+    setStatusMessage('');
+  };
+
+  const handleDelete = (userId: string) => {
+    setUsers((prev) => prev.filter((user) => user.id !== userId));
+    if (editingId === userId) {
+      resetForm();
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#ECE7DC] px-4 py-6 text-[#16181A]">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6 flex flex-col gap-3 border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#16181A] md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Panneau administrateur</div>
+            <h1 className="mt-2 font-serif text-4xl">Gestion des utilisateurs</h1>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={onBackToBranches}
+              className="border-2 border-[#16181A] bg-white px-4 py-2 text-[12px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+            >
+              Retour aux succursales
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+          <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-serif text-2xl">{editingId ? 'Modifier l’utilisateur' : 'Créer un utilisateur'}</h2>
+              {editingId && (
+                <button onClick={resetFormAction} className="text-[12px] uppercase tracking-wide text-[#4B5560] hover:text-[#C1440E]">
+                  Annuler
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-[12px] uppercase tracking-wide text-[#4B5560]">Nom complet</label>
+                <input
+                  value={form.name}
+                  onChange={(event) => handleChange('name', event.target.value)}
+                  className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+                  placeholder="Ex: Jean Dupont"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[12px] uppercase tracking-wide text-[#4B5560]">Mot de passe</label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(event) => handleChange('password', event.target.value)}
+                  className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[12px] uppercase tracking-wide text-[#4B5560]">URL photo de profil</label>
+                <input
+                  value={form.profilePic}
+                  onChange={(event) => handleChange('profilePic', event.target.value)}
+                  className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-[12px] uppercase tracking-wide text-[#4B5560]">Rôle</label>
+                  <select
+                    value={form.role}
+                    onChange={(event) => handleChange('role', event.target.value)}
+                    className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+                  >
+                    <option value="seller">Vendeur</option>
+                    <option value="owner">Propriétaire</option>
+                  </select>
+                </div>
+
+                {form.role === 'seller' && (
+                  <div>
+                    <label className="mb-1 block text-[12px] uppercase tracking-wide text-[#4B5560]">Succursale</label>
+                    <select
+                      value={form.branchId}
+                      onChange={(event) => handleChange('branchId', event.target.value)}
+                      className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+                    >
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>{branch.nom}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {statusMessage && (
+                <div className="border-2 border-[#2F6B4F] bg-[#E9F5EF] px-3 py-2 text-[12px] text-[#2F6B4F]">
+                  {statusMessage}
+                </div>
+              )}
+
+              <button
+                onClick={handleSubmit}
+                className="w-full border-2 border-[#16181A] bg-[#16181A] px-4 py-3 text-[14px] font-medium text-white hover:bg-[#2b2e31]"
+              >
+                {editingId ? 'Enregistrer les modifications' : 'Créer l’utilisateur'}
+              </button>
+            </div>
+          </div>
+
+          <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-serif text-2xl">Utilisateurs</h2>
+              <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[11px] uppercase tracking-wide">
+                {users.length} comptes
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {users.map((user) => (
+                <div key={user.id} className="flex items-center gap-3 border-2 border-[#16181A] bg-white p-3">
+                  <img
+                    src={user.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=C1440E&color=fff&size=128`}
+                    alt={user.name}
+                    className="h-12 w-12 rounded-none border-2 border-[#16181A] object-cover"
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-medium">{user.name}</span>
+                      <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-1.5 text-[9px] uppercase tracking-wide">
+                        {user.role}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[12px] text-[#4B5560]">
+                      {user.role === 'seller' ? `Succursale: ${SUCURSALES.find((branch) => branch.id === user.branchId)?.nom ?? 'Non assignée'}` : 'Accès complet propriétaire'}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(user)}
+                      className="border-2 border-[#16181A] bg-white px-2 py-1.5 text-[11px] uppercase tracking-wide hover:bg-[#ECE7DC]"
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      onClick={() => handleDelete(user.id)}
+                      className="border-2 border-[#C1440E] bg-[#FDF1EC] px-2 py-1.5 text-[11px] uppercase tracking-wide text-[#C1440E] hover:bg-[#f9d8cc]"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
