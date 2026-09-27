@@ -1349,9 +1349,8 @@ function OwnerBoard({
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Vendu</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Prix</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Coût</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Ouverture</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Stock</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Fermeture</th>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3">Stock Ouv.</th>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3">Stock Ferm.</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Seuil</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Réappro.</th>
                       </tr>
@@ -1426,23 +1425,8 @@ function OwnerBoard({
                                 </div>
                               </td>
                               <td className="px-3 py-3">
-                                <div className="field-shell field-stock">
-                                  <span className="field-label">Stock</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={product.stock}
-                                    onChange={(event) => updateProduct(product.id, { stock: Number(event.target.value) || 0 })}
-                                    className={
-                                      'field-input ' +
-                                      (product.stock <= product.seuil ? 'field-input-low-stock' : 'field-input-stock')
-                                    }
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
                                 <div className="field-shell field-closing">
-                                  <span className="field-label">Fermeture</span>
+                                  <span className="field-label">Stock Ferm.</span>
                                   <div className="field-value field-value-readonly">{closingStock}</div>
                                 </div>
                               </td>
