@@ -1351,14 +1351,19 @@ function BranchProductsSection({
           <table className="w-full min-w-[900px] border-collapse text-left" role="grid">
             <thead className="sticky top-0 z-10 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
               <tr>
-                <th className="px-3 py-3" title="Produit et catégorie">Produit</th>
-                <th className="px-3 py-3" title="Catégorie du produit">Catégorie</th>
-                <th className="px-3 py-3 text-right" title="Unités vendues à la date sélectionnée uniquement">Vendu Auj.</th>
-                <th className="px-3 py-3 text-right" title="Prix de vente au client">Prix Vente</th>
-                <th className="px-3 py-3 text-right" title="Prix d'achat / coût pour la succursale">Prix Achat</th>
-                <th className="px-3 py-3 text-right" title="Niveau de stock en dessous duquel une alerte apparaît">Seuil Alerte</th>
-                <th className="px-3 py-3" title="Quantité à ajouter au stock existant">Ajout Stock</th>
-                <th className="px-3 py-3 text-right">Actions</th>
+                <th className="px-3 py-3" title="Produit et catégorie" rowSpan={2}>Produit</th>
+                <th className="px-3 py-3" title="Catégorie du produit" rowSpan={2}>Catégorie</th>
+                <th className="px-3 py-3 text-center" title="Unités vendues à la date sélectionnée uniquement" rowSpan={2}>Vendu Auj.</th>
+                <th className="px-3 py-3 text-center" title="Prix de vente au client" rowSpan={2}>Prix Vente</th>
+                <th className="px-3 py-3 text-center" title="Prix d'achat / coût pour la succursale" rowSpan={2}>Prix Achat</th>
+                <th className="px-3 py-3 text-center" colSpan={2} title="Stock ouverture / fermeture">Stock</th>
+                <th className="px-3 py-3 text-center" title="Niveau de stock en dessous duquel une alerte apparaît" rowSpan={2}>Seuil Alerte</th>
+                <th className="px-3 py-3 text-center" title="Quantité à ajouter au stock existant" rowSpan={2}>Ajout Stock</th>
+                <th className="px-3 py-3 text-center" rowSpan={2}>Actions</th>
+              </tr>
+              <tr className="bg-[#E3DCCC]">
+                <th className="px-3 py-2 text-center text-[9px] font-medium text-[#4B5560]">Ouverture</th>
+                <th className="px-3 py-2 text-center text-[9px] font-medium text-[#4B5560]">Fermeture</th>
               </tr>
             </thead>
             <tbody>
