@@ -1089,7 +1089,7 @@ function OwnerBoard({
           <aside
             className={
               'overflow-hidden border-2 border-[#16181A] bg-[#16181A] text-[#ECE7DC] shadow-[8px_8px_0_#C1440E] transition-all duration-200 ' +
-              (menuOpen ? 'w-full lg:w-72' : 'w-full lg:w-20')
+              (menuOpen ? 'w-full lg:w-64' : 'w-full lg:w-18')
             }
           >
             <div className="border-b-2 border-[#3a3d40] px-4 py-4">
@@ -1107,7 +1107,7 @@ function OwnerBoard({
                     key={id}
                     onClick={() => setActiveSection(id)}
                     className={
-                      'flex w-full items-center gap-3 border-2 px-3 py-2.5 text-left text-sm transition-colors ' +
+                      'flex w-full items-center gap-3 border-2 px-3 py-2 text-left text-[12px] transition-colors ' +
                       (active
                         ? 'border-[#C1440E] bg-[#C1440E] text-white'
                         : 'border-transparent text-[#c7ccd1] hover:border-[#3a3d40] hover:bg-[#1f2225]')
@@ -1341,7 +1341,7 @@ function OwnerBoard({
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1100px] border-2 border-[#16181A] bg-white text-left">
+                  <table className="w-full min-w-[960px] border-2 border-[#16181A] bg-white text-left">
                     <thead className="bg-[#ECE7DC] text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
                       <tr>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Produit</th>
@@ -1371,14 +1371,14 @@ function OwnerBoard({
                                 <input
                                   value={product.nom}
                                   onChange={(event) => updateProduct(product.id, { nom: event.target.value })}
-                                  className="w-full min-w-[180px] border border-[#d9d2c5] bg-white px-2 py-1 outline-none focus:border-[#C1440E]"
+                                  className="w-full min-w-[150px] border border-[#d9d2c5] bg-white px-2 py-1 outline-none focus:border-[#C1440E]"
                                 />
                               </td>
                               <td className="px-3 py-3">
                                 <input
                                   value={product.categorie}
                                   onChange={(event) => updateProduct(product.id, { categorie: event.target.value })}
-                                  className="w-full min-w-[140px] border border-[#d9d2c5] bg-white px-2 py-1 outline-none focus:border-[#C1440E]"
+                                  className="w-full min-w-[110px] border border-[#d9d2c5] bg-white px-2 py-1 outline-none focus:border-[#C1440E]"
                                 />
                               </td>
                               <td className="px-3 py-3 font-bold text-[#16181A]">{soldToday}</td>
