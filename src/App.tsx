@@ -500,6 +500,10 @@ export default function GestionMateriaux() {
           setSelectedBranchId(null);
           setAppRoute('branchSelection');
         }}
+        onOpenBranch={(branchId) => {
+          setSelectedBranchId(branchId);
+          setAppRoute('sellerBoard');
+        }}
         branches={SUCURSALES}
       />
     );
@@ -762,11 +766,13 @@ function OwnerBoard({
   users,
   setUsers,
   onBackToBranches,
+  onOpenBranch,
   branches,
 }: {
   users: User[];
   setUsers: Dispatch<SetStateAction<User[]>>;
   onBackToBranches: () => void;
+  onOpenBranch: (branchId: string) => void;
   branches: Branch[];
 }) {
   const emptyForm = {
@@ -868,6 +874,60 @@ function OwnerBoard({
             >
               Retour aux succursales
             </button>
+          </div>
+        </div>
+
+        <div className="mb-6 border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-serif text-3xl">Vue globale des succursales</h2>
+            <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[11px] uppercase tracking-wide">
+              {branches.length} succursales
+            </span>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {branches.map((branch) => (
+              <div key={branch.id} className="border-2 border-[#16181A] bg-white p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">{branch.ville}</div>
+                    <div className="mt-1 font-serif text-[22px] leading-tight">{branch.nom}</div>
+                  </div>
+                  <span
+                    className={
+                      'border-2 px-2 py-0.5 text-[9px] uppercase tracking-wide ' +
+                      (branch.statut === 'Ouvert'
+                        ? 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]'
+                        : 'border-[#4B5560] bg-[#F3F4F6] text-[#4B5560]')
+                    }
+                  >
+                    {branch.statut}
+                  </span>
+                </div>
+
+                <div className="mt-4 space-y-2 text-[12px] text-[#4B5560]">
+                  <div className="flex justify-between">
+                    <span>Gestionnaire</span>
+                    <span className="font-medium text-[#16181A]">{branch.gestionnaire}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Ventes du jour</span>
+                    <span className="font-medium text-[#16181A]">{branch.ventesDuJour}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Alertes</span>
+                    <span className="font-medium text-[#C1440E]">{branch.alertesStock}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onOpenBranch(branch.id)}
+                  className="mt-4 w-full border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[12px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
+                >
+                  Ouvrir la succursale
+                </button>
+              </div>
+            ))}
           </div>
         </div>
 
