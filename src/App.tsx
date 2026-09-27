@@ -861,6 +861,11 @@ function OwnerBoard({
   };
 
   const handleDelete = (userId: string) => {
+    const userToDelete = users.find((u) => u.id === userId);
+    if (userToDelete?.role === 'owner') {
+      alert("Le profil propriétaire ne peut pas être supprimé.");
+      return;
+    }
     setUsers((prev) => prev.filter((user) => user.id !== userId));
     if (editingId === userId) {
       resetForm();
@@ -1065,7 +1070,13 @@ function OwnerBoard({
                     </button>
                     <button
                       onClick={() => handleDelete(user.id)}
-                      className="border-2 border-[#C1440E] bg-[#FDF1EC] px-2 py-1.5 text-[11px] uppercase tracking-wide text-[#C1440E] hover:bg-[#f9d8cc]"
+                      disabled={user.role === 'owner'}
+                      className={
+                        'border-2 px-2 py-1.5 text-[11px] uppercase tracking-wide ' +
+                        (user.role === 'owner'
+                          ? 'border-[#3a3d40] bg-[#ECE7DC] text-[#4B5560] cursor-not-allowed opacity-50'
+                          : 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E] hover:bg-[#f9d8cc]')
+                      }
                     >
                       Supprimer
                     </button>
