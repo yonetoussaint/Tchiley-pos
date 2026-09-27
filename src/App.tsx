@@ -923,7 +923,7 @@ function OwnerBoard({
   selectedBranchId: string | null;
 }) {
   const [menuOpen, setMenuOpen] = useState(true);
-  const [activeSection, setActiveSection] = useState<'overview' | 'branches' | 'analytics' | 'users'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'branches' | 'inventory' | 'analytics' | 'users'>('overview');
   const [branchSheetBranch, setBranchSheetBranch] = useState<Branch | null>(null);
 
   const updateUser = (userId: string, patch: Partial<User>) => {
@@ -970,6 +970,7 @@ function OwnerBoard({
   const menuItems = [
     { id: 'overview', label: 'Vue d’ensemble', icon: Gauge },
     { id: 'branches', label: 'Succursales', icon: Store },
+    { id: 'inventory', label: 'Inventaire', icon: Boxes },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'users', label: 'Utilisateurs', icon: Users },
   ] as const;
@@ -1179,6 +1180,49 @@ function OwnerBoard({
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'inventory' && (
+              <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="font-serif text-2xl">Inventaire global</h2>
+                  <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
+                    {products.length} produits
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[700px] border-2 border-[#16181A] bg-white text-left">
+                    <thead className="bg-[#ECE7DC] text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
+                      <tr>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3">Produit</th>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3">Catégorie</th>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3">Prix</th>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3">Stock</th>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3">Seuil</th>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3">Succursale</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {products.map((product) => {
+                        const branchName = branches.find((branch) => branch.id === selectedBranchId)?.nom ?? 'Tous';
+                        return (
+                          <tr key={product.id} className="border-b border-[#d9d2c5] text-[13px]">
+                            <td className="px-3 py-3 font-medium">{product.nom}</td>
+                            <td className="px-3 py-3">{product.categorie}</td>
+                            <td className="px-3 py-3">{fmtHTG(product.prix)}</td>
+                            <td className={product.stock <= product.seuil ? 'px-3 py-3 font-bold text-[#C1440E]' : 'px-3 py-3 font-bold text-[#2F6B4F]'}>
+                              {product.stock}
+                            </td>
+                            <td className="px-3 py-3">{product.seuil}</td>
+                            <td className="px-3 py-3">{branchName}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
