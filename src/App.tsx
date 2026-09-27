@@ -927,6 +927,7 @@ function OwnerBoard({
   const [branchSheetBranch, setBranchSheetBranch] = useState<Branch | null>(null);
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState<string>(branches[0]?.id ?? 'gros-morne');
   const [inventorySearch, setInventorySearch] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const updateUser = (userId: string, patch: Partial<User>) => {
     setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, ...patch } : user)));
@@ -940,13 +941,18 @@ function OwnerBoard({
   };
 
   const salesToday = ventes.filter((vente) => {
-    const auj = new Date();
     return (
-      vente.date.getDate() === auj.getDate() &&
-      vente.date.getMonth() === auj.getMonth() &&
-      vente.date.getFullYear() === auj.getFullYear()
+      vente.date.getDate() === selectedDate.getDate() &&
+      vente.date.getMonth() === selectedDate.getMonth() &&
+      vente.date.getFullYear() === selectedDate.getFullYear()
     );
   });
+
+  const shiftSelectedDate = (offset: number) => {
+    const nextDate = new Date(selectedDate);
+    nextDate.setDate(nextDate.getDate() + offset);
+    setSelectedDate(nextDate);
+  };
 
   const stockAlertCount = products.filter((p) => p.stock <= p.seuil).length;
   const totalRevenue = ventes.reduce((sum, vente) => sum + vente.total, 0);
@@ -1004,12 +1010,29 @@ function OwnerBoard({
             </div>
           </div>
 
-          <button
-            onClick={onBackToBranches}
-            className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
-          >
-            Retour
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => shiftSelectedDate(-1)}
+              className="border-2 border-[#16181A] bg-white px-2 py-2 text-[10px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+            >
+              Préc.
+            </button>
+            <div className="border-2 border-[#16181A] bg-[#ECE7DC] px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em]">
+              {selectedDate.toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </div>
+            <button
+              onClick={() => shiftSelectedDate(1)}
+              className="border-2 border-[#16181A] bg-white px-2 py-2 text-[10px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+            >
+              Suiv.
+            </button>
+            <button
+              onClick={onBackToBranches}
+              className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+            >
+              Retour
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-5 lg:flex-row">
