@@ -931,6 +931,7 @@ function OwnerBoard({
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState<string>(branches[0]?.id ?? 'gros-morne');
   const [inventorySearch, setInventorySearch] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [restockByProduct, setRestockByProduct] = useState<Record<string, number>>({});
   const [branchInventoryIds, setBranchInventoryIds] = useState<Record<string, string[]>>({
     'gros-morne': ['p01', 'p03', 'p05', 'p08', 'p11'],
     'saint-marc': ['p02', 'p04', 'p06', 'p09', 'p13'],
@@ -1044,6 +1045,17 @@ function OwnerBoard({
     setBranchInventoryIds((prev) => ({
       ...prev,
       [inventoryBranchFilter]: [createdId, ...(prev[inventoryBranchFilter] ?? [])],
+    }));
+  };
+
+  const handleRestockProduct = (product: Product) => {
+    const qty = restockByProduct[product.id] ?? 0;
+    if (qty <= 0) return;
+
+    updateProduct(product.id, { stock: product.stock + qty });
+    setRestockByProduct((prev) => ({
+      ...prev,
+      [product.id]: 0,
     }));
   };
 
@@ -1329,15 +1341,17 @@ function OwnerBoard({
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[900px] border-2 border-[#16181A] bg-white text-left">
+                  <table className="w-full min-w-[1100px] border-2 border-[#16181A] bg-white text-left">
                     <thead className="bg-[#ECE7DC] text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
                       <tr>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Produit</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Catégorie</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Vendu</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Prix</th>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3">Coût</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Stock</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Seuil</th>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3">Réappro.</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Succursale</th>
                       </tr>
                     </thead>
@@ -1350,8 +1364,9 @@ function OwnerBoard({
                         .map((product) => {
                           const branchName = branches.find((branch) => branch.id === inventoryBranchFilter)?.nom ?? 'Succursale';
                           const soldToday = soldByProductToday[product.id] ?? 0;
+                          const restockValue = restockByProduct[product.id] ?? 0;
                           return (
-                            <tr key={product.id} className="border-b border-[#d9d2c5] text-[13px]">
+                            <tr key={product.id} className="border-b border-[#d9d2c5] align-top text-[13px]">
                               <td className="px-3 py-3 font-medium">
                                 <input
                                   value={product.nom}
@@ -1380,6 +1395,15 @@ function OwnerBoard({
                                 <input
                                   type="number"
                                   min="0"
+                                  value={product.prixAchat}
+                                  onChange={(event) => updateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
+                                  className="w-24 border border-[#d9d2c5] bg-white px-2 py-1 outline-none focus:border-[#C1440E]"
+                                />
+                              </td>
+                              <td className="px-3 py-3">
+                                <input
+                                  type="number"
+                                  min="0"
                                   value={product.stock}
                                   onChange={(event) => updateProduct(product.id, { stock: Number(event.target.value) || 0 })}
                                   className={
@@ -1396,6 +1420,26 @@ function OwnerBoard({
                                   onChange={(event) => updateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
                                   className="w-20 border border-[#d9d2c5] bg-white px-2 py-1 outline-none focus:border-[#C1440E]"
                                 />
+                              </td>
+                              <td className="px-3 py-3">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={restockValue}
+                                    onChange={(event) => setRestockByProduct((prev) => ({
+                                      ...prev,
+                                      [product.id]: Number(event.target.value) || 0,
+                                    }))}
+                                    className="w-20 border border-[#d9d2c5] bg-white px-2 py-1 outline-none focus:border-[#C1440E]"
+                                  />
+                                  <button
+                                    onClick={() => handleRestockProduct(product)}
+                                    className="border-2 border-[#16181A] bg-[#2F6B4F] px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white hover:bg-[#255a40]"
+                                  >
+                                    +
+                                  </button>
+                                </div>
                               </td>
                               <td className="px-3 py-3">{branchName}</td>
                             </tr>
