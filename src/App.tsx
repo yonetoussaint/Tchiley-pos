@@ -1406,138 +1406,152 @@ function OwnerBoard({
                           const closingStock = product.stock;
                           const restockValue = restockByProduct[product.id] ?? 0;
                           return (
-                            <tr
-                              key={product.id}
-                              className={
-                                'border-b border-[#d9d2c5] align-top text-[13px] ' +
-                                (rowActionProductId === product.id ? 'bg-[#FFF8F2]' : '')
-                              }
-                            >
-                              <td className="px-3 py-3 font-medium">
-                                <div className="field-shell field-product">
-                                  <span className="field-label">Produit</span>
-                                  <input
-                                    value={product.nom}
-                                    onChange={(event) => updateProduct(product.id, { nom: event.target.value })}
-                                    className="field-input field-input-product"
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-category">
-                                  <span className="field-label">Catégorie</span>
-                                  <input
-                                    value={product.categorie}
-                                    onChange={(event) => updateProduct(product.id, { categorie: event.target.value })}
-                                    className="field-input field-input-category"
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-sold">
-                                  <span className="field-label">Vendu</span>
-                                  <div className="field-value field-value-readonly">{soldToday}</div>
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-price">
-                                  <span className="field-label">Prix</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={product.prix}
-                                    onChange={(event) => updateProduct(product.id, { prix: Number(event.target.value) || 0 })}
-                                    className="field-input field-input-price"
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-cost">
-                                  <span className="field-label">Coût</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={product.prixAchat}
-                                    onChange={(event) => updateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
-                                    className="field-input field-input-cost"
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-opening">
-                                  <span className="field-label">Ouverture</span>
-                                  <div className="field-value field-value-readonly">{openingStock}</div>
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-closing">
-                                  <span className="field-label">Stock Ferm.</span>
-                                  <div className="field-value field-value-readonly">{closingStock}</div>
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-threshold">
-                                  <span className="field-label">Seuil</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={product.seuil}
-                                    onChange={(event) => updateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
-                                    className="field-input field-input-threshold"
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-restock">
-                                  <span className="field-label">Réappro.</span>
-                                  <div className="restock-control">
+                            <>
+                              <tr
+                                key={`${product.id}-main`}
+                                className={
+                                  'border-b border-[#d9d2c5] align-top text-[13px] ' +
+                                  (rowActionProductId === product.id ? 'bg-[#FFF8F2]' : '')
+                                }
+                              >
+                                <td className="px-3 py-3 font-medium">
+                                  <div className="field-shell field-product">
+                                    <span className="field-label">Produit</span>
+                                    <input
+                                      value={product.nom}
+                                      onChange={(event) => updateProduct(product.id, { nom: event.target.value })}
+                                      className="field-input field-input-product"
+                                    />
+                                  </div>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <div className="field-shell field-category">
+                                    <span className="field-label">Catégorie</span>
+                                    <input
+                                      value={product.categorie}
+                                      onChange={(event) => updateProduct(product.id, { categorie: event.target.value })}
+                                      className="field-input field-input-category"
+                                    />
+                                  </div>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <div className="field-shell field-sold">
+                                    <span className="field-label">Vendu</span>
+                                    <div className="field-value field-value-readonly">{soldToday}</div>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <div className="field-shell field-price">
+                                    <span className="field-label">Prix</span>
                                     <input
                                       type="number"
                                       min="0"
-                                      value={restockValue}
-                                      onChange={(event) => setRestockByProduct((prev) => ({
-                                        ...prev,
-                                        [product.id]: Number(event.target.value) || 0,
-                                      }))}
-                                      className="field-input field-input-restock"
+                                      value={product.prix}
+                                      onChange={(event) => updateProduct(product.id, { prix: Number(event.target.value) || 0 })}
+                                      className="field-input field-input-price"
                                     />
-                                    <button
-                                      onClick={() => handleRestockProduct(product)}
-                                      className="restock-button"
-                                    >
-                                      +
-                                    </button>
                                   </div>
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="flex flex-col items-end gap-2">
-                                  <button
-                                    onClick={() => handleViewHistory(product)}
-                                    className="flex items-center gap-1 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
-                                  >
-                                    <History size={12} />
-                                    History
-                                  </button>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => handleEditProduct(product.id)}
-                                      className="flex items-center gap-1 border-2 border-[#16181A] bg-white px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
-                                    >
-                                      <Pencil size={12} />
-                                      Edit
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteProduct(product)}
-                                      className="flex items-center gap-1 border-2 border-[#C1440E] bg-[#FDF1EC] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#C1440E] hover:bg-[#F8E2D8]"
-                                    >
-                                      <Trash2 size={12} />
-                                      Delete
-                                    </button>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <div className="field-shell field-cost">
+                                    <span className="field-label">Coût</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={product.prixAchat}
+                                      onChange={(event) => updateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
+                                      className="field-input field-input-cost"
+                                    />
                                   </div>
-                                </div>
-                              </td>
-                            </tr>
+                                </td>
+                              </tr>
+
+                              <tr
+                                key={`${product.id}-detail`}
+                                className={
+                                  'border-b border-[#d9d2c5] bg-[#FDFBF7] align-top text-[13px] ' +
+                                  (rowActionProductId === product.id ? 'bg-[#FFF8F2]' : '')
+                                }
+                              >
+                                <td className="px-3 py-3">
+                                  <div className="field-shell field-opening">
+                                    <span className="field-label">Stock Ouv.</span>
+                                    <div className="field-value field-value-readonly">{openingStock}</div>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <div className="field-shell field-closing">
+                                    <span className="field-label">Stock Ferm.</span>
+                                    <div className="field-value field-value-readonly">{closingStock}</div>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <div className="field-shell field-threshold">
+                                    <span className="field-label">Seuil</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={product.seuil}
+                                      onChange={(event) => updateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
+                                      className="field-input field-input-threshold"
+                                    />
+                                  </div>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <div className="field-shell field-restock">
+                                    <span className="field-label">Réappro.</span>
+                                    <div className="restock-control">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        value={restockValue}
+                                        onChange={(event) => setRestockByProduct((prev) => ({
+                                          ...prev,
+                                          [product.id]: Number(event.target.value) || 0,
+                                        }))}
+                                        className="field-input field-input-restock"
+                                      />
+                                      <button
+                                        onClick={() => handleRestockProduct(product)}
+                                        className="restock-button"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <div className="field-shell field-restock">
+                                    <span className="field-label">Actions</span>
+                                    <div className="flex flex-col items-start gap-2">
+                                      <button
+                                        onClick={() => handleViewHistory(product)}
+                                        className="flex items-center gap-1 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
+                                      >
+                                        <History size={12} />
+                                        History
+                                      </button>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => handleEditProduct(product.id)}
+                                          className="flex items-center gap-1 border-2 border-[#16181A] bg-white px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
+                                        >
+                                          <Pencil size={12} />
+                                          Edit
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteProduct(product)}
+                                          className="flex items-center gap-1 border-2 border-[#C1440E] bg-[#FDF1EC] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#C1440E] hover:bg-[#F8E2D8]"
+                                        >
+                                          <Trash2 size={12} />
+                                          Delete
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            </>
                           );
                         })}
                     </tbody>
