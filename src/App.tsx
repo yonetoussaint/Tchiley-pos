@@ -925,6 +925,7 @@ function OwnerBoard({
   const [menuOpen, setMenuOpen] = useState(true);
   const [activeSection, setActiveSection] = useState<'overview' | 'branches' | 'inventory' | 'analytics' | 'users'>('overview');
   const [branchSheetBranch, setBranchSheetBranch] = useState<Branch | null>(null);
+  const [inventoryBranchFilter, setInventoryBranchFilter] = useState<string>('all');
 
   const updateUser = (userId: string, patch: Partial<User>) => {
     setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, ...patch } : user)));
@@ -1186,11 +1187,21 @@ function OwnerBoard({
 
             {activeSection === 'inventory' && (
               <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <h2 className="font-serif text-2xl">Inventaire global</h2>
-                  <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
-                    {products.length} produits
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <label className="text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">Succursale</label>
+                    <select
+                      value={inventoryBranchFilter}
+                      onChange={(event) => setInventoryBranchFilter(event.target.value)}
+                      className="border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+                    >
+                      <option value="all">Toutes</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>{branch.nom}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -1206,21 +1217,24 @@ function OwnerBoard({
                       </tr>
                     </thead>
                     <tbody>
-                      {products.map((product) => {
-                        const branchName = branches.find((branch) => branch.id === selectedBranchId)?.nom ?? 'Tous';
-                        return (
-                          <tr key={product.id} className="border-b border-[#d9d2c5] text-[13px]">
-                            <td className="px-3 py-3 font-medium">{product.nom}</td>
-                            <td className="px-3 py-3">{product.categorie}</td>
-                            <td className="px-3 py-3">{fmtHTG(product.prix)}</td>
-                            <td className={product.stock <= product.seuil ? 'px-3 py-3 font-bold text-[#C1440E]' : 'px-3 py-3 font-bold text-[#2F6B4F]'}>
-                              {product.stock}
-                            </td>
-                            <td className="px-3 py-3">{product.seuil}</td>
-                            <td className="px-3 py-3">{branchName}</td>
-                          </tr>
-                        );
-                      })}
+                      {products
+                        .filter((product) => inventoryBranchFilter === 'all' || product.id.startsWith(inventoryBranchFilter.slice(0, 2)) || product.id.includes(inventoryBranchFilter))
+                        .map((product) => {
+                          const branchName = branches.find((branch) => branch.id === selectedBranchId)?.nom ?? 'Tous';
+                          const displayBranch = inventoryBranchFilter === 'all' ? branchName : branches.find((branch) => branch.id === inventoryBranchFilter)?.nom ?? 'Succursale';
+                          return (
+                            <tr key={product.id} className="border-b border-[#d9d2c5] text-[13px]">
+                              <td className="px-3 py-3 font-medium">{product.nom}</td>
+                              <td className="px-3 py-3">{product.categorie}</td>
+                              <td className="px-3 py-3">{fmtHTG(product.prix)}</td>
+                              <td className={product.stock <= product.seuil ? 'px-3 py-3 font-bold text-[#C1440E]' : 'px-3 py-3 font-bold text-[#2F6B4F]'}>
+                                {product.stock}
+                              </td>
+                              <td className="px-3 py-3">{product.seuil}</td>
+                              <td className="px-3 py-3">{displayBranch}</td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
