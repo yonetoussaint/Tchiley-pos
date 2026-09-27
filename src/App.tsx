@@ -925,7 +925,7 @@ function OwnerBoard({
   const [menuOpen, setMenuOpen] = useState(true);
   const [activeSection, setActiveSection] = useState<'overview' | 'branches' | 'inventory' | 'analytics' | 'users'>('overview');
   const [branchSheetBranch, setBranchSheetBranch] = useState<Branch | null>(null);
-  const [inventoryBranchFilter, setInventoryBranchFilter] = useState<string>('all');
+  const [inventoryBranchFilter, setInventoryBranchFilter] = useState<string>(branches[0]?.id ?? 'gros-morne');
   const [inventorySearch, setInventorySearch] = useState<string>('');
 
   const updateUser = (userId: string, patch: Partial<User>) => {
@@ -976,6 +976,15 @@ function OwnerBoard({
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'users', label: 'Utilisateurs', icon: Users },
   ] as const;
+
+  const inventoryProductsByBranch: Record<string, Product[]> = {
+    'gros-morne': INITIAL_PRODUCTS.filter((product) => ['p01', 'p03', 'p05', 'p08', 'p11'].includes(product.id)),
+    'saint-marc': INITIAL_PRODUCTS.filter((product) => ['p02', 'p04', 'p06', 'p09', 'p13'].includes(product.id)),
+    'majuin': INITIAL_PRODUCTS.filter((product) => ['p14', 'p16', 'p17', 'p20', 'p21'].includes(product.id)),
+    'oreste': INITIAL_PRODUCTS.filter((product) => ['p07', 'p10', 'p12', 'p18', 'p19'].includes(product.id)),
+  };
+
+  const activeInventoryProducts = inventoryProductsByBranch[inventoryBranchFilter] ?? [];
 
   return (
     <div className="min-h-screen bg-[#ECE7DC] px-4 py-6 text-[#16181A] md:px-6">
@@ -1196,17 +1205,6 @@ function OwnerBoard({
                 </div>
 
                 <div className="mb-4 flex flex-wrap gap-2 border-b-2 border-[#16181A] pb-3">
-                  <button
-                    onClick={() => setInventoryBranchFilter('all')}
-                    className={
-                      'border-2 px-3 py-2 text-[11px] uppercase tracking-[0.18em] ' +
-                      (inventoryBranchFilter === 'all'
-                        ? 'border-[#16181A] bg-[#16181A] text-white'
-                        : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
-                    }
-                  >
-                    Toutes
-                  </button>
                   {branches.map((branch) => (
                     <button
                       key={branch.id}
@@ -1247,14 +1245,13 @@ function OwnerBoard({
                       </tr>
                     </thead>
                     <tbody>
-                      {products
+                      {activeInventoryProducts
                         .filter((product) => {
-                          const matchesBranch = inventoryBranchFilter === 'all' || product.id.startsWith(inventoryBranchFilter.slice(0, 2)) || product.id.includes(inventoryBranchFilter);
                           const matchesSearch = product.nom.toLowerCase().includes(inventorySearch.toLowerCase()) || product.categorie.toLowerCase().includes(inventorySearch.toLowerCase());
-                          return matchesBranch && matchesSearch;
+                          return matchesSearch;
                         })
                         .map((product) => {
-                          const displayBranch = inventoryBranchFilter === 'all' ? 'Toutes' : branches.find((branch) => branch.id === inventoryBranchFilter)?.nom ?? 'Succursale';
+                          const branchName = branches.find((branch) => branch.id === inventoryBranchFilter)?.nom ?? 'Succursale';
                           return (
                             <tr key={product.id} className="border-b border-[#d9d2c5] text-[13px]">
                               <td className="px-3 py-3 font-medium">{product.nom}</td>
@@ -1264,7 +1261,7 @@ function OwnerBoard({
                                 {product.stock}
                               </td>
                               <td className="px-3 py-3">{product.seuil}</td>
-                              <td className="px-3 py-3">{displayBranch}</td>
+                              <td className="px-3 py-3">{branchName}</td>
                             </tr>
                           );
                         })}
