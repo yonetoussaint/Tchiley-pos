@@ -1268,16 +1268,16 @@ function BranchProductsSection({
 
   return (
     <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <h2 className="font-serif text-2xl">Produits</h2>
-        <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
+        <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em]">
           {branchProducts.length} produits
         </span>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-[220px] flex-1 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 shadow-[4px_4px_0_#C1440E]">
-          <Search className="h-4 w-4 text-[#4B5560]" />
+        <div className="flex min-w-[220px] flex-1 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 transition-shadow focus-within:shadow-[4px_4px_0_#C1440E]">
+          <Search className="h-4 w-4 shrink-0 text-[#4B5560]" />
           <input
             type="text"
             value={inventorySearch}
@@ -1288,7 +1288,7 @@ function BranchProductsSection({
           <select
             value={inventoryCategoryFilter}
             onChange={(event) => setInventoryCategoryFilter(event.target.value)}
-            className="border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-[#16181A] outline-none"
+            className="shrink-0 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-[#16181A] outline-none"
             aria-label="Filtrer par catégorie"
           >
             {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
@@ -1300,14 +1300,14 @@ function BranchProductsSection({
         </div>
         <button
           onClick={onAddProduct}
-          className="flex items-center gap-2 border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
+          className="flex shrink-0 items-center gap-2 border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2b2e31]"
         >
           <Plus size={14} />
           Nouveau
         </button>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-5 flex flex-wrap gap-2">
         {[
           { id: 'all', label: 'Tous' },
           { id: 'low', label: 'En stock bas' },
@@ -1317,7 +1317,7 @@ function BranchProductsSection({
             key={status.id}
             onClick={() => setInventoryStatusFilter(status.id as 'all' | 'low' | 'normal')}
             className={
-              'border-2 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.16em] ' +
+              'border-2 px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] transition-colors ' +
               (inventoryStatusFilter === status.id
                 ? 'border-[#C1440E] bg-[#C1440E] text-white'
                 : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
@@ -1340,66 +1340,70 @@ function BranchProductsSection({
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-2 border-[#16181A] bg-white text-left">
-          <thead className="bg-[#ECE7DC] text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
-            <tr>
-              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Produit et catégorie">Produit</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Catégorie du produit">Catégorie</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Unités vendues à la date sélectionnée uniquement">Vendu Auj.</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Prix de vente au client">Prix Vente</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Prix d'achat / coût pour la succursale">Prix Achat</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Quantité actuellement en stock">Stock</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Niveau de stock en dessous duquel une alerte apparaît (n'est pas le stock actuel)">Seuil Alerte</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Quantité à ajouter au stock existant">Ajout Stock</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredProducts.map((product) => {
-              const soldToday = soldByProductToday[product.id] ?? 0;
-              const restockValue = restockByProduct[product.id] ?? 0;
-              return (
-                <tr key={product.id} className="border-b-2 border-[#16181A] align-top text-[13px] odd:bg-white even:bg-[#FBFAF6]">
-                  <td className="px-3 py-3 font-medium">
+      <div className="overflow-hidden border-2 border-[#16181A]">
+        <div className="max-h-[65vh] overflow-auto">
+          <table className="w-full min-w-[900px] border-collapse bg-white text-left">
+            <thead className="sticky top-0 z-10 bg-[#ECE7DC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
+              <tr>
+                <th className="px-3 py-3" title="Produit et catégorie">Produit</th>
+                <th className="px-3 py-3" title="Catégorie du produit">Catégorie</th>
+                <th className="px-3 py-3 text-right" title="Unités vendues à la date sélectionnée uniquement">Vendu Auj.</th>
+                <th className="px-3 py-3 text-right" title="Prix de vente au client">Prix Vente</th>
+                <th className="px-3 py-3 text-right" title="Prix d'achat / coût pour la succursale">Prix Achat</th>
+                <th className="px-3 py-3 text-right" title="Quantité actuellement en stock">Stock</th>
+                <th className="px-3 py-3 text-right" title="Niveau de stock en dessous duquel une alerte apparaît (n'est pas le stock actuel)">Seuil Alerte</th>
+                <th className="px-3 py-3" title="Quantité à ajouter au stock existant">Ajout Stock</th>
+                <th className="px-3 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.map((product) => {
+                const soldToday = soldByProductToday[product.id] ?? 0;
+                const restockValue = restockByProduct[product.id] ?? 0;
+                return (
+                  <tr
+                    key={product.id}
+                    className="border-b border-[#e4ded0] align-middle text-[13px] odd:bg-white even:bg-[#FBFAF6] transition-colors hover:bg-[#F3EFE3]"
+                  >
+                  <td className="px-3 py-2.5 font-medium">
                     <input
                       value={product.nom}
                       onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
-                      className="w-full border-2 border-[#c7c2b4] bg-white px-1 py-1 outline-none focus:border-[#C1440E]"
+                      className="h-9 w-full border-2 border-[#c7c2b4] bg-white px-2 outline-none transition-colors focus:border-[#C1440E]"
                     />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-2.5">
                     <input
                       value={product.categorie}
                       onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
-                      className="w-full border-2 border-[#c7c2b4] bg-white px-1 py-1 outline-none focus:border-[#C1440E]"
+                      className="h-9 w-full border-2 border-[#c7c2b4] bg-white px-2 text-[#4B5560] outline-none transition-colors focus:border-[#C1440E] focus:text-[#16181A]"
                     />
                   </td>
-                  <td className="px-3 py-3">
-                    <span className="inline-block border-2 border-[#8b929a] bg-[#F3F4F6] px-2 py-1 text-[#4B5560]">{soldToday}</span>
+                  <td className="px-3 py-2.5 text-right">
+                    <span className="inline-flex h-9 min-w-[3rem] items-center justify-center border-2 border-[#8b929a] bg-[#F3F4F6] px-2 tabular-nums text-[#4B5560]">{soldToday}</span>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-2.5">
                     <input
                       type="number"
                       min="0"
                       value={product.prix}
                       onChange={(event) => onUpdateProduct(product.id, { prix: Number(event.target.value) || 0 })}
-                      className="w-20 border-2 border-[#2F6B4F] bg-[#E9F5EF] px-1 py-1 font-medium text-[#2F6B4F] outline-none focus:border-[#C1440E] focus:text-[#16181A]"
+                      className="h-9 w-24 border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-colors focus:border-[#C1440E] focus:text-[#16181A]"
                     />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-2.5">
                     <input
                       type="number"
                       min="0"
                       value={product.prixAchat}
                       onChange={(event) => onUpdateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
-                      className="w-20 border-2 border-[#4B5560] bg-[#F3F4F6] px-1 py-1 font-medium text-[#4B5560] outline-none focus:border-[#C1440E] focus:text-[#16181A]"
+                      className="h-9 w-24 border-2 border-[#4B5560] bg-[#F3F4F6] px-2 text-right font-medium tabular-nums text-[#4B5560] outline-none transition-colors focus:border-[#C1440E] focus:text-[#16181A]"
                     />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-2.5 text-right">
                     <span
                       className={
-                        'inline-block border-2 px-2 py-1 font-medium ' +
+                        'inline-flex h-9 min-w-[3rem] items-center justify-center border-2 px-2 font-medium tabular-nums ' +
                         (product.stock <= product.seuil
                           ? 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E]'
                           : 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]')
@@ -1408,17 +1412,17 @@ function BranchProductsSection({
                       {product.stock}
                     </span>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-2.5">
                     <input
                       type="number"
                       min="0"
                       value={product.seuil}
                       onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
-                      className="w-16 border-2 border-[#F2B705] bg-[#FDF6DC] px-1 py-1 font-medium text-[#8a6d00] outline-none focus:border-[#C1440E] focus:text-[#16181A]"
+                      className="h-9 w-20 border-2 border-[#F2B705] bg-[#FDF6DC] px-2 text-right font-medium tabular-nums text-[#8a6d00] outline-none transition-colors focus:border-[#C1440E] focus:text-[#16181A]"
                     />
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-1">
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min="0"
@@ -1428,32 +1432,35 @@ function BranchProductsSection({
                         onChange={(event) =>
                           setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
                         }
-                        className="w-16 border-2 border-[#2F6B4F] bg-[#E9F5EF] px-1 py-1 font-medium text-[#2F6B4F] outline-none focus:border-[#C1440E] focus:text-[#16181A]"
+                        className="h-9 w-20 border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-colors focus:border-[#C1440E] focus:text-[#16181A]"
                       />
                       <button
                         onClick={() => onRestockProduct(product)}
-                        className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-[#2F6B4F] text-white hover:bg-[#255a40]"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#2F6B4F] text-white transition-colors hover:bg-[#255a40]"
                         aria-label="Réapprovisionner"
+                        title="Ajouter au stock"
                       >
-                        <Plus size={12} />
+                        <Plus size={14} />
                       </button>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <td className="px-3 py-2.5 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
                         onClick={() => onViewHistory(product)}
-                        className="flex items-center gap-1 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
+                        className="flex h-9 w-9 items-center justify-center border-2 border-[#16181A] bg-[#F3F4F6] text-[#16181A] transition-colors hover:bg-[#ECE7DC]"
+                        aria-label="Historique"
+                        title="Historique"
                       >
-                        <History size={12} />
-                        Historique
+                        <History size={14} />
                       </button>
                       <button
                         onClick={() => onDeleteProduct(product)}
-                        className="flex items-center gap-1 border-2 border-[#C1440E] bg-[#FDF1EC] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#C1440E] hover:bg-[#F8E2D8]"
+                        className="flex h-9 w-9 items-center justify-center border-2 border-[#C1440E] bg-[#FDF1EC] text-[#C1440E] transition-colors hover:bg-[#F8E2D8]"
+                        aria-label="Supprimer"
+                        title="Supprimer"
                       >
-                        <Trash2 size={12} />
-                        Suppr.
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>
@@ -1462,13 +1469,14 @@ function BranchProductsSection({
             })}
             {filteredProducts.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-[13px] text-[#4B5560]">
+                <td colSpan={9} className="px-3 py-10 text-center text-[13px] text-[#4B5560]">
                   Aucun produit ne correspond aux filtres.
                 </td>
               </tr>
             )}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
