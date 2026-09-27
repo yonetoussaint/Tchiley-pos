@@ -86,9 +86,11 @@ svg {
 .field-product { background: #f8f4ea; }
 .field-category { background: #f8f8f7; }
 .field-sold { background: #f4f1ea; }
+.field-opening { background: #f5f8ff; }
 .field-price { background: #fff8eb; }
 .field-cost { background: #f3f4f6; }
 .field-stock { background: #f0f9f3; }
+.field-closing { background: #f9f2ee; }
 .field-threshold { background: #fff4eb; }
 .field-restock { background: #edf5ff; }
 .field-branch { background: #f4f1ed; }
