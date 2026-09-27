@@ -964,6 +964,9 @@ function OwnerBoard({
     };
   });
 
+  const recentSales = [...ventes].slice(0, 4);
+  const lowStockProducts = [...products].filter((product) => product.stock <= product.seuil).slice(0, 5);
+
   const menuItems = [
     { id: 'overview', label: 'Vue d’ensemble', icon: Gauge },
     { id: 'branches', label: 'Succursales', icon: Store },
@@ -1074,40 +1077,71 @@ function OwnerBoard({
                   </div>
                 )}
 
-                <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#16181A]">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="font-serif text-2xl">Stocks par succursale</h2>
-                    <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
-                      {products.length} articles
-                    </span>
+                <div className="grid gap-5 xl:grid-cols-[1.4fr_0.6fr]">
+                  <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#16181A]">
+                    <div className="mb-4 flex items-center justify-between">
+                      <h2 className="font-serif text-2xl">Stocks par succursale</h2>
+                      <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
+                        {products.length} articles
+                      </span>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {stockByBranch.map((branch) => (
+                        <div key={branch.id} className="border-2 border-[#16181A] bg-white p-4">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <div className="font-serif text-xl leading-tight">{branch.nom}</div>
+                            <span className={branch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[9px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[9px] uppercase tracking-wide text-[#4B5560]'}>
+                              {branch.statut}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2 text-[12px] text-[#4B5560]">
+                            <div className="flex justify-between border-b border-[#d9d2c5] pb-1">
+                              <span>Stock total</span>
+                              <span className="font-bold text-[#16181A]">{branch.totalStock}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-[#d9d2c5] pb-1">
+                              <span>Articles bas</span>
+                              <span className="font-bold text-[#C1440E]">{branch.lowStockItems}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Critique</span>
+                              <span className="font-bold text-[#16181A]">{branch.criticalProduct}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {stockByBranch.map((branch) => (
-                      <div key={branch.id} className="border-2 border-[#16181A] bg-white p-4">
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                          <div className="font-serif text-xl leading-tight">{branch.nom}</div>
-                          <span className={branch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[9px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[9px] uppercase tracking-wide text-[#4B5560]'}>
-                            {branch.statut}
-                          </span>
-                        </div>
-
-                        <div className="space-y-2 text-[12px] text-[#4B5560]">
-                          <div className="flex justify-between border-b border-[#d9d2c5] pb-1">
-                            <span>Stock total</span>
-                            <span className="font-bold text-[#16181A]">{branch.totalStock}</span>
+                  <div className="space-y-5">
+                    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
+                      <h3 className="mb-3 font-serif text-2xl">Alertes</h3>
+                      <div className="space-y-2">
+                        {lowStockProducts.map((product) => (
+                          <div key={product.id} className="flex items-center justify-between border-b border-[#d9d2c5] pb-2 text-[12px]">
+                            <span>{product.nom}</span>
+                            <span className="font-bold text-[#C1440E]">{product.stock} en stock</span>
                           </div>
-                          <div className="flex justify-between border-b border-[#d9d2c5] pb-1">
-                            <span>Articles bas</span>
-                            <span className="font-bold text-[#C1440E]">{branch.lowStockItems}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Critique</span>
-                            <span className="font-bold text-[#16181A]">{branch.criticalProduct}</span>
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+
+                    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+                      <h3 className="mb-3 font-serif text-2xl">Ventes récentes</h3>
+                      <div className="space-y-2">
+                        {recentSales.map((sale) => (
+                          <div key={sale.id} className="border-b border-[#d9d2c5] pb-2 text-[12px]">
+                            <div className="flex justify-between gap-3">
+                              <span className="font-medium">{sale.id}</span>
+                              <span>{fmtHTG(sale.total)}</span>
+                            </div>
+                            <div className="mt-1 text-[#4B5560]">{sale.date.toLocaleDateString('fr-HT')}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </>
@@ -1123,14 +1157,18 @@ function OwnerBoard({
                 </div>
                 <div className="space-y-3">
                   {branches.map((branch) => (
-                    <div key={branch.id} className="flex flex-col gap-3 border-2 border-[#16181A] bg-white p-3 md:flex-row md:items-center md:justify-between">
+                    <div key={branch.id} className="flex flex-col gap-3 border-2 border-[#16181A] bg-white p-4 md:flex-row md:items-center md:justify-between">
                       <div>
                         <div className="font-serif text-xl">{branch.nom}</div>
                         <div className="text-[12px] text-[#4B5560]">{branch.ville} • {branch.adresse}</div>
                       </div>
-                      <div className="flex items-center gap-2">
+
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className={branch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[10px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-wide text-[#4B5560]'}>
                           {branch.statut}
+                        </span>
+                        <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-wide text-[#16181A]">
+                          {branch.ventesDuJour} ventes
                         </span>
                         <button
                           onClick={() => handleOpenBranch(branch)}
