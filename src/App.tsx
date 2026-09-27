@@ -1350,17 +1350,17 @@ function BranchProductsSection({
         <div className="max-h-[65vh] overflow-auto">
           <table className="w-full min-w-[900px] border-collapse text-left" role="grid">
             <thead className="sticky top-0 z-10 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
-              <tr>
-                <th className="px-3 py-3" title="Produit et catégorie" rowSpan={2}>Produit</th>
-                <th className="px-3 py-3" title="Catégorie du produit" rowSpan={2}>Catégorie</th>
-                <th className="px-3 py-3 text-center" title="Unités vendues à la date sélectionnée uniquement" rowSpan={2}>Vendu Auj.</th>
-                <th className="px-3 py-3 text-center" title="Prix de vente au client" rowSpan={2}>Prix Vente</th>
-                <th className="px-3 py-3 text-center" title="Prix d'achat / coût pour la succursale" rowSpan={2}>Prix Achat</th>
-                <th className="px-3 py-3 text-center" title="Stock d'ouverture" rowSpan={2}>Ouverture</th>
-                <th className="px-3 py-3 text-center" title="Stock de fermeture" rowSpan={2}>Fermeture</th>
-                <th className="px-3 py-3 text-center" title="Niveau de stock en dessous duquel une alerte apparaît" rowSpan={2}>Seuil Alerte</th>
-                <th className="px-3 py-3 text-center" title="Quantité à ajouter au stock existant" rowSpan={2}>Ajout Stock</th>
-                <th className="px-3 py-3 text-center" rowSpan={2}>Actions</th>
+              <tr className="divide-x divide-[#d3cbb6]">
+                <th className="px-3 py-3 text-center" title="Produit et catégorie">Produit</th>
+                <th className="px-3 py-3 text-center" title="Catégorie du produit">Catégorie</th>
+                <th className="px-3 py-3 text-center" title="Unités vendues à la date sélectionnée uniquement">Vendu Auj.</th>
+                <th className="px-3 py-3 text-center" title="Prix de vente au client">Prix Vente</th>
+                <th className="px-3 py-3 text-center" title="Prix d'achat / coût pour la succursale">Prix Achat</th>
+                <th className="px-3 py-3 text-center" title="Stock d'ouverture">Ouverture</th>
+                <th className="px-3 py-3 text-center" title="Stock de fermeture">Fermeture</th>
+                <th className="px-3 py-3 text-center" title="Niveau de stock en dessous duquel une alerte apparaît">Seuil Alerte</th>
+                <th className="px-3 py-3 text-center" title="Quantité à ajouter au stock existant">Ajout Stock</th>
+                <th className="px-3 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1373,7 +1373,7 @@ function BranchProductsSection({
                   <tr
                     key={product.id}
                     className={
-                      'border-b border-[#e4ded0] align-middle text-[13px] transition-all duration-150 ' +
+                      'divide-x divide-[#e4ded0] border-b border-[#e4ded0] align-middle text-[13px] transition-all duration-150 ' +
                       (isOutOfStock ? 'bg-[#FDF1EC] opacity-75' : 'odd:bg-white even:bg-[#FBFAF6] hover:bg-[#F3EFE3]')
                     }
                     style={{ opacity: isOutOfStock ? 0.7 : 1 }}
@@ -1444,38 +1444,32 @@ function BranchProductsSection({
                       />
                     </td>
                     <td className="px-3 py-2.5 text-center">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="flex flex-col items-end gap-1">
-                          <span className="text-[10px] uppercase tracking-[0.1em] text-[#8b929a]">Ouverture</span>
-                          <input
-                            type="number"
-                            min="0"
-                            value={product.stockOuverture}
-                            onChange={(event) => onUpdateProduct(product.id, { stockOuverture: Number(event.target.value) || 0 })}
-                            disabled={!isEditing(product.id)}
-                            className={`h-9 w-24 px-2 text-right font-medium tabular-nums text-[#16181A] outline-none transition-all duration-150 ${
-                              isEditing(product.id)
-                                ? 'border-2 border-[#16181A] bg-[#F3F4F6] focus:border-[#16181A] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(22,24,26,0.15)]'
-                                : 'border-2 border-transparent bg-transparent'
-                            }`}
-                          />
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <span className="text-[10px] uppercase tracking-[0.1em] text-[#8b929a]">Fermeture</span>
-                          <input
-                            type="number"
-                            min="0"
-                            value={product.stockFermeture}
-                            onChange={(event) => onUpdateProduct(product.id, { stockFermeture: Number(event.target.value) || 0 })}
-                            disabled={!isEditing(product.id)}
-                            className={`h-9 w-24 px-2 text-right font-medium tabular-nums text-[#16181A] outline-none transition-all duration-150 ${
-                              isEditing(product.id)
-                                ? 'border-2 border-[#16181A] bg-[#F3F4F6] focus:border-[#16181A] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(22,24,26,0.15)]'
-                                : 'border-2 border-transparent bg-transparent'
-                            }`}
-                          />
-                        </div>
-                        </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={product.stockOuverture}
+                        onChange={(event) => onUpdateProduct(product.id, { stockOuverture: Number(event.target.value) || 0 })}
+                        disabled={!isEditing(product.id)}
+                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[#16181A] outline-none transition-all duration-150 ${
+                          isEditing(product.id)
+                            ? 'border-2 border-[#16181A] bg-[#F3F4F6] focus:border-[#16181A] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(22,24,26,0.15)]'
+                            : 'border-2 border-transparent bg-transparent'
+                        }`}
+                      />
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <input
+                        type="number"
+                        min="0"
+                        value={product.stockFermeture}
+                        onChange={(event) => onUpdateProduct(product.id, { stockFermeture: Number(event.target.value) || 0 })}
+                        disabled={!isEditing(product.id)}
+                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[#16181A] outline-none transition-all duration-150 ${
+                          isEditing(product.id)
+                            ? 'border-2 border-[#16181A] bg-[#F3F4F6] focus:border-[#16181A] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(22,24,26,0.15)]'
+                            : 'border-2 border-transparent bg-transparent'
+                        }`}
+                      />
                     </td>
                     <td className="px-3 py-2.5 text-center">
                       <input
