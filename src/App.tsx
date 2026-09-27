@@ -954,6 +954,8 @@ function OwnerBoard({
     setSelectedDate(nextDate);
   };
 
+  const isCurrentDateSelected = selectedDate.toDateString() === new Date().toDateString();
+
   const stockAlertCount = products.filter((p) => p.stock <= p.seuil).length;
   const totalRevenue = ventes.reduce((sum, vente) => sum + vente.total, 0);
 
@@ -1228,19 +1230,25 @@ function OwnerBoard({
                     ))}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <button
                       onClick={() => shiftSelectedDate(-1)}
                       className="border-2 border-[#16181A] bg-white px-2 py-2 text-[10px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
                     >
                       Préc.
                     </button>
-                    <div className="border-2 border-[#16181A] bg-[#ECE7DC] px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em]">
+                    <div className="flex-1 border-2 border-[#16181A] bg-[#ECE7DC] px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em]">
                       {selectedDate.toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </div>
                     <button
                       onClick={() => shiftSelectedDate(1)}
-                      className="border-2 border-[#16181A] bg-white px-2 py-2 text-[10px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+                      disabled={isCurrentDateSelected}
+                      className={
+                        'border-2 border-[#16181A] px-2 py-2 text-[10px] uppercase tracking-[0.18em] ' +
+                        (isCurrentDateSelected
+                          ? 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]'
+                          : 'bg-white hover:bg-[#ECE7DC]')
+                      }
                     >
                       Suiv.
                     </button>
