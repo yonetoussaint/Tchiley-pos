@@ -1387,7 +1387,12 @@ function BranchProductsSection({
                         <input
                           value={product.nom}
                           onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
-                          className="h-9 w-full border-2 border-transparent bg-transparent px-2 outline-none transition-all duration-150 focus:border-[#C1440E] focus:bg-white focus:shadow-[0_0_0_2px_rgba(193,68,14,0.15)] placeholder:text-[#8b929a]"
+                          disabled={!isEditing(product.id)}
+                          className={`h-9 w-full px-2 outline-none transition-all duration-150 ${
+                            isEditing(product.id)
+                              ? 'border-2 border-[#C1440E] bg-white focus:border-[#C1440E] focus:bg-white focus:shadow-[0_0_0_2px_rgba(193,68,14,0.15)]'
+                              : 'border-2 border-transparent bg-transparent'
+                          }`}
                           placeholder="Nom du produit"
                         />
                       </div>
@@ -1396,7 +1401,12 @@ function BranchProductsSection({
                       <input
                         value={product.categorie}
                         onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
-                        className="h-9 w-full border-2 border-transparent bg-transparent px-2 text-[#4B5560] outline-none transition-all duration-150 focus:border-[#C1440E] focus:bg-white focus:shadow-[0_0_0_2px_rgba(193,68,14,0.15)] focus:text-[#16181A]"
+                        disabled={!isEditing(product.id)}
+                        className={`h-9 w-full px-2 outline-none transition-all duration-150 ${
+                          isEditing(product.id)
+                            ? 'border-2 border-[#C1440E] bg-white text-[#16181A] focus:border-[#C1440E] focus:bg-white focus:shadow-[0_0_0_2px_rgba(193,68,14,0.15)]'
+                            : 'border-2 border-transparent bg-transparent text-[#4B5560]'
+                        }`}
                       />
                     </td>
                     <td className="px-3 py-2.5 text-right">
@@ -1408,7 +1418,12 @@ function BranchProductsSection({
                         min="0"
                         value={product.prix}
                         onChange={(event) => onUpdateProduct(product.id, { prix: Number(event.target.value) || 0 })}
-                        className="h-9 w-24 border-2 border-transparent bg-transparent px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 focus:border-[#2F6B4F] focus:bg-[#E9F5EF] focus:shadow-[0_0_0_2px_rgba(47,107,79,0.15)]"
+                        disabled={!isEditing(product.id)}
+                        className={`h-9 w-24 px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
+                          isEditing(product.id)
+                            ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF] focus:shadow-[0_0_0_2px_rgba(47,107,79,0.15)]'
+                            : 'border-2 border-transparent bg-transparent'
+                        }`}
                       />
                     </td>
                     <td className="px-3 py-2.5">
@@ -1417,7 +1432,12 @@ function BranchProductsSection({
                         min="0"
                         value={product.prixAchat}
                         onChange={(event) => onUpdateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
-                        className="h-9 w-24 border-2 border-transparent bg-transparent px-2 text-right font-medium tabular-nums text-[#4B5560] outline-none transition-all duration-150 focus:border-[#4B5560] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(75,85,96,0.15)]"
+                        disabled={!isEditing(product.id)}
+                        className={`h-9 w-24 px-2 text-right font-medium tabular-nums text-[#4B5560] outline-none transition-all duration-150 ${
+                          isEditing(product.id)
+                            ? 'border-2 border-[#4B5560] bg-[#F3F4F6] focus:border-[#4B5560] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(75,85,96,0.15)]'
+                            : 'border-2 border-transparent bg-transparent'
+                        }`}
                       />
                     </td>
                     <td className="px-3 py-2.5 text-right">
@@ -1451,7 +1471,12 @@ function BranchProductsSection({
                         min="0"
                         value={product.seuil}
                         onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
-                        className="h-9 w-20 border-2 border-transparent bg-transparent px-2 text-right font-medium tabular-nums text-[#8a6d00] outline-none transition-all duration-150 focus:border-[#F2B705] focus:bg-[#FDF6DC] focus:shadow-[0_0_0_2px_rgba(242,183,5,0.15)]"
+                        disabled={!isEditing(product.id)}
+                        className={`h-9 w-20 px-2 text-right font-medium tabular-nums text-[#8a6d00] outline-none transition-all duration-150 ${
+                          isEditing(product.id)
+                            ? 'border-2 border-[#F2B705] bg-[#FDF6DC] focus:border-[#F2B705] focus:bg-[#FDF6DC] focus:shadow-[0_0_0_2px_rgba(242,183,5,0.15)]'
+                            : 'border-2 border-transparent bg-transparent'
+                        }`}
                       />
                     </td>
                     <td className="px-3 py-2.5">
@@ -1465,12 +1490,21 @@ function BranchProductsSection({
                           onChange={(event) =>
                             setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
                           }
-                          className="h-9 w-20 border-2 border-transparent bg-transparent px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 focus:border-[#2F6B4F] focus:bg-[#E9F5EF] focus:shadow-[0_0_0_2px_rgba(47,107,79,0.15)]"
+                          disabled={!isEditing(product.id)}
+                          className={`h-9 w-20 px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
+                            isEditing(product.id)
+                              ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF] focus:shadow-[0_0_0_2px_rgba(47,107,79,0.15)]'
+                              : 'border-2 border-transparent bg-transparent'
+                          }`}
                         />
                         <button
                           onClick={() => onRestockProduct(product)}
-                          disabled={restockValue <= 0}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#2F6B4F] text-white transition-all duration-150 hover:bg-[#255a40] hover:scale-105 disabled:opacity-40 disabled:hover:bg-[#2F6B4F] disabled:hover:scale-100"
+                          disabled={restockValue <= 0 || !isEditing(product.id)}
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center transition-all duration-150 ${
+                            isEditing(product.id)
+                              ? 'border-2 border-[#16181A] bg-[#2F6B4F] text-white hover:bg-[#255a40] hover:scale-105 disabled:opacity-40 disabled:hover:bg-[#2F6B4F] disabled:hover:scale-100'
+                              : 'border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A] hover:text-[#16181A] disabled:opacity-40'
+                          }`}
                           aria-label="Réapprovisionner"
                           title="Ajouter au stock"
                         >
