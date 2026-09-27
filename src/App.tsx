@@ -1328,10 +1328,10 @@ function BranchProductsSection({
         </div>
       )}
 
-      <div className="overflow-hidden border-2 border-[#16181A]">
+      <div className="overflow-hidden border-2 border-[#16181A] bg-white">
         <div className="max-h-[65vh] overflow-auto">
-          <table className="w-full min-w-[900px] border-collapse bg-white text-left">
-            <thead className="sticky top-0 z-10 bg-[#ECE7DC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
+          <table className="w-full min-w-[900px] border-collapse text-left" role="grid">
+            <thead className="sticky top-0 z-10 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
               <tr>
                 <th className="px-3 py-3" title="Produit et catégorie">Produit</th>
                 <th className="px-3 py-3" title="Catégorie du produit">Catégorie</th>
@@ -1339,7 +1339,7 @@ function BranchProductsSection({
                 <th className="px-3 py-3 text-right" title="Prix de vente au client">Prix Vente</th>
                 <th className="px-3 py-3 text-right" title="Prix d'achat / coût pour la succursale">Prix Achat</th>
                 <th className="px-3 py-3 text-right" title="Quantité actuellement en stock">Stock</th>
-                <th className="px-3 py-3 text-right" title="Niveau de stock en dessous duquel une alerte apparaît (n'est pas le stock actuel)">Seuil Alerte</th>
+                <th className="px-3 py-3 text-right" title="Niveau de stock en dessous duquel une alerte apparaît">Seuil Alerte</th>
                 <th className="px-3 py-3" title="Quantité à ajouter au stock existant">Ajout Stock</th>
                 <th className="px-3 py-3 text-right">Actions</th>
               </tr>
@@ -1348,122 +1348,301 @@ function BranchProductsSection({
               {filteredProducts.map((product) => {
                 const soldToday = soldByProductToday[product.id] ?? 0;
                 const restockValue = restockByProduct[product.id] ?? 0;
+                const isLowStock = product.stock <= product.seuil;
+                const isOutOfStock = product.stock <= 0;
+                const stockPercent = product.seuil > 0 ? Math.min(100, (product.stock / product.seuil) * 100) : 0;
                 return (
                   <tr
                     key={product.id}
-                    className="border-b border-[#e4ded0] align-middle text-[13px] odd:bg-white even:bg-[#FBFAF6] transition-colors hover:bg-[#F3EFE3]"
+                    className={
+                      'border-b border-[#e4ded0] align-middle text-[13px] transition-all duration-150 ' +
+                      (isOutOfStock ? 'bg-[#FDF1EC] opacity-75' : 'odd:bg-white even:bg-[#FBFAF6] hover:bg-[#F3EFE3]')
+                    }
+                    style={{ opacity: isOutOfStock ? 0.7 : 1 }}
                   >
-                  <td className="px-3 py-2.5 font-medium">
-                    <input
-                      value={product.nom}
-                      onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
-                      className="h-9 w-full border-2 border-[#c7c2b4] bg-white px-2 outline-none transition-colors focus:border-[#C1440E]"
+                    <td className="px-3 py-2.5 font-medium">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{
+                            backgroundColor: isOutOfStock ? '#C1440E' : isLowStock ? '#F2B705' : '#2F6B4F'
+                          }}
+                          title={isOutOfStock ? 'Rupture de stock' : isLowStock ? 'Stock bas' : 'En stock'}
+                        />
+                        <input
+                          value={product.nom}
+                          onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
+                          className="h-9 w-full border-2 border-transparent bg-transparent px-2 outline-none transition-all duration-150 focus:border-[#C1440E] focus:bg-white focus:shadow-[0_0_0_2px_rgba(193,68,14,0.15)] placeholder:text-[#8b929a]"
+                          placeholder="Nom du produit"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <input
+                        value={product.categorie}
+                        onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
+                        className="h-9 w-full border-2 border-transparent bg-transparent px-2 text-[#4B5560] outline-none transition-all duration-150 focus:border-[#C1440E] focus:bg-white focus:shadow-[0_0_0_2px_rgba(193,68,14,0.15)] focus:text-[#16181A]"
+                      />
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <span className="inline-flex h-9 min-w-[3rem] items-center justify-center border-2 border-transparent bg-transparent px-2 tabular-nums text-[#4B5560] font-medium">{soldToday}</span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <input
+                        type="number"
+                        min="0"
+                        value={product.prix}
+                        onChange={(event) => onUpdateProduct(product.id, { prix: Number(event.target.value) || 0 })}
+                        className="h-9 w-24 border-2 border-transparent bg-transparent px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 focus:border-[#2F6B4F] focus:bg-[#E9F5EF] focus:shadow-[0_0_0_2px_rgba(47,107,79,0.15)]"
+                      />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <input
+                        type="number"
+                        min="0"
+                        value={product.prixAchat}
+                        onChange={(event) => onUpdateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
+                        className="h-9 w-24 border-2 border-transparent bg-transparent px-2 text-right font-medium tabular-nums text-[#4B5560] outline-none transition-all duration-150 focus:border-[#4B5560] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(75,85,96,0.15)]"
+                      />
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="hidden sm:block w-24 h-1.5 bg-[#ECE7DC] rounded-full overflow-hidden" title={`Stock: ${product.stock} / Seuil: ${product.seuil}`}>
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${Math.min(100, stockPercent)}%`,
+                              backgroundColor: isOutOfStock ? '#C1440E' : isLowStock ? '#F2B705' : '#2F6B4F'
+                            }}
+                          />
+                        </div>
+                        <span
+                          className={
+                            'inline-flex h-9 min-w-[3rem] items-center justify-center border-2 px-2 font-medium tabular-nums ' +
+                            (isOutOfStock
+                              ? 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E]'
+                              : isLowStock
+                              ? 'border-[#F2B705] bg-[#FDF6DC] text-[#8a6d00]'
+                              : 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]')
+                          }
+                        >
+                          {product.stock}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <input
+                        type="number"
+                        min="0"
+                        value={product.seuil}
+                        onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
+                        className="h-9 w-20 border-2 border-transparent bg-transparent px-2 text-right font-medium tabular-nums text-[#8a6d00] outline-none transition-all duration-150 focus:border-[#F2B705] focus:bg-[#FDF6DC] focus:shadow-[0_0_0_2px_rgba(242,183,5,0.15)]"
+                      />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={restockValue}
+                          placeholder="+ Qté"
+                          title="Quantité à ajouter au stock actuel"
+                          onChange={(event) =>
+                            setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
+                          }
+                          className="h-9 w-20 border-2 border-transparent bg-transparent px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 focus:border-[#2F6B4F] focus:bg-[#E9F5EF] focus:shadow-[0_0_0_2px_rgba(47,107,79,0.15)]"
+                        />
+                        <button
+                          onClick={() => onRestockProduct(product)}
+                          disabled={restockValue <= 0}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#2F6B4F] text-white transition-all duration-150 hover:bg-[#255a40] hover:scale-105 disabled:opacity-40 disabled:hover:bg-[#2F6B4F] disabled:hover:scale-100"
+                          aria-label="Réapprovisionner"
+                          title="Ajouter au stock"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => onViewHistory(product)}
+                          className="flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#4B5560] transition-all duration-150 hover:bg-[#ECE7DC] hover:border-[#16181A] hover:text-[#16181A]"
+                          aria-label="Historique"
+                          title="Historique"
+                        >
+                          <History size={14} />
+                        </button>
+                        <button
+                          onClick={() => onDeleteProduct(product)}
+                          className="flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#C1440E] transition-all duration-150 hover:bg-[#FDF1EC] hover:border-[#C1440E]"
+                          aria-label="Supprimer"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredProducts.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-3 py-16 text-center">
+                    <div className="flex flex-col items-center gap-3 text-[#4B5560]">
+                      <PackagePlus size={32} className="opacity-40" />
+                      <span className="text-[13px]">Aucun produit ne correspond aux filtres.</span>
+                      <span className="text-[11px] uppercase tracking-[0.16em]">Essayez de modifier vos critères de recherche</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="sm:hidden p-3 space-y-3 border-t-2 border-[#e4ded0]">
+          {filteredProducts.map((product) => {
+            const soldToday = soldByProductToday[product.id] ?? 0;
+            const restockValue = restockByProduct[product.id] ?? 0;
+            const isLowStock = product.stock <= product.seuil;
+            const isOutOfStock = product.stock <= 0;
+            return (
+              <div
+                key={product.id}
+                className={
+                  'border-2 p-3 rounded-none transition-all duration-150 ' +
+                  (isOutOfStock
+                    ? 'border-[#C1440E] bg-[#FDF1EC]'
+                    : isLowStock
+                    ? 'border-[#F2B705] bg-[#FDF6DC]'
+                    : 'border-[#16181A] bg-white')
+                }
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: isOutOfStock ? '#C1440E' : isLowStock ? '#F2B705' : '#2F6B4F'
+                      }}
                     />
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <input
-                      value={product.categorie}
-                      onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
-                      className="h-9 w-full border-2 border-[#c7c2b4] bg-white px-2 text-[#4B5560] outline-none transition-colors focus:border-[#C1440E] focus:text-[#16181A]"
-                    />
-                  </td>
-                  <td className="px-3 py-2.5 text-right">
-                    <span className="inline-flex h-9 min-w-[3rem] items-center justify-center border-2 border-[#8b929a] bg-[#F3F4F6] px-2 tabular-nums text-[#4B5560]">{soldToday}</span>
-                  </td>
-                  <td className="px-3 py-2.5">
+                    <div className="min-w-0">
+                      <input
+                        value={product.nom}
+                        onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
+                        className="text-[14px] font-medium border-2 border-transparent bg-transparent px-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                      />
+                      <input
+                        value={product.categorie}
+                        onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
+                        className="text-[11px] uppercase tracking-[0.16em] text-[#4B5560] border-2 border-transparent bg-transparent px-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => onViewHistory(product)}
+                      className="p-2 border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A]"
+                      aria-label="Historique"
+                    >
+                      <History size={14} />
+                    </button>
+                    <button
+                      onClick={() => onDeleteProduct(product)}
+                      className="p-2 border-2 border-transparent bg-transparent text-[#C1440E] hover:bg-[#FDF1EC] hover:border-[#C1440E]"
+                      aria-label="Supprimer"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2 text-[11px]">
+                  <div className="col-span-2">
+                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Vendu aujourd'hui</span>
+                    <div className="font-medium tabular-nums">{soldToday}</div>
+                  </div>
+                  <div>
+                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Prix Vente</span>
                     <input
                       type="number"
                       min="0"
                       value={product.prix}
                       onChange={(event) => onUpdateProduct(product.id, { prix: Number(event.target.value) || 0 })}
-                      className="h-9 w-24 border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-colors focus:border-[#C1440E] focus:text-[#16181A]"
+                      className="w-full text-right font-medium tabular-nums text-[#2F6B4F] border-2 border-transparent bg-transparent px-1 outline-none focus:border-[#2F6B4F] focus:bg-[#E9F5EF]"
                     />
-                  </td>
-                  <td className="px-3 py-2.5">
+                  </div>
+                  <div>
+                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Prix Achat</span>
                     <input
                       type="number"
                       min="0"
                       value={product.prixAchat}
                       onChange={(event) => onUpdateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
-                      className="h-9 w-24 border-2 border-[#4B5560] bg-[#F3F4F6] px-2 text-right font-medium tabular-nums text-[#4B5560] outline-none transition-colors focus:border-[#C1440E] focus:text-[#16181A]"
+                      className="w-full text-right font-medium tabular-nums text-[#4B5560] border-2 border-transparent bg-transparent px-1 outline-none focus:border-[#4B5560] focus:bg-[#F3F4F6]"
                     />
-                  </td>
-                  <td className="px-3 py-2.5 text-right">
-                    <span
-                      className={
-                        'inline-flex h-9 min-w-[3rem] items-center justify-center border-2 px-2 font-medium tabular-nums ' +
-                        (product.stock <= product.seuil
-                          ? 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E]'
-                          : 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]')
-                      }
-                    >
-                      {product.stock}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <input
-                      type="number"
-                      min="0"
-                      value={product.seuil}
-                      onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
-                      className="h-9 w-20 border-2 border-[#F2B705] bg-[#FDF6DC] px-2 text-right font-medium tabular-nums text-[#8a6d00] outline-none transition-colors focus:border-[#C1440E] focus:text-[#16181A]"
-                    />
-                  </td>
-                  <td className="px-3 py-2.5">
+                  </div>
+                  <div className="col-span-2">
+                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Stock</span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={
+                          'inline-flex h-8 min-w-[3rem] items-center justify-center border-2 px-2 font-medium tabular-nums ' +
+                          (isOutOfStock
+                            ? 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E]'
+                            : isLowStock
+                            ? 'border-[#F2B705] bg-[#FDF6DC] text-[#8a6d00]'
+                            : 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]')
+                        }
+                      >
+                        {product.stock}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={product.seuil}
+                        onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
+                        className="w-16 h-8 border-2 border-transparent bg-transparent px-1 text-right font-medium tabular-nums text-[#8a6d00] outline-none focus:border-[#F2B705] focus:bg-[#FDF6DC]"
+                        placeholder="Seuil"
+                      />
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Ajout Stock</span>
                     <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min="0"
                         value={restockValue}
                         placeholder="+ Qté"
-                        title="Quantité à ajouter au stock actuel"
                         onChange={(event) =>
                           setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
                         }
-                        className="h-9 w-20 border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-colors focus:border-[#C1440E] focus:text-[#16181A]"
+                        className="flex-1 h-8 border-2 border-transparent bg-transparent px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none focus:border-[#2F6B4F] focus:bg-[#E9F5EF]"
                       />
                       <button
                         onClick={() => onRestockProduct(product)}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#2F6B4F] text-white transition-colors hover:bg-[#255a40]"
+                        disabled={restockValue <= 0}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#2F6B4F] text-white hover:bg-[#255a40] disabled:opacity-40"
                         aria-label="Réapprovisionner"
-                        title="Ajouter au stock"
                       >
-                        <Plus size={14} />
+                        <Plus size={12} />
                       </button>
                     </div>
-                  </td>
-                  <td className="px-3 py-2.5 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => onViewHistory(product)}
-                        className="flex h-9 w-9 items-center justify-center border-2 border-[#16181A] bg-[#F3F4F6] text-[#16181A] transition-colors hover:bg-[#ECE7DC]"
-                        aria-label="Historique"
-                        title="Historique"
-                      >
-                        <History size={14} />
-                      </button>
-                      <button
-                        onClick={() => onDeleteProduct(product)}
-                        className="flex h-9 w-9 items-center justify-center border-2 border-[#C1440E] bg-[#FDF1EC] text-[#C1440E] transition-colors hover:bg-[#F8E2D8]"
-                        aria-label="Supprimer"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {filteredProducts.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-3 py-10 text-center text-[13px] text-[#4B5560]">
-                  Aucun produit ne correspond aux filtres.
-                </td>
-              </tr>
-            )}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {filteredProducts.length === 0 && (
+            <div className="py-12 text-center text-[#4B5560]">
+              <PackagePlus size={32} className="mx-auto mb-3 opacity-40" />
+              <p className="text-[13px]">Aucun produit ne correspond aux filtres.</p>
+              <p className="text-[11px] uppercase tracking-[0.16em]">Essayez de modifier vos critères de recherche</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
