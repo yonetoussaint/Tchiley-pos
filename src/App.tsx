@@ -27,7 +27,8 @@ type Product = {
   categorie: string;
   prix: number;
   prixAchat: number;
-  stock: number;
+  stockOuverture: number;
+  stockFermeture: number;
   seuil: number;
   unite: string;
 };
@@ -135,27 +136,27 @@ const CATEGORIES = [
 ] as const;
 
 const INITIAL_PRODUCTS: Product[] = [
-  { id: 'p01', nom: 'Ciment Gris 50kg', categorie: 'Ciment & Béton', prix: 650, prixAchat: 500, stock: 240, seuil: 50, unite: 'sac' },
-  { id: 'p02', nom: 'Ciment Blanc 50kg', categorie: 'Ciment & Béton', prix: 950, prixAchat: 700, stock: 38, seuil: 40, unite: 'sac' },
-  { id: 'p03', nom: 'Sable de Rivière', categorie: 'Ciment & Béton', prix: 1200, prixAchat: 800, stock: 60, seuil: 15, unite: 'brouette' },
-  { id: 'p04', nom: 'Gravier 3/4', categorie: 'Ciment & Béton', prix: 1400, prixAchat: 900, stock: 45, seuil: 15, unite: 'brouette' },
-  { id: 'p05', nom: 'Fer 3/8" x 20p', categorie: 'Fer & Acier', prix: 425, prixAchat: 300, stock: 310, seuil: 60, unite: 'barre' },
-  { id: 'p06', nom: 'Fer 1/2" x 20p', categorie: 'Fer & Acier', prix: 610, prixAchat: 450, stock: 22, seuil: 30, unite: 'barre' },
-  { id: 'p07', nom: 'Fil de Ligature', categorie: 'Fer & Acier', prix: 185, prixAchat: 120, stock: 90, seuil: 20, unite: 'rouleau' },
-  { id: 'p08', nom: 'Bloc 4"', categorie: 'Blocs & Briques', prix: 68, prixAchat: 40, stock: 1400, seuil: 200, unite: 'unité' },
-  { id: 'p09', nom: 'Bloc 6"', categorie: 'Blocs & Briques', prix: 95, prixAchat: 60, stock: 860, seuil: 200, unite: 'unité' },
-  { id: 'p10', nom: 'Bloc 8"', categorie: 'Blocs & Briques', prix: 120, prixAchat: 80, stock: 15, seuil: 100, unite: 'unité' },
-  { id: 'p11', nom: 'Tuyau PVC 4" x 10p', categorie: 'Plomberie', prix: 780, prixAchat: 500, stock: 54, seuil: 15, unite: 'tuyau' },
-  { id: 'p12', nom: 'Tuyau PVC 1/2" x 10p', categorie: 'Plomberie', prix: 210, prixAchat: 150, stock: 120, seuil: 25, unite: 'tuyau' },
-  { id: 'p13', nom: 'Robinet Standard', categorie: 'Plomberie', prix: 540, prixAchat: 300, stock: 33, seuil: 10, unite: 'unité' },
-  { id: 'p14', nom: 'Peinture Latex Blanc 1gal', categorie: 'Peinture', prix: 1650, prixAchat: 1100, stock: 28, seuil: 10, unite: 'gallon' },
-  { id: 'p15', nom: 'Peinture à Huile 1gal', categorie: 'Peinture', prix: 1950, prixAchat: 1300, stock: 8, seuil: 10, unite: 'gallon' },
-  { id: 'p16', nom: 'Planche Sapin 1x12', categorie: 'Bois', prix: 495, prixAchat: 300, stock: 76, seuil: 20, unite: 'planche' },
-  { id: 'p17', nom: 'Chevron 2x4x12', categorie: 'Bois', prix: 610, prixAchat: 400, stock: 40, seuil: 20, unite: 'pièce' },
-  { id: 'p18', nom: 'Fil Électrique #12 (100p)', categorie: 'Électricité', prix: 3200, prixAchat: 2000, stock: 12, seuil: 5, unite: 'rouleau' },
-  { id: 'p19', nom: 'Disjoncteur 20A', categorie: 'Électricité', prix: 385, prixAchat: 200, stock: 47, seuil: 15, unite: 'unité' },
-  { id: 'p20', nom: 'Truelle de Maçon', categorie: 'Outils', prix: 320, prixAchat: 200, stock: 25, seuil: 8, unite: 'unité' },
-  { id: 'p21', nom: 'Pelle Carrée', categorie: 'Outils', prix: 610, prixAchat: 400, stock: 19, seuil: 8, unite: 'unité' },
+  { id: 'p01', nom: 'Ciment Gris 50kg', categorie: 'Ciment & Béton', prix: 650, prixAchat: 500, stockOuverture: 240, stockFermeture: 240, seuil: 50, unite: 'sac' },
+  { id: 'p02', nom: 'Ciment Blanc 50kg', categorie: 'Ciment & Béton', prix: 950, prixAchat: 700, stockOuverture: 38, stockFermeture: 38, seuil: 40, unite: 'sac' },
+  { id: 'p03', nom: 'Sable de Rivière', categorie: 'Ciment & Béton', prix: 1200, prixAchat: 800, stockOuverture: 60, stockFermeture: 60, seuil: 15, unite: 'brouette' },
+  { id: 'p04', nom: 'Gravier 3/4', categorie: 'Ciment & Béton', prix: 1400, prixAchat: 900, stockOuverture: 45, stockFermeture: 45, seuil: 15, unite: 'brouette' },
+  { id: 'p05', nom: 'Fer 3/8" x 20p', categorie: 'Fer & Acier', prix: 425, prixAchat: 300, stockOuverture: 310, stockFermeture: 310, seuil: 60, unite: 'barre' },
+  { id: 'p06', nom: 'Fer 1/2" x 20p', categorie: 'Fer & Acier', prix: 610, prixAchat: 450, stockOuverture: 22, stockFermeture: 22, seuil: 30, unite: 'barre' },
+  { id: 'p07', nom: 'Fil de Ligature', categorie: 'Fer & Acier', prix: 185, prixAchat: 120, stockOuverture: 90, stockFermeture: 90, seuil: 20, unite: 'rouleau' },
+  { id: 'p08', nom: 'Bloc 4"', categorie: 'Blocs & Briques', prix: 68, prixAchat: 40, stockOuverture: 1400, stockFermeture: 1400, seuil: 200, unite: 'unité' },
+  { id: 'p09', nom: 'Bloc 6"', categorie: 'Blocs & Briques', prix: 95, prixAchat: 60, stockOuverture: 860, stockFermeture: 860, seuil: 200, unite: 'unité' },
+  { id: 'p10', nom: 'Bloc 8"', categorie: 'Blocs & Briques', prix: 120, prixAchat: 80, stockOuverture: 15, stockFermeture: 15, seuil: 100, unite: 'unité' },
+  { id: 'p11', nom: 'Tuyau PVC 4" x 10p', categorie: 'Plomberie', prix: 780, prixAchat: 500, stockOuverture: 54, stockFermeture: 54, seuil: 15, unite: 'tuyau' },
+  { id: 'p12', nom: 'Tuyau PVC 1/2" x 10p', categorie: 'Plomberie', prix: 210, prixAchat: 150, stockOuverture: 120, stockFermeture: 120, seuil: 25, unite: 'tuyau' },
+  { id: 'p13', nom: 'Robinet Standard', categorie: 'Plomberie', prix: 540, prixAchat: 300, stockOuverture: 33, stockFermeture: 33, seuil: 10, unite: 'unité' },
+  { id: 'p14', nom: 'Peinture Latex Blanc 1gal', categorie: 'Peinture', prix: 1650, prixAchat: 1100, stockOuverture: 28, stockFermeture: 28, seuil: 10, unite: 'gallon' },
+  { id: 'p15', nom: 'Peinture à Huile 1gal', categorie: 'Peinture', prix: 1950, prixAchat: 1300, stockOuverture: 8, stockFermeture: 8, seuil: 10, unite: 'gallon' },
+  { id: 'p16', nom: 'Planche Sapin 1x12', categorie: 'Bois', prix: 495, prixAchat: 300, stockOuverture: 76, stockFermeture: 76, seuil: 20, unite: 'planche' },
+  { id: 'p17', nom: 'Chevron 2x4x12', categorie: 'Bois', prix: 610, prixAchat: 400, stockOuverture: 40, stockFermeture: 40, seuil: 20, unite: 'pièce' },
+  { id: 'p18', nom: 'Fil Électrique #12 (100p)', categorie: 'Électricité', prix: 3200, prixAchat: 2000, stockOuverture: 12, stockFermeture: 12, seuil: 5, unite: 'rouleau' },
+  { id: 'p19', nom: 'Disjoncteur 20A', categorie: 'Électricité', prix: 385, prixAchat: 200, stockOuverture: 47, stockFermeture: 47, seuil: 15, unite: 'unité' },
+  { id: 'p20', nom: 'Truelle de Maçon', categorie: 'Outils', prix: 320, prixAchat: 200, stockOuverture: 25, stockFermeture: 25, seuil: 8, unite: 'unité' },
+  { id: 'p21', nom: 'Pelle Carrée', categorie: 'Outils', prix: 610, prixAchat: 400, stockOuverture: 19, stockFermeture: 19, seuil: 8, unite: 'unité' },
 ];
 
 const PAYMENT_METHODS: Array<{ id: PaymentMethodId; label: string; icon: typeof Banknote }> = [
@@ -295,18 +296,18 @@ export default function GestionMateriaux() {
   const nbArticlesPanier = cart.reduce((s, i) => s + i.qte, 0);
 
   const produitsStockBas = useMemo(
-    () => products.filter((p) => p.stock <= p.seuil),
+    () => products.filter((p) => p.stockFermeture <= p.seuil),
     [products]
   );
 
   const brancheActuelle = SUCURSALES.find((s) => s.id === selectedBranchId) ?? SUCURSALES[0];
 
   function ajouterAuPanier(produit: Product) {
-    if (produit.stock <= 0) return;
+    if (produit.stockFermeture <= 0) return;
     setCart((prev) => {
       const existe = prev.find((i) => i.id === produit.id);
       if (existe) {
-        if (existe.qte >= produit.stock) return prev;
+        if (existe.qte >= produit.stockFermeture) return prev;
         return prev.map((i) => (i.id === produit.id ? { ...i, qte: i.qte + 1 } : i));
       }
       return [...prev, { id: produit.id, qte: 1 }];
@@ -320,7 +321,7 @@ export default function GestionMateriaux() {
         .map((i) => {
           if (i.id !== id) return i;
           const nouvelleQte = i.qte + delta;
-          const max = produit ? produit.stock : nouvelleQte;
+          const max = produit ? produit.stockFermeture : nouvelleQte;
           return { ...i, qte: Math.min(Math.max(nouvelleQte, 0), max) };
         })
         .filter((i) => i.qte > 0);
@@ -359,7 +360,7 @@ export default function GestionMateriaux() {
     setProducts((prev) =>
       prev.map((p) => {
         const ligne = cart.find((i) => i.id === p.id);
-        return ligne ? { ...p, stock: p.stock - ligne.qte } : p;
+        return ligne ? { ...p, stockFermeture: p.stockFermeture - ligne.qte } : p;
       })
     );
     setLastReceipt(vente);
@@ -370,13 +371,13 @@ export default function GestionMateriaux() {
 
   function commencerEditStock(produit: Product) {
     setEditStockId(produit.id);
-    setEditStockVal(String(produit.stock));
+    setEditStockVal(String(produit.stockFermeture));
   }
 
   function validerEditStock(id: string) {
     const val = parseInt(editStockVal, 10);
     if (!Number.isNaN(val) && val >= 0) {
-      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, stock: val } : p)));
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, stockFermeture: val } : p)));
     }
     setEditStockId(null);
   }
@@ -855,9 +856,9 @@ function OwnerBoard({
   const branchUsers = users.filter((u) => u.branchId === activeBranchId);
 
   const salesToday = branchVentes.filter((v) => isSameDay(v.date, selectedDate));
-  const stockAlertCount = branchProducts.filter((p) => p.stock <= p.seuil).length;
+  const stockAlertCount = branchProducts.filter((p) => p.stockFermeture <= p.seuil).length;
   const totalRevenueBranch = branchVentes.reduce((sum, v) => sum + v.total, 0);
-  const lowStockProducts = branchProducts.filter((p) => p.stock <= p.seuil).slice(0, 5);
+  const lowStockProducts = branchProducts.filter((p) => p.stockFermeture <= p.seuil).slice(0, 5);
   const recentSales = [...branchVentes].slice(0, 4);
 
   const soldByProductToday = useMemo(() => {
@@ -890,7 +891,8 @@ function OwnerBoard({
       categorie: 'Autre',
       prix: 0,
       prixAchat: 0,
-      stock: 0,
+      stockOuverture: 0,
+      stockFermeture: 0,
       seuil: 5,
       unite: 'unité',
     };
@@ -906,7 +908,7 @@ function OwnerBoard({
     const qty = restockByProduct[product.id] ?? 0;
     if (qty <= 0) return;
 
-    updateProduct(product.id, { stock: product.stock + qty });
+    updateProduct(product.id, { stockFermeture: product.stockFermeture + qty });
     setRestockByProduct((prev) => ({ ...prev, [product.id]: 0 }));
   };
 
@@ -1177,7 +1179,7 @@ function BranchDashboardSection({
               {lowStockProducts.map((product) => (
                 <div key={product.id} className="flex items-center justify-between border-b border-[#d9d2c5] pb-2 text-[12px]">
                   <span>{product.nom}</span>
-                  <span className="font-bold text-[#C1440E]">{product.stock} en stock</span>
+                  <span className="font-bold text-[#C1440E]">{product.stockFermeture} en stock</span>
                 </div>
               ))}
             </div>
@@ -1246,8 +1248,8 @@ function BranchProductsSection({
     const matchesCategory = inventoryCategoryFilter === 'Tout' || product.categorie === inventoryCategoryFilter;
     const matchesStatus =
       inventoryStatusFilter === 'all' ||
-      (inventoryStatusFilter === 'low' && product.stock <= product.seuil) ||
-      (inventoryStatusFilter === 'normal' && product.stock > product.seuil);
+      (inventoryStatusFilter === 'low' && product.stockFermeture <= product.seuil) ||
+      (inventoryStatusFilter === 'normal' && product.stockFermeture > product.seuil);
     const matchesSearch =
       product.nom.toLowerCase().includes(inventorySearch.toLowerCase()) ||
       product.categorie.toLowerCase().includes(inventorySearch.toLowerCase());
@@ -1337,7 +1339,8 @@ function BranchProductsSection({
           <div className="flex flex-wrap items-center gap-3 text-[12px] text-[#16181A]">
             <span className="font-serif text-lg">{selectedHistoryProduct.nom}</span>
             <span className="border-2 border-[#16181A] bg-white px-2 py-1">Vendu: {soldByProductToday[selectedHistoryProduct.id] ?? 0}</span>
-            <span className="border-2 border-[#16181A] bg-white px-2 py-1">Stock: {selectedHistoryProduct.stock}</span>
+            <span className="border-2 border-[#16181A] bg-white px-2 py-1">Stock Ouverture: {selectedHistoryProduct.stockOuverture}</span>
+            <span className="border-2 border-[#16181A] bg-white px-2 py-1">Stock Fermeture: {selectedHistoryProduct.stockFermeture}</span>
             <span className="border-2 border-[#16181A] bg-white px-2 py-1" title="Niveau de stock en dessous duquel une alerte apparaît">Seuil Alerte: {selectedHistoryProduct.seuil}</span>
           </div>
         </div>
@@ -1363,9 +1366,8 @@ function BranchProductsSection({
               {filteredProducts.map((product) => {
                 const soldToday = soldByProductToday[product.id] ?? 0;
                 const restockValue = restockByProduct[product.id] ?? 0;
-                const isLowStock = product.stock <= product.seuil;
-                const isOutOfStock = product.stock <= 0;
-                const stockPercent = product.seuil > 0 ? Math.min(100, (product.stock / product.seuil) * 100) : 0;
+                const isLowStock = product.stockFermeture <= product.seuil;
+                const isOutOfStock = product.stockFermeture <= 0;
                 return (
                   <tr
                     key={product.id}
@@ -1442,13 +1444,34 @@ function BranchProductsSection({
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <div className="hidden sm:block w-24 h-1.5 bg-[#ECE7DC] rounded-full overflow-hidden" title={`Stock: ${product.stock} / Seuil: ${product.seuil}`}>
-                          <div
-                            className="h-full rounded-full transition-all duration-300"
-                            style={{
-                              width: `${Math.min(100, stockPercent)}%`,
-                              backgroundColor: isOutOfStock ? '#C1440E' : isLowStock ? '#F2B705' : '#2F6B4F'
-                            }}
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-[10px] uppercase tracking-[0.1em] text-[#8b929a]">Ouverture</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={product.stockOuverture}
+                            onChange={(event) => onUpdateProduct(product.id, { stockOuverture: Number(event.target.value) || 0 })}
+                            disabled={!isEditing(product.id)}
+                            className={`h-9 w-24 px-2 text-right font-medium tabular-nums text-[#16181A] outline-none transition-all duration-150 ${
+                              isEditing(product.id)
+                                ? 'border-2 border-[#16181A] bg-[#F3F4F6] focus:border-[#16181A] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(22,24,26,0.15)]'
+                                : 'border-2 border-transparent bg-transparent'
+                            }`}
+                          />
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-[10px] uppercase tracking-[0.1em] text-[#8b929a]">Fermeture</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={product.stockFermeture}
+                            onChange={(event) => onUpdateProduct(product.id, { stockFermeture: Number(event.target.value) || 0 })}
+                            disabled={!isEditing(product.id)}
+                            className={`h-9 w-24 px-2 text-right font-medium tabular-nums text-[#16181A] outline-none transition-all duration-150 ${
+                              isEditing(product.id)
+                                ? 'border-2 border-[#16181A] bg-[#F3F4F6] focus:border-[#16181A] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(22,24,26,0.15)]'
+                                : 'border-2 border-transparent bg-transparent'
+                            }`}
                           />
                         </div>
                         <span
@@ -1461,7 +1484,7 @@ function BranchProductsSection({
                               : 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]')
                           }
                         >
-                          {product.stock}
+                          {product.stockFermeture}
                         </span>
                       </div>
                     </td>
@@ -1599,8 +1622,8 @@ function BranchProductsSection({
           {filteredProducts.map((product) => {
             const soldToday = soldByProductToday[product.id] ?? 0;
             const restockValue = restockByProduct[product.id] ?? 0;
-            const isLowStock = product.stock <= product.seuil;
-            const isOutOfStock = product.stock <= 0;
+            const isLowStock = product.stockFermeture <= product.seuil;
+            const isOutOfStock = product.stockFermeture <= 0;
             const editing = isEditing(product.id);
             const saving = isSaving(product.id);
             return (
@@ -1745,7 +1768,22 @@ function BranchProductsSection({
                     />
                   </div>
                   <div className="col-span-2">
-                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Stock</span>
+                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Stock Ouverture</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={product.stockOuverture}
+                      onChange={(event) => onUpdateProduct(product.id, { stockOuverture: Number(event.target.value) || 0 })}
+                      disabled={!editing}
+                      className={`w-full text-right font-medium tabular-nums text-[#16181A] px-1 outline-none transition-all duration-150 ${
+                        editing
+                          ? 'border-2 border-[#16181A] bg-[#F3F4F6] focus:border-[#16181A] focus:bg-[#F3F4F6]'
+                          : 'border-2 border-transparent bg-transparent'
+                      }`}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Stock Fermeture</span>
                     <div className="flex items-center gap-2">
                       <span
                         className={
@@ -1757,7 +1795,7 @@ function BranchProductsSection({
                             : 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]')
                         }
                       >
-                        {product.stock}
+                        {product.stockFermeture}
                       </span>
                       <input
                         type="number"
@@ -1848,7 +1886,7 @@ function BranchReportsSection({
       .flatMap((v) => v.lignes)
       .filter((l) => l.nom === p.nom)
       .reduce((s, l) => s + l.qte, 0);
-    return { nom: p.nom, qte: qteVendue, stock: p.stock };
+    return { nom: p.nom, qte: qteVendue, stock: p.stockFermeture };
   });
 
   const topSellers = [...productPerformance].sort((a, b) => b.qte - a.qte).slice(0, 5);
@@ -2270,8 +2308,8 @@ function VenteView({
 
         <div className="grid flex-1 auto-rows-max grid-cols-2 gap-3 overflow-y-auto p-6 sm:grid-cols-3 xl:grid-cols-4">
           {produits.map((p) => {
-            const stockBas = p.stock <= p.seuil;
-            const epuise = p.stock <= 0;
+            const stockBas = p.stockFermeture <= p.seuil;
+            const epuise = p.stockFermeture <= 0;
             return (
               <button
                 key={p.id}
@@ -2289,7 +2327,7 @@ function VenteView({
                 <div className="mt-2 font-serif text-[17px]">{fmtHTG(p.prix)}</div>
                 <div className="mt-1 flex items-center gap-1 text-[11px]">
                   <span className={stockBas ? 'text-[#C1440E]' : 'text-[#4B5560]'}>
-                    {p.stock} {p.unite}{p.stock !== 1 ? 's' : ''} en stock
+                    {p.stockFermeture} {p.unite}{p.stockFermeture !== 1 ? 's' : ''} en stock
                   </span>
                 </div>
               </button>
@@ -2516,7 +2554,7 @@ function InventaireView({
           </thead>
           <tbody>
             {produits.map((p) => {
-              const stockBas = p.stock <= p.seuil;
+              const stockBas = p.stockFermeture <= p.seuil;
               const enEdition = editStockId === p.id;
               return (
                 <tr key={p.id} className="border-b border-[#c7c2b4]">
@@ -2536,7 +2574,7 @@ function InventaireView({
                     ) : (
                       <span className={stockBas ? 'flex items-center gap-1 text-[#C1440E]' : ''}>
                         {stockBas && <AlertTriangle size={12} />}
-                        {p.stock} {p.unite}{p.stock !== 1 ? 's' : ''}
+                        {p.stockFermeture} {p.unite}{p.stockFermeture !== 1 ? 's' : ''}
                       </span>
                     )}
                   </td>
@@ -2645,7 +2683,7 @@ function DashboardView({
               {produitsStockBas.map((p) => (
                 <div key={p.id} className="flex justify-between text-[13px]">
                   <span>{p.nom}</span>
-                  <span className="text-[#C1440E]">{p.stock} {p.unite}{p.stock !== 1 ? 's' : ''}</span>
+                  <span className="text-[#C1440E]">{p.stockFermeture} {p.unite}{p.stockFermeture !== 1 ? 's' : ''}</span>
                 </div>
               ))}
             </div>
