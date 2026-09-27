@@ -1358,6 +1358,18 @@ function OwnerBoard({
                       placeholder="Rechercher un produit..."
                       className="w-full border-none bg-transparent text-sm text-[#16181A] outline-none placeholder:text-[#4B5560]"
                     />
+                    <select
+                      value={inventoryCategoryFilter}
+                      onChange={(event) => setInventoryCategoryFilter(event.target.value)}
+                      className="border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-[#16181A] outline-none"
+                      aria-label="Filtrer par catégorie"
+                    >
+                      {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <button
                     onClick={handleAddProduct}
@@ -1366,23 +1378,6 @@ function OwnerBoard({
                     <Plus size={14} />
                     Nouveau
                   </button>
-                </div>
-
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
-                    <button
-                      key={category}
-                      onClick={() => setInventoryCategoryFilter(category)}
-                      className={
-                        'border-2 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.16em] ' +
-                        (inventoryCategoryFilter === category
-                          ? 'border-[#16181A] bg-[#16181A] text-white'
-                          : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
-                      }
-                    >
-                      {category}
-                    </button>
-                  ))}
                 </div>
 
                 <div className="mb-4 flex flex-wrap gap-2">
