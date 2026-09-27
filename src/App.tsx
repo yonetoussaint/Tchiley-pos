@@ -505,7 +505,7 @@ export default function GestionMateriaux() {
           setSelectedBranchId(null);
           goToRoute('user');
         }}
-        onOpenBranch={(branchId) => {
+        onOpenBranch={(branchId: string) => {
           setSelectedBranchId(branchId);
           setAppRoute('sellerBoard');
           setOwnerAccess(false);
@@ -891,6 +891,159 @@ function AnalyticsView({
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OwnerBoard({
+  users,
+  setUsers,
+  onBackToBranches,
+  onOpenBranch,
+  branches,
+  ventes,
+  products,
+}: {
+  users: User[];
+  setUsers: Dispatch<SetStateAction<User[]>>;
+  onBackToBranches: () => void;
+  onOpenBranch: (branchId: string) => void;
+  branches: Branch[];
+  ventes: SaleRecord[];
+  products: Product[];
+}) {
+  const updateUser = (userId: string, patch: Partial<User>) => {
+    setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, ...patch } : user)));
+  };
+
+  const salesToday = ventes.filter((vente) => {
+    const auj = new Date();
+    return (
+      vente.date.getDate() === auj.getDate() &&
+      vente.date.getMonth() === auj.getMonth() &&
+      vente.date.getFullYear() === auj.getFullYear()
+    );
+  });
+
+  const stockAlertCount = products.filter((p) => p.stock <= p.seuil).length;
+  const totalRevenue = ventes.reduce((sum, vente) => sum + vente.total, 0);
+
+  return (
+    <div className="min-h-screen bg-[#ECE7DC] px-6 py-8 text-[#16181A]">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="flex flex-col gap-4 border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#16181A] md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Panneau propriétaire</div>
+            <h1 className="mt-2 font-serif text-4xl">Administration centrale</h1>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={onBackToBranches}
+              className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+            >
+              Retour
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#16181A]">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Succursales</div>
+            <div className="mt-2 font-serif text-3xl">{branches.length}</div>
+          </div>
+          <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#C1440E]">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Ventes du jour</div>
+            <div className="mt-2 font-serif text-3xl">{salesToday.length}</div>
+          </div>
+          <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#2F6B4F]">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Revenu total</div>
+            <div className="mt-2 font-serif text-3xl">{fmtHTG(totalRevenue)}</div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-5">
+            <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-serif text-2xl">Succursales actives</h2>
+                <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
+                  {stockAlertCount} alertes
+                </span>
+              </div>
+              <div className="space-y-3">
+                {branches.map((branch) => (
+                  <div key={branch.id} className="flex flex-col gap-3 border-2 border-[#16181A] bg-white p-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="font-serif text-xl">{branch.nom}</div>
+                      <div className="text-[12px] text-[#4B5560]">{branch.ville} • {branch.adresse}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={branch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[10px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-wide text-[#4B5560]'}>
+                        {branch.statut}
+                      </span>
+                      <button
+                        onClick={() => onOpenBranch(branch.id)}
+                        className="border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
+                      >
+                        Ouvrir
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#16181A]">
+              <h2 className="mb-4 font-serif text-2xl">Analytics</h2>
+              <AnalyticsView ventes={ventes} products={products} branches={branches} />
+            </div>
+          </div>
+
+          <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+            <h2 className="mb-4 font-serif text-2xl">Gestion des utilisateurs</h2>
+            <div className="space-y-3">
+              {users.map((user) => (
+                <div key={user.id} className="border-2 border-[#16181A] bg-white p-3">
+                  <div className="mb-3 flex items-center gap-3">
+                    <img src={user.profilePic} alt={user.name} className="h-10 w-10 border-2 border-[#16181A] object-cover" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{user.name}</div>
+                      <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">{user.role === 'owner' ? 'Propriétaire' : 'Vendeur'}</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Nom</label>
+                    <input
+                      value={user.name}
+                      onChange={(event) => updateUser(user.id, { name: event.target.value })}
+                      className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
+                    />
+
+                    <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Mot de passe</label>
+                    <input
+                      type="password"
+                      value={user.password}
+                      onChange={(event) => updateUser(user.id, { password: event.target.value })}
+                      className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
+                    />
+
+                    <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Rôle</label>
+                    <select
+                      value={user.role}
+                      onChange={(event) => updateUser(user.id, { role: event.target.value as UserRole })}
+                      className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
+                    >
+                      <option value="owner">Propriétaire</option>
+                      <option value="seller">Vendeur</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
