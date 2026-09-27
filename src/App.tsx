@@ -689,15 +689,15 @@ function BranchSelectionView({
           </div>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-5 md:grid-cols-2">
           {branches.map((branch) => (
             <button
               key={branch.id}
               onClick={() => onSelect(branch.id)}
-              className="branch-card group flex h-full flex-col p-5 text-left"
+              className="branch-card group flex h-full flex-col border-2 border-[#16181A] bg-[#FBFAF6] p-5 text-left shadow-[8px_8px_0_#16181A] transition-all duration-200 hover:-translate-y-1 hover:shadow-[10px_10px_0_#C1440E]"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="font-serif text-xl leading-tight text-[#16181A]">{branch.nom}</div>
+                <div className="font-serif text-2xl leading-tight text-[#16181A]">{branch.nom}</div>
                 <span
                   className={
                     'branch-badge border-2 px-2 py-0.5 text-[10px] uppercase tracking-wide ' +
@@ -710,24 +710,25 @@ function BranchSelectionView({
                 </span>
               </div>
 
-              <div className="mt-4 space-y-1 text-[13px] text-[#4B5560]">
+              <div className="mt-4 space-y-1 border-l-2 border-[#16181A] pl-3 text-[13px] text-[#4B5560]">
                 <div className="font-medium text-[#16181A]">{branch.ville}</div>
                 <div>{branch.adresse}</div>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-2 text-[12px]">
-                <div className="branch-metric border-2 border-[#16181A] bg-[#ECE7DC] p-2">
+                <div className="branch-metric border-2 border-[#16181A] bg-[#ECE7DC] p-3">
                   <div className="text-[#4B5560]">Ventes</div>
-                  <div className="mt-1 font-serif text-lg">{branch.ventesDuJour}</div>
+                  <div className="mt-1 font-serif text-2xl">{branch.ventesDuJour}</div>
                 </div>
-                <div className="branch-metric border-2 border-[#16181A] bg-[#ECE7DC] p-2">
+                <div className="branch-metric border-2 border-[#16181A] bg-[#ECE7DC] p-3">
                   <div className="text-[#4B5560]">Alertes</div>
-                  <div className="mt-1 font-serif text-lg">{branch.alertesStock}</div>
+                  <div className="mt-1 font-serif text-2xl">{branch.alertesStock}</div>
                 </div>
               </div>
 
-              <div className="mt-5 text-[12px] uppercase tracking-wide text-[#4B5560]">
-                Gestionnaire: {branch.gestionnaire}
+              <div className="mt-5 flex items-center justify-between text-[12px] uppercase tracking-wide text-[#4B5560]">
+                <span>Gestionnaire</span>
+                <span className="font-medium text-[#16181A]">{branch.gestionnaire}</span>
               </div>
 
               <div className="mt-5 flex items-center justify-between border-t-2 border-[#16181A] pt-3 text-[13px] font-medium">
