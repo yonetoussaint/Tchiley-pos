@@ -1187,21 +1187,39 @@ function OwnerBoard({
 
             {activeSection === 'inventory' && (
               <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
-                <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="mb-4 flex items-center justify-between">
                   <h2 className="font-serif text-2xl">Inventaire global</h2>
-                  <div className="flex items-center gap-3">
-                    <label className="text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">Succursale</label>
-                    <select
-                      value={inventoryBranchFilter}
-                      onChange={(event) => setInventoryBranchFilter(event.target.value)}
-                      className="border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+                  <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
+                    {products.length} produits
+                  </span>
+                </div>
+
+                <div className="mb-4 flex flex-wrap gap-2 border-b-2 border-[#16181A] pb-3">
+                  <button
+                    onClick={() => setInventoryBranchFilter('all')}
+                    className={
+                      'border-2 px-3 py-2 text-[11px] uppercase tracking-[0.18em] ' +
+                      (inventoryBranchFilter === 'all'
+                        ? 'border-[#16181A] bg-[#16181A] text-white'
+                        : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
+                    }
+                  >
+                    Toutes
+                  </button>
+                  {branches.map((branch) => (
+                    <button
+                      key={branch.id}
+                      onClick={() => setInventoryBranchFilter(branch.id)}
+                      className={
+                        'border-2 px-3 py-2 text-[11px] uppercase tracking-[0.18em] ' +
+                        (inventoryBranchFilter === branch.id
+                          ? 'border-[#16181A] bg-[#16181A] text-white'
+                          : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
+                      }
                     >
-                      <option value="all">Toutes</option>
-                      {branches.map((branch) => (
-                        <option key={branch.id} value={branch.id}>{branch.nom}</option>
-                      ))}
-                    </select>
-                  </div>
+                      {branch.nom.split(' ').slice(-1)[0]}
+                    </button>
+                  ))}
                 </div>
 
                 <div className="overflow-x-auto">
@@ -1220,8 +1238,7 @@ function OwnerBoard({
                       {products
                         .filter((product) => inventoryBranchFilter === 'all' || product.id.startsWith(inventoryBranchFilter.slice(0, 2)) || product.id.includes(inventoryBranchFilter))
                         .map((product) => {
-                          const branchName = branches.find((branch) => branch.id === selectedBranchId)?.nom ?? 'Tous';
-                          const displayBranch = inventoryBranchFilter === 'all' ? branchName : branches.find((branch) => branch.id === inventoryBranchFilter)?.nom ?? 'Succursale';
+                          const displayBranch = inventoryBranchFilter === 'all' ? 'Toutes' : branches.find((branch) => branch.id === inventoryBranchFilter)?.nom ?? 'Succursale';
                           return (
                             <tr key={product.id} className="border-b border-[#d9d2c5] text-[13px]">
                               <td className="px-3 py-3 font-medium">{product.nom}</td>
