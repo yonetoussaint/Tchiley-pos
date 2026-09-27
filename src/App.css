@@ -55,6 +55,17 @@ svg {
   color: #16181a;
 }
 
+.field-value-readonly {
+  justify-content: center;
+  border: 1px solid #d9d2c5;
+  border-radius: 8px;
+  background: #f8f9fb;
+  min-height: 34px;
+  padding: 7px 8px;
+  color: #16181a;
+  font-size: 14px;
+}
+
 .field-input {
   width: 100%;
   min-width: 0;

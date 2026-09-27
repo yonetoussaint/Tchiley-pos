@@ -1352,7 +1352,6 @@ function OwnerBoard({
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Stock</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Seuil</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Réappro.</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Succursale</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1362,7 +1361,6 @@ function OwnerBoard({
                           return matchesSearch;
                         })
                         .map((product) => {
-                          const branchName = branches.find((branch) => branch.id === inventoryBranchFilter)?.nom ?? 'Succursale';
                           const soldToday = soldByProductToday[product.id] ?? 0;
                           const restockValue = restockByProduct[product.id] ?? 0;
                           return (
@@ -1390,7 +1388,7 @@ function OwnerBoard({
                               <td className="px-3 py-3">
                                 <div className="field-shell field-sold">
                                   <span className="field-label">Vendu</span>
-                                  <div className="field-value">{soldToday}</div>
+                                  <div className="field-value field-value-readonly">{soldToday}</div>
                                 </div>
                               </td>
                               <td className="px-3 py-3">
@@ -1465,12 +1463,6 @@ function OwnerBoard({
                                       +
                                     </button>
                                   </div>
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-branch">
-                                  <span className="field-label">Succursale</span>
-                                  <div className="field-value">{branchName}</div>
                                 </div>
                               </td>
                             </tr>
