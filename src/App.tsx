@@ -85,6 +85,7 @@ type User = {
 };
 
 type VenteViewProps = {
+  isReadOnly?: boolean;
   categorie: string;
   setCategorie: Dispatch<SetStateAction<string>>;
   recherche: string;
@@ -257,6 +258,7 @@ export default function GestionMateriaux() {
   const [ownerPasswordInput, setOwnerPasswordInput] = useState<string>('');
   const [ownerPasswordError, setOwnerPasswordError] = useState<string>('');
   const [ownerModalOpen, setOwnerModalOpen] = useState<boolean>(false);
+  const [isReadOnly, setIsReadOnly] = useState<boolean>(false);
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -431,9 +433,11 @@ export default function GestionMateriaux() {
     if (ownerAccess) {
       setSelectedBranchId(branchId);
       setAppRoute('sellerBoard');
+      setIsReadOnly(true);
       return;
     }
 
+    setIsReadOnly(false);
     setPendingBranchId(branchId);
     setBranchPasswordInput('');
     setBranchPasswordError('');
@@ -501,6 +505,7 @@ export default function GestionMateriaux() {
           setOwnerAccess(false);
           setOwnerPasswordInput('');
           setOwnerPasswordError('');
+          setIsReadOnly(true);
         }}
         branches={SUCURSALES}
       />
@@ -624,6 +629,7 @@ export default function GestionMateriaux() {
 
         {view === 'vente' && (
           <VenteView
+            isReadOnly={isReadOnly}
             categorie={categorie}
             setCategorie={setCategorie}
             recherche={recherche}
@@ -641,6 +647,7 @@ export default function GestionMateriaux() {
 
         {view === 'inventaire' && (
           <InventaireView
+            isReadOnly={isReadOnly}
             produits={inventaireFiltre}
             recherche={invRecherche}
             setRecherche={setInvRecherche}
@@ -1313,6 +1320,7 @@ function BranchSelectionView({
 }
 
 function VenteView({
+  isReadOnly,
   categorie,
   setCategorie,
   recherche,
@@ -1368,11 +1376,11 @@ function VenteView({
             return (
               <button
                 key={p.id}
-                disabled={epuise}
+                disabled={epuise || isReadOnly}
                 onClick={() => ajouterAuPanier(p)}
                 className={
                   'flex flex-col items-start border-2 border-[#16181A] bg-[#FBFAF6] p-3 text-left transition-colors ' +
-                  (epuise
+                  (epuise || isReadOnly
                     ? 'cursor-not-allowed opacity-40'
                     : 'hover:border-[#C1440E] hover:bg-white active:bg-[#ECE7DC]')
                 }
@@ -1419,17 +1427,17 @@ function VenteView({
               <div key={l.id} className="mb-3 border-2 border-[#16181A] bg-white p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="text-[13px] font-medium leading-snug">{l.produit.nom}</div>
-                  <button onClick={() => retirerDuPanier(l.id)} className="shrink-0 text-[#4B5560] hover:text-[#C1440E]">
+                  <button onClick={() => retirerDuPanier(l.id)} disabled={isReadOnly} className="shrink-0 text-[#4B5560] hover:text-[#C1440E] disabled:opacity-50">
                     <Trash2 size={14} />
                   </button>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <div className="flex items-center border-2 border-[#16181A]">
-                    <button onClick={() => changerQte(l.id, -1)} className="px-2 py-1 hover:bg-[#ECE7DC]">
+                    <button onClick={() => changerQte(l.id, -1)} disabled={isReadOnly} className="px-2 py-1 hover:bg-[#ECE7DC] disabled:opacity-50">
                       <Minus size={13} />
                     </button>
                     <span className="min-w-[2rem] px-1 text-center text-[13px]">{l.qte}</span>
-                    <button onClick={() => changerQte(l.id, 1)} className="px-2 py-1 hover:bg-[#ECE7DC]">
+                    <button onClick={() => changerQte(l.id, 1)} disabled={isReadOnly} className="px-2 py-1 hover:bg-[#ECE7DC] disabled:opacity-50">
                       <Plus size={13} />
                     </button>
                   </div>
@@ -1446,17 +1454,17 @@ function VenteView({
             <span className="font-serif text-2xl">{fmtHTG(totalPanier)}</span>
           </div>
           <button
-            disabled={lignesPanier.length === 0}
+            disabled={lignesPanier.length === 0 || isReadOnly}
             onClick={ouvrirCheckout}
             className={
               'mt-3 flex w-full items-center justify-center gap-2 border-2 border-[#16181A] py-3 text-[14px] font-medium ' +
-              (lignesPanier.length === 0
+              (lignesPanier.length === 0 || isReadOnly
                 ? 'cursor-not-allowed bg-[#d8d3c6] text-[#8b8f87]'
                 : 'bg-[#C1440E] text-white hover:bg-[#a83a0c]')
             }
           >
-            Encaisser
-            <ChevronRight size={16} />
+            {isReadOnly ? 'Mode lecture seule' : 'Encaisser'}
+            {!isReadOnly && <ChevronRight size={16} />}
           </button>
         </div>
       </aside>
@@ -1567,6 +1575,7 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente }: Ch
 }
 
 function InventaireView({
+  isReadOnly,
   produits,
   recherche,
   setRecherche,
@@ -1639,7 +1648,7 @@ function InventaireView({
                         <Check size={16} />
                       </button>
                     ) : (
-                      <button onClick={() => commencerEditStock(p)} className="text-[#4B5560] hover:text-[#C1440E]">
+                      <button onClick={() => isReadOnly ? null : commencerEditStock(p)} className="text-[#4B5560] hover:text-[#C1440E] disabled:opacity-50" disabled={isReadOnly}>
                         <Pencil size={14} />
                       </button>
                     )}
