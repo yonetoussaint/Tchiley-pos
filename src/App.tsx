@@ -502,6 +502,7 @@ export default function GestionMateriaux() {
       <OwnerBoard
         users={users}
         setUsers={setUsers}
+        setProducts={setProducts}
         onBackToBranches={() => {
           setOwnerAccess(false);
           setSelectedBranchId(null);
@@ -906,6 +907,7 @@ function AnalyticsView({
 function OwnerBoard({
   users,
   setUsers,
+  setProducts,
   onBackToBranches,
   onOpenBranch,
   branches,
@@ -915,6 +917,7 @@ function OwnerBoard({
 }: {
   users: User[];
   setUsers: Dispatch<SetStateAction<User[]>>;
+  setProducts: Dispatch<SetStateAction<Product[]>>;
   onBackToBranches: () => void;
   onOpenBranch: (branchId: string) => void;
   branches: Branch[];
