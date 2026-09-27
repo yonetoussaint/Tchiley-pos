@@ -1031,12 +1031,32 @@ function OwnerBoard({
             </div>
           </div>
 
-          <button
-            onClick={() => onOpenBranch(activeBranch.id)}
-            className="shrink-0 border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
-          >
-            Ouvrir la caisse
-          </button>
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <button
+              onClick={() => shiftSelectedDate(-1)}
+              className="flex h-8 w-8 items-center justify-center border-2 border-[#16181A] bg-white text-sm hover:bg-[#ECE7DC]"
+              aria-label="Jour précédent"
+            >
+              ‹
+            </button>
+            <div
+              className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1.5 text-[11px] uppercase tracking-wide whitespace-nowrap"
+              title={selectedDate.toLocaleDateString('fr-HT', { day: '2-digit', month: 'long', year: 'numeric' })}
+            >
+              {selectedDate.toLocaleDateString('fr-HT', { day: '2-digit', month: 'short' })}
+            </div>
+            <button
+              onClick={() => shiftSelectedDate(1)}
+              disabled={isCurrentDateSelected}
+              className={
+                'flex h-8 w-8 items-center justify-center border-2 border-[#16181A] text-sm ' +
+                (isCurrentDateSelected ? 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]' : 'bg-white hover:bg-[#ECE7DC]')
+              }
+              aria-label="Jour suivant"
+            >
+              ›
+            </button>
+          </div>
         </div>
 
         <div className="flex items-start gap-4">
@@ -1092,9 +1112,6 @@ function OwnerBoard({
                 setInventoryCategoryFilter={setInventoryCategoryFilter}
                 inventoryStatusFilter={inventoryStatusFilter}
                 setInventoryStatusFilter={setInventoryStatusFilter}
-                selectedDate={selectedDate}
-                shiftSelectedDate={shiftSelectedDate}
-                isCurrentDateSelected={isCurrentDateSelected}
                 soldByProductToday={soldByProductToday}
                 restockByProduct={restockByProduct}
                 setRestockByProduct={setRestockByProduct}
@@ -1210,9 +1227,6 @@ function BranchProductsSection({
   setInventoryCategoryFilter,
   inventoryStatusFilter,
   setInventoryStatusFilter,
-  selectedDate,
-  shiftSelectedDate,
-  isCurrentDateSelected,
   soldByProductToday,
   restockByProduct,
   setRestockByProduct,
@@ -1230,9 +1244,6 @@ function BranchProductsSection({
   setInventoryCategoryFilter: Dispatch<SetStateAction<string>>;
   inventoryStatusFilter: 'all' | 'low' | 'normal';
   setInventoryStatusFilter: Dispatch<SetStateAction<'all' | 'low' | 'normal'>>;
-  selectedDate: Date;
-  shiftSelectedDate: (offset: number) => void;
-  isCurrentDateSelected: boolean;
   soldByProductToday: Record<string, number>;
   restockByProduct: Record<string, number>;
   setRestockByProduct: Dispatch<SetStateAction<Record<string, number>>>;
@@ -1262,28 +1273,6 @@ function BranchProductsSection({
         <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
           {branchProducts.length} produits
         </span>
-      </div>
-
-      <div className="mb-4 flex items-center justify-between gap-2 border-b-2 border-[#16181A] pb-3">
-        <button
-          onClick={() => shiftSelectedDate(-1)}
-          className="border-2 border-[#16181A] bg-white px-2 py-2 text-[10px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
-        >
-          Préc.
-        </button>
-        <div className="flex-1 border-2 border-[#16181A] bg-[#ECE7DC] px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em]">
-          {selectedDate.toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
-        </div>
-        <button
-          onClick={() => shiftSelectedDate(1)}
-          disabled={isCurrentDateSelected}
-          className={
-            'border-2 border-[#16181A] px-2 py-2 text-[10px] uppercase tracking-[0.18em] ' +
-            (isCurrentDateSelected ? 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]' : 'bg-white hover:bg-[#ECE7DC]')
-          }
-        >
-          Suiv.
-        </button>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
