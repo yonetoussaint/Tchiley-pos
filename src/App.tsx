@@ -1371,29 +1371,31 @@ function BranchProductsSection({
               const soldToday = soldByProductToday[product.id] ?? 0;
               const restockValue = restockByProduct[product.id] ?? 0;
               return (
-                <tr key={product.id} className="border-b border-[#d9d2c5] align-top text-[13px]">
+                <tr key={product.id} className="border-b-2 border-[#16181A] align-top text-[13px] odd:bg-white even:bg-[#FBFAF6]">
                   <td className="px-3 py-3 font-medium">
                     <input
                       value={product.nom}
                       onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
-                      className="w-full border-2 border-transparent bg-transparent px-1 py-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                      className="w-full border-2 border-[#c7c2b4] bg-white px-1 py-1 outline-none focus:border-[#C1440E]"
                     />
                   </td>
                   <td className="px-3 py-3">
                     <input
                       value={product.categorie}
                       onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
-                      className="w-full border-2 border-transparent bg-transparent px-1 py-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                      className="w-full border-2 border-[#c7c2b4] bg-white px-1 py-1 outline-none focus:border-[#C1440E]"
                     />
                   </td>
-                  <td className="px-3 py-3 text-[#4B5560]">{soldToday}</td>
+                  <td className="px-3 py-3">
+                    <span className="inline-block border-2 border-[#8b929a] bg-[#F3F4F6] px-2 py-1 text-[#4B5560]">{soldToday}</span>
+                  </td>
                   <td className="px-3 py-3">
                     <input
                       type="number"
                       min="0"
                       value={product.prix}
                       onChange={(event) => onUpdateProduct(product.id, { prix: Number(event.target.value) || 0 })}
-                      className="w-20 border-2 border-transparent bg-transparent px-1 py-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                      className="w-20 border-2 border-[#2F6B4F] bg-[#E9F5EF] px-1 py-1 font-medium text-[#2F6B4F] outline-none focus:border-[#C1440E] focus:text-[#16181A]"
                     />
                   </td>
                   <td className="px-3 py-3">
@@ -1402,11 +1404,20 @@ function BranchProductsSection({
                       min="0"
                       value={product.prixAchat}
                       onChange={(event) => onUpdateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
-                      className="w-20 border-2 border-transparent bg-transparent px-1 py-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                      className="w-20 border-2 border-[#4B5560] bg-[#F3F4F6] px-1 py-1 font-medium text-[#4B5560] outline-none focus:border-[#C1440E] focus:text-[#16181A]"
                     />
                   </td>
                   <td className="px-3 py-3">
-                    <span className={product.stock <= product.seuil ? 'font-bold text-[#C1440E]' : ''}>{product.stock}</span>
+                    <span
+                      className={
+                        'inline-block border-2 px-2 py-1 font-medium ' +
+                        (product.stock <= product.seuil
+                          ? 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E]'
+                          : 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]')
+                      }
+                    >
+                      {product.stock}
+                    </span>
                   </td>
                   <td className="px-3 py-3">
                     <input
@@ -1414,7 +1425,7 @@ function BranchProductsSection({
                       min="0"
                       value={product.seuil}
                       onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
-                      className="w-16 border-2 border-transparent bg-transparent px-1 py-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                      className="w-16 border-2 border-[#F2B705] bg-[#FDF6DC] px-1 py-1 font-medium text-[#8a6d00] outline-none focus:border-[#C1440E] focus:text-[#16181A]"
                     />
                   </td>
                   <td className="px-3 py-3">
@@ -1428,7 +1439,7 @@ function BranchProductsSection({
                         onChange={(event) =>
                           setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
                         }
-                        className="w-16 border-2 border-[#16181A] bg-white px-1 py-1 outline-none focus:border-[#C1440E]"
+                        className="w-16 border-2 border-[#2F6B4F] bg-[#E9F5EF] px-1 py-1 font-medium text-[#2F6B4F] outline-none focus:border-[#C1440E] focus:text-[#16181A]"
                       />
                       <button
                         onClick={() => onRestockProduct(product)}
