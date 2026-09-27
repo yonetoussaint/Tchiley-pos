@@ -61,6 +61,18 @@ type SaleRecord = {
 
 type View = 'vente' | 'inventaire' | 'historique' | 'dashboard';
 
+type Branch = {
+  id: string;
+  nom: string;
+  ville: string;
+  adresse: string;
+  gestionnaire: string;
+  statut: 'Ouvert' | 'Fermé';
+  ventesDuJour: number;
+  alertesStock: number;
+  motDePasse: string;
+};
+
 type VenteViewProps = {
   categorie: string;
   setCategorie: Dispatch<SetStateAction<string>>;
@@ -147,8 +159,59 @@ const NAV_ITEMS: Array<{ id: View; label: string; icon: typeof ShoppingCart }> =
   { id: 'dashboard', label: 'Tableau de Bord', icon: Gauge },
 ];
 
+const SUCURSALES: Branch[] = [
+  {
+    id: 'port-au-prince',
+    nom: 'Sucursal Port-au-Prince',
+    ville: 'Port-au-Prince',
+    adresse: 'Rue de l’Industrie, Centre Ville',
+    gestionnaire: 'Jean-Pierre D.',
+    statut: 'Ouvert',
+    ventesDuJour: 18,
+    alertesStock: 4,
+    motDePasse: 'pap2026',
+  },
+  {
+    id: 'cap-haitien',
+    nom: 'Sucursal Cap-Haïtien',
+    ville: 'Cap-Haïtien',
+    adresse: 'Avenue des Moulins, Quartier 2',
+    gestionnaire: 'Marie L.',
+    statut: 'Ouvert',
+    ventesDuJour: 12,
+    alertesStock: 2,
+    motDePasse: 'cap2026',
+  },
+  {
+    id: 'delmas',
+    nom: 'Sucursal Delmas',
+    ville: 'Delmas',
+    adresse: 'Boulevard de la Paix, Zone 5',
+    gestionnaire: 'Samuel R.',
+    statut: 'Ouvert',
+    ventesDuJour: 21,
+    alertesStock: 6,
+    motDePasse: 'delmas2026',
+  },
+  {
+    id: 'gonaives',
+    nom: 'Sucursal Gonaïves',
+    ville: 'Gonaïves',
+    adresse: 'Rue du Commerce, Centre',
+    gestionnaire: 'Lucien M.',
+    statut: 'Fermé',
+    ventesDuJour: 0,
+    alertesStock: 1,
+    motDePasse: 'gonaives2026',
+  },
+];
+
 export default function GestionMateriaux() {
   const [view, setView] = useState<View>('vente');
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const [pendingBranchId, setPendingBranchId] = useState<string | null>(null);
+  const [branchPasswordInput, setBranchPasswordInput] = useState<string>('');
+  const [branchPasswordError, setBranchPasswordError] = useState<string>('');
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [categorie, setCategorie] = useState<string>('Tout');
@@ -182,6 +245,8 @@ export default function GestionMateriaux() {
     () => products.filter((p) => p.stock <= p.seuil),
     [products]
   );
+
+  const brancheActuelle = SUCURSALES.find((s) => s.id === selectedBranchId) ?? SUCURSALES[0];
 
   function ajouterAuPanier(produit: Product) {
     if (produit.stock <= 0) return;
@@ -284,6 +349,53 @@ export default function GestionMateriaux() {
       .slice(0, 5);
   }, [ventes]);
 
+  const brancheEnAttente = SUCURSALES.find((branch) => branch.id === pendingBranchId) ?? null;
+
+  const ouvrirSuccursale = (branchId: string) => {
+    const branche = SUCURSALES.find((item) => item.id === branchId);
+    if (!branche) return;
+
+    setPendingBranchId(branchId);
+    setBranchPasswordInput('');
+    setBranchPasswordError('');
+  };
+
+  const validerAccesSuccursale = () => {
+    if (!brancheEnAttente) return;
+
+    if (brancheEnAttente.motDePasse === branchPasswordInput.trim()) {
+      setSelectedBranchId(brancheEnAttente.id);
+      setPendingBranchId(null);
+      setBranchPasswordInput('');
+      setBranchPasswordError('');
+      return;
+    }
+
+    setBranchPasswordError('Mot de passe incorrect. Veuillez réessayer.');
+  };
+
+  if (!selectedBranchId) {
+    return (
+      <>
+        <BranchSelectionView branches={SUCURSALES} onSelect={ouvrirSuccursale} />
+        {brancheEnAttente && (
+          <BranchAccessModal
+            branch={brancheEnAttente}
+            passwordValue={branchPasswordInput}
+            setPasswordValue={setBranchPasswordInput}
+            errorMessage={branchPasswordError}
+            onClose={() => {
+              setPendingBranchId(null);
+              setBranchPasswordInput('');
+              setBranchPasswordError('');
+            }}
+            onConfirm={validerAccesSuccursale}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="flex h-screen w-full bg-[#ECE7DC] text-[#16181A] font-sans overflow-hidden">
       <aside className="flex w-[220px] shrink-0 flex-col border-r-2 border-[#16181A] bg-[#16181A] text-[#ECE7DC]">
@@ -292,6 +404,12 @@ export default function GestionMateriaux() {
           <div className="mt-1 font-serif text-lg leading-tight text-[#ECE7DC]">
             Matériaux<br />de Construction
           </div>
+          <button
+            onClick={() => setSelectedBranchId(null)}
+            className="mt-3 w-full border-2 border-[#3a3d40] bg-[#1f2225] px-2 py-1.5 text-left text-[11px] uppercase tracking-wide text-[#ECE7DC] hover:border-[#C1440E]"
+          >
+            ← Changer de succursale
+          </button>
         </div>
 
         <nav className="flex-1 px-2 py-4">
@@ -333,7 +451,17 @@ export default function GestionMateriaux() {
         )}
       </aside>
 
-      <main className="flex flex-1 overflow-hidden">
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex items-center justify-between border-b-2 border-[#16181A] bg-[#FBFAF6] px-6 py-4">
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Succursale active</div>
+            <div className="font-serif text-xl">{brancheActuelle.nom}</div>
+          </div>
+          <div className="rounded-none border-2 border-[#16181A] bg-[#ECE7DC] px-3 py-1.5 text-sm">
+            {brancheActuelle.ville}
+          </div>
+        </header>
+
         {view === 'vente' && (
           <VenteView
             categorie={categorie}
@@ -384,6 +512,150 @@ export default function GestionMateriaux() {
           finaliserVente={finaliserVente}
         />
       )}
+    </div>
+  );
+}
+
+function BranchAccessModal({
+  branch,
+  passwordValue,
+  setPasswordValue,
+  errorMessage,
+  onClose,
+  onConfirm,
+}: {
+  branch: Branch;
+  passwordValue: string;
+  setPasswordValue: Dispatch<SetStateAction<string>>;
+  errorMessage: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md border-2 border-[#16181A] bg-[#FBFAF6]">
+        <div className="flex items-center justify-between border-b-2 border-[#16181A] px-5 py-4">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Accès sécurisé</div>
+            <div className="mt-1 font-serif text-2xl">{branch.nom}</div>
+          </div>
+          <button onClick={onClose} className="text-[#4B5560] hover:text-[#C1440E]" aria-label="Fermer">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="px-5 py-5">
+          <div className="mb-3 text-[13px] text-[#4B5560]">
+            Entrez le mot de passe pour accéder à cette succursale.
+          </div>
+          <label className="mb-1 block text-[12px] uppercase tracking-wide text-[#4B5560]">
+            Mot de passe
+          </label>
+          <input
+            type="password"
+            value={passwordValue}
+            onChange={(e) => setPasswordValue(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
+            placeholder="••••••••"
+            autoFocus
+            className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+          />
+
+          {errorMessage && (
+            <div className="mt-3 border-2 border-[#C1440E] bg-[#FDF1EC] px-3 py-2 text-[12px] text-[#C1440E]">
+              {errorMessage}
+            </div>
+          )}
+
+          <div className="mt-5 flex gap-2">
+            <button
+              onClick={onClose}
+              className="flex-1 border-2 border-[#16181A] bg-white py-2.5 text-[14px] hover:bg-[#ECE7DC]"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 border-2 border-[#16181A] bg-[#C1440E] py-2.5 text-[14px] font-medium text-white hover:bg-[#a83a0c]"
+            >
+              Ouvrir
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BranchSelectionView({
+  branches,
+  onSelect,
+}: {
+  branches: Branch[];
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="min-h-screen bg-[#ECE7DC] px-6 py-8 text-[#16181A]">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 flex items-end justify-between gap-4 border-b-2 border-[#16181A] pb-4">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Plateforme de gestion</div>
+            <h1 className="mt-2 font-serif text-4xl">Choisir une succursale</h1>
+          </div>
+          <div className="border-2 border-[#16181A] bg-[#FBFAF6] px-3 py-2 text-sm">
+            {branches.length} succursales
+          </div>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {branches.map((branch) => (
+            <button
+              key={branch.id}
+              onClick={() => onSelect(branch.id)}
+              className="group flex h-full flex-col border-2 border-[#16181A] bg-[#FBFAF6] p-5 text-left transition-colors hover:border-[#C1440E] hover:bg-white"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="font-serif text-xl">{branch.nom}</div>
+                <span
+                  className={
+                    'border-2 px-2 py-0.5 text-[10px] uppercase tracking-wide ' +
+                    (branch.statut === 'Ouvert'
+                      ? 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]'
+                      : 'border-[#4B5560] bg-[#F3F4F6] text-[#4B5560]')
+                  }
+                >
+                  {branch.statut}
+                </span>
+              </div>
+
+              <div className="mt-4 text-[13px] text-[#4B5560]">
+                <div>{branch.ville}</div>
+                <div className="mt-1">{branch.adresse}</div>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-2 text-[12px]">
+                <div className="border-2 border-[#16181A] bg-[#ECE7DC] p-2">
+                  <div className="text-[#4B5560]">Ventes</div>
+                  <div className="mt-1 font-serif text-lg">{branch.ventesDuJour}</div>
+                </div>
+                <div className="border-2 border-[#16181A] bg-[#ECE7DC] p-2">
+                  <div className="text-[#4B5560]">Alertes</div>
+                  <div className="mt-1 font-serif text-lg">{branch.alertesStock}</div>
+                </div>
+              </div>
+
+              <div className="mt-5 text-[12px] uppercase tracking-wide text-[#4B5560]">
+                Gestionnaire: {branch.gestionnaire}
+              </div>
+
+              <div className="mt-5 flex items-center justify-between border-t-2 border-[#16181A] pt-3 text-[13px] font-medium">
+                <span>Ouvrir</span>
+                <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
