@@ -1088,68 +1088,81 @@ function OwnerBoard({
   const selectedHistoryProduct = products.find((product) => product.id === historyProductId) ?? null;
 
   return (
-    <div className="min-h-screen w-full bg-[#ECE7DC] px-4 py-6 text-[#16181A] md:px-6">
-      <div className="w-full">
-        <div className="mb-4 flex items-center justify-between border-2 border-[#16181A] bg-[#FBFAF6] p-4 shadow-[8px_8px_0_#16181A]">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMenuOpen((prev) => !prev)}
-              className="flex h-11 w-11 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31]"
-              aria-label="Toggle menu"
-            >
-              <Menu size={18} />
-            </button>
+    <>
+      <div className="min-h-screen w-full bg-[#ECE7DC] px-4 py-6 text-[#16181A] md:px-6">
+        <div className="w-full">
+          <div className="mb-4 flex items-center justify-between border-2 border-[#16181A] bg-[#FBFAF6] p-4 shadow-[8px_8px_0_#16181A]">
             <div>
               <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Panneau propriétaire</div>
               <h1 className="mt-1 font-serif text-2xl md:text-4xl">Administration centrale</h1>
             </div>
+
+            <button
+              onClick={onBackToBranches}
+              className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+            >
+              Retour
+            </button>
           </div>
 
-          <button
-            onClick={onBackToBranches}
-            className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
-          >
-            Retour
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-5 lg:flex-row">
-          <aside
-            className={
-              'overflow-hidden border-2 border-[#16181A] bg-[#16181A] text-[#ECE7DC] shadow-[8px_8px_0_#C1440E] transition-all duration-200 ' +
-              (menuOpen ? 'w-full lg:w-64' : 'w-full lg:w-18')
-            }
-          >
-            <div className="border-b-2 border-[#3a3d40] px-4 py-4">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[#8b929a]">Menu</div>
-              {menuOpen && (
-                <div className="mt-2 font-serif text-xl text-[#ECE7DC]">Gestion générale</div>
-              )}
+          <div className="mb-5 border-2 border-[#16181A] bg-[#FBFAF6] shadow-[8px_8px_0_#C1440E]">
+            <div className="flex flex-wrap items-center gap-3 border-b-2 border-[#16181A] p-3">
+              <button
+                onClick={() => setMenuOpen((prev) => !prev)}
+                className="flex h-10 w-10 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31]"
+                aria-label="Toggle menu"
+              >
+                <Menu size={18} />
+              </button>
+              <div className="text-[10px] uppercase tracking-[0.22em] text-[#4B5560]">Succursales</div>
             </div>
 
-            <nav className="space-y-2 p-3">
-              {menuItems.map(({ id, label, icon: Icon }) => {
-                const active = activeSection === id;
-                return (
+            {menuOpen && (
+              <div className="flex flex-wrap gap-2 p-3">
+                {branches.map((branch) => (
                   <button
-                    key={id}
-                    onClick={() => setActiveSection(id)}
+                    key={branch.id}
+                    onClick={() => handleOpenBranch(branch)}
                     className={
-                      'flex w-full items-center gap-3 border-2 px-3 py-2 text-left text-[12px] transition-colors ' +
-                      (active
-                        ? 'border-[#C1440E] bg-[#C1440E] text-white'
-                        : 'border-transparent text-[#c7ccd1] hover:border-[#3a3d40] hover:bg-[#1f2225]')
+                      'border-2 px-3 py-2 text-[11px] uppercase tracking-[0.18em] ' +
+                      (branch.id === selectedBranchId
+                        ? 'border-[#16181A] bg-[#16181A] text-white'
+                        : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
                     }
                   >
-                    <Icon size={17} strokeWidth={2} />
-                    {menuOpen && <span>{label}</span>}
+                    {branch.nom}
                   </button>
-                );
-              })}
-            </nav>
-          </aside>
+                ))}
+              </div>
+            )}
 
-          <main className="flex-1 space-y-5">
+            {menuOpen && (
+              <div className="border-t-2 border-[#16181A] bg-[#ECE7DC] p-3">
+                <div className="flex flex-wrap gap-2">
+                  {menuItems.map(({ id, label, icon: Icon }) => {
+                    const active = activeSection === id;
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => setActiveSection(id)}
+                        className={
+                          'flex items-center gap-2 border-2 px-3 py-2 text-[10px] uppercase tracking-[0.18em] ' +
+                          (active
+                            ? 'border-[#C1440E] bg-[#C1440E] text-white'
+                            : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#F7F3EC]')
+                        }
+                      >
+                        <Icon size={14} />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <main className="space-y-5">
             {activeSection === 'overview' && (
               <>
                 <div className="grid gap-4 md:grid-cols-3">
@@ -1723,7 +1736,7 @@ function OwnerBoard({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
