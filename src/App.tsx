@@ -1010,29 +1010,12 @@ function OwnerBoard({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => shiftSelectedDate(-1)}
-              className="border-2 border-[#16181A] bg-white px-2 py-2 text-[10px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
-            >
-              Préc.
-            </button>
-            <div className="border-2 border-[#16181A] bg-[#ECE7DC] px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em]">
-              {selectedDate.toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </div>
-            <button
-              onClick={() => shiftSelectedDate(1)}
-              className="border-2 border-[#16181A] bg-white px-2 py-2 text-[10px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
-            >
-              Suiv.
-            </button>
-            <button
-              onClick={onBackToBranches}
-              className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
-            >
-              Retour
-            </button>
-          </div>
+          <button
+            onClick={onBackToBranches}
+            className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+          >
+            Retour
+          </button>
         </div>
 
         <div className="flex flex-col gap-5 lg:flex-row">
@@ -1227,21 +1210,41 @@ function OwnerBoard({
                   </span>
                 </div>
 
-                <div className="mb-4 flex flex-wrap gap-2 border-b-2 border-[#16181A] pb-3">
-                  {branches.map((branch) => (
+                <div className="mb-4 flex flex-col gap-3 border-b-2 border-[#16181A] pb-3">
+                  <div className="flex flex-wrap gap-2">
+                    {branches.map((branch) => (
+                      <button
+                        key={branch.id}
+                        onClick={() => setInventoryBranchFilter(branch.id)}
+                        className={
+                          'border-2 px-3 py-2 text-[11px] uppercase tracking-[0.18em] ' +
+                          (inventoryBranchFilter === branch.id
+                            ? 'border-[#16181A] bg-[#16181A] text-white'
+                            : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
+                        }
+                      >
+                        {branch.nom.split(' ').slice(-1)[0]}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
-                      key={branch.id}
-                      onClick={() => setInventoryBranchFilter(branch.id)}
-                      className={
-                        'border-2 px-3 py-2 text-[11px] uppercase tracking-[0.18em] ' +
-                        (inventoryBranchFilter === branch.id
-                          ? 'border-[#16181A] bg-[#16181A] text-white'
-                          : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
-                      }
+                      onClick={() => shiftSelectedDate(-1)}
+                      className="border-2 border-[#16181A] bg-white px-2 py-2 text-[10px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
                     >
-                      {branch.nom.split(' ').slice(-1)[0]}
+                      Préc.
                     </button>
-                  ))}
+                    <div className="border-2 border-[#16181A] bg-[#ECE7DC] px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em]">
+                      {selectedDate.toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </div>
+                    <button
+                      onClick={() => shiftSelectedDate(1)}
+                      className="border-2 border-[#16181A] bg-white px-2 py-2 text-[10px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+                    >
+                      Suiv.
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mb-4 flex items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 shadow-[4px_4px_0_#C1440E]">
