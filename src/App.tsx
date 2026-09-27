@@ -1222,6 +1222,17 @@ function OwnerBoard({
                   ))}
                 </div>
 
+                <div className="mb-4 flex items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 shadow-[4px_4px_0_#C1440E]">
+                  <Search className="h-4 w-4 text-[#4B5560]" />
+                  <input
+                    type="text"
+                    value={invRecherche}
+                    onChange={(event) => setInvRecherche(event.target.value)}
+                    placeholder="Rechercher un produit..."
+                    className="w-full border-none bg-transparent text-sm text-[#16181A] outline-none placeholder:text-[#4B5560]"
+                  />
+                </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[700px] border-2 border-[#16181A] bg-white text-left">
                     <thead className="bg-[#ECE7DC] text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
@@ -1236,7 +1247,11 @@ function OwnerBoard({
                     </thead>
                     <tbody>
                       {products
-                        .filter((product) => inventoryBranchFilter === 'all' || product.id.startsWith(inventoryBranchFilter.slice(0, 2)) || product.id.includes(inventoryBranchFilter))
+                        .filter((product) => {
+                          const matchesBranch = inventoryBranchFilter === 'all' || product.id.startsWith(inventoryBranchFilter.slice(0, 2)) || product.id.includes(inventoryBranchFilter);
+                          const matchesSearch = product.nom.toLowerCase().includes(invRecherche.toLowerCase()) || product.categorie.toLowerCase().includes(invRecherche.toLowerCase());
+                          return matchesBranch && matchesSearch;
+                        })
                         .map((product) => {
                           const displayBranch = inventoryBranchFilter === 'all' ? 'Toutes' : branches.find((branch) => branch.id === inventoryBranchFilter)?.nom ?? 'Succursale';
                           return (
