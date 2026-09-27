@@ -1356,7 +1356,6 @@ function BranchProductsSection({
                 <th className="px-3 py-3 text-right" title="Unités vendues à la date sélectionnée uniquement">Vendu Auj.</th>
                 <th className="px-3 py-3 text-right" title="Prix de vente au client">Prix Vente</th>
                 <th className="px-3 py-3 text-right" title="Prix d'achat / coût pour la succursale">Prix Achat</th>
-                <th className="px-3 py-3 text-right" title="Quantité actuellement en stock">Stock</th>
                 <th className="px-3 py-3 text-right" title="Niveau de stock en dessous duquel une alerte apparaît">Seuil Alerte</th>
                 <th className="px-3 py-3" title="Quantité à ajouter au stock existant">Ajout Stock</th>
                 <th className="px-3 py-3 text-right">Actions</th>
@@ -1474,19 +1473,7 @@ function BranchProductsSection({
                             }`}
                           />
                         </div>
-                        <span
-                          className={
-                            'inline-flex h-9 min-w-[3rem] items-center justify-center border-2 px-2 font-medium tabular-nums ' +
-                            (isOutOfStock
-                              ? 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E]'
-                              : isLowStock
-                              ? 'border-[#F2B705] bg-[#FDF6DC] text-[#8a6d00]'
-                              : 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]')
-                          }
-                        >
-                          {product.stockFermeture}
-                        </span>
-                      </div>
+                        </div>
                     </td>
                     <td className="px-3 py-2.5">
                       <input
