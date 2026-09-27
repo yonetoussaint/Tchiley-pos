@@ -926,6 +926,7 @@ function OwnerBoard({
   const [activeSection, setActiveSection] = useState<'overview' | 'branches' | 'inventory' | 'analytics' | 'users'>('overview');
   const [branchSheetBranch, setBranchSheetBranch] = useState<Branch | null>(null);
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState<string>('all');
+  const [inventorySearch, setInventorySearch] = useState<string>('');
 
   const updateUser = (userId: string, patch: Partial<User>) => {
     setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, ...patch } : user)));
@@ -1226,8 +1227,8 @@ function OwnerBoard({
                   <Search className="h-4 w-4 text-[#4B5560]" />
                   <input
                     type="text"
-                    value={invRecherche}
-                    onChange={(event) => setInvRecherche(event.target.value)}
+                    value={inventorySearch}
+                    onChange={(event) => setInventorySearch(event.target.value)}
                     placeholder="Rechercher un produit..."
                     className="w-full border-none bg-transparent text-sm text-[#16181A] outline-none placeholder:text-[#4B5560]"
                   />
@@ -1249,7 +1250,7 @@ function OwnerBoard({
                       {products
                         .filter((product) => {
                           const matchesBranch = inventoryBranchFilter === 'all' || product.id.startsWith(inventoryBranchFilter.slice(0, 2)) || product.id.includes(inventoryBranchFilter);
-                          const matchesSearch = product.nom.toLowerCase().includes(invRecherche.toLowerCase()) || product.categorie.toLowerCase().includes(invRecherche.toLowerCase());
+                          const matchesSearch = product.nom.toLowerCase().includes(inventorySearch.toLowerCase()) || product.categorie.toLowerCase().includes(inventorySearch.toLowerCase());
                           return matchesBranch && matchesSearch;
                         })
                         .map((product) => {
