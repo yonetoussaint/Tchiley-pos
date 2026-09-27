@@ -108,6 +108,7 @@ type CheckoutModalProps = {
 };
 
 type InventaireViewProps = {
+  isReadOnly?: boolean;
   produits: Product[];
   recherche: string;
   setRecherche: Dispatch<SetStateAction<string>>;
