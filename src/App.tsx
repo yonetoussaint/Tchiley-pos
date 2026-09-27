@@ -1412,38 +1412,38 @@ function BranchProductsSection({
                         }`}
                       />
                     </td>
-                    <td className="px-3 py-2.5 text-right">
+                    <td className="px-3 py-2.5 text-center">
                       <span className="inline-flex h-9 min-w-[3rem] items-center justify-center border-2 border-transparent bg-transparent px-2 tabular-nums text-[#4B5560] font-medium">{soldToday}</span>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center">
                       <input
                         type="number"
                         min="0"
                         value={product.prix}
                         onChange={(event) => onUpdateProduct(product.id, { prix: Number(event.target.value) || 0 })}
                         disabled={!isEditing(product.id)}
-                        className={`h-9 w-24 px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
+                        className={`h-9 w-24 px-2 text-center font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
                           isEditing(product.id)
                             ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF] focus:shadow-[0_0_0_2px_rgba(47,107,79,0.15)]'
                             : 'border-2 border-transparent bg-transparent'
                         }`}
                       />
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center">
                       <input
                         type="number"
                         min="0"
                         value={product.prixAchat}
                         onChange={(event) => onUpdateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
                         disabled={!isEditing(product.id)}
-                        className={`h-9 w-24 px-2 text-right font-medium tabular-nums text-[#4B5560] outline-none transition-all duration-150 ${
+                        className={`h-9 w-24 px-2 text-center font-medium tabular-nums text-[#4B5560] outline-none transition-all duration-150 ${
                           isEditing(product.id)
                             ? 'border-2 border-[#4B5560] bg-[#F3F4F6] focus:border-[#4B5560] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(75,85,96,0.15)]'
                             : 'border-2 border-transparent bg-transparent'
                         }`}
                       />
                     </td>
-                    <td className="px-3 py-2.5 text-right">
+                    <td className="px-3 py-2.5 text-center">
                       <div className="flex items-center justify-end gap-2">
                         <div className="flex flex-col items-end gap-1">
                           <span className="text-[10px] uppercase tracking-[0.1em] text-[#8b929a]">Ouverture</span>
@@ -1477,21 +1477,21 @@ function BranchProductsSection({
                         </div>
                         </div>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center">
                       <input
                         type="number"
                         min="0"
                         value={product.seuil}
                         onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
                         disabled={!isEditing(product.id)}
-                        className={`h-9 w-20 px-2 text-right font-medium tabular-nums text-[#8a6d00] outline-none transition-all duration-150 ${
+                        className={`h-9 w-20 px-2 text-center font-medium tabular-nums text-[#8a6d00] outline-none transition-all duration-150 ${
                           isEditing(product.id)
                             ? 'border-2 border-[#F2B705] bg-[#FDF6DC] focus:border-[#F2B705] focus:bg-[#FDF6DC] focus:shadow-[0_0_0_2px_rgba(242,183,5,0.15)]'
                             : 'border-2 border-transparent bg-transparent'
                         }`}
                       />
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-center">
                       <div className="flex items-center gap-1.5">
                         <input
                           type="number"
@@ -1503,16 +1503,16 @@ function BranchProductsSection({
                             setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
                           }
                           disabled={!isEditing(product.id)}
-                          className={`h-9 w-20 px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
+                          className={`flex-1 h-8 px-2 text-center font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
                             isEditing(product.id)
-                              ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF] focus:shadow-[0_0_0_2px_rgba(47,107,79,0.15)]'
+                              ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF]'
                               : 'border-2 border-transparent bg-transparent'
                           }`}
                         />
                         <button
                           onClick={() => onRestockProduct(product)}
                           disabled={restockValue <= 0 || !isEditing(product.id)}
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center transition-all duration-150 ${
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center transition-all duration-150 ${
                             isEditing(product.id)
                               ? 'border-2 border-[#16181A] bg-[#2F6B4F] text-white hover:bg-[#255a40] hover:scale-105 disabled:opacity-40 disabled:hover:bg-[#2F6B4F] disabled:hover:scale-100'
                               : 'border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A] hover:text-[#16181A] disabled:opacity-40'
@@ -1520,7 +1520,7 @@ function BranchProductsSection({
                           aria-label="Réapprovisionner"
                           title="Ajouter au stock"
                         >
-                          <Plus size={14} />
+                          <Plus size={12} />
                         </button>
                       </div>
                     </td>
@@ -1824,7 +1824,7 @@ function BranchProductsSection({
                         disabled={restockValue <= 0 || !editing}
                         className={`flex h-8 w-8 shrink-0 items-center justify-center transition-all duration-150 ${
                           editing
-                            ? 'border-2 border-[#16181A] bg-[#2F6B4F] text-white hover:bg-[#255a40] disabled:opacity-40'
+                            ? 'border-2 border-[#16181A] bg-[#2F6B4F] text-white hover:bg-[#255a40] hover:scale-105 disabled:opacity-40 disabled:hover:bg-[#2F6B4F] disabled:hover:scale-100'
                             : 'border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A] hover:text-[#16181A] disabled:opacity-40'
                         }`}
                         aria-label="Réapprovisionner"
