@@ -1346,7 +1346,7 @@ function BranchProductsSection({
             <span className="font-serif text-lg">{selectedHistoryProduct.nom}</span>
             <span className="border-2 border-[#16181A] bg-white px-2 py-1">Vendu: {soldByProductToday[selectedHistoryProduct.id] ?? 0}</span>
             <span className="border-2 border-[#16181A] bg-white px-2 py-1">Stock: {selectedHistoryProduct.stock}</span>
-            <span className="border-2 border-[#16181A] bg-white px-2 py-1">Seuil: {selectedHistoryProduct.seuil}</span>
+            <span className="border-2 border-[#16181A] bg-white px-2 py-1" title="Niveau de stock en dessous duquel une alerte apparaît">Seuil Alerte: {selectedHistoryProduct.seuil}</span>
           </div>
         </div>
       )}
@@ -1355,14 +1355,14 @@ function BranchProductsSection({
         <table className="w-full min-w-[900px] border-2 border-[#16181A] bg-white text-left">
           <thead className="bg-[#ECE7DC] text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
             <tr>
-              <th className="border-b-2 border-[#16181A] px-3 py-3">Produit</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3">Catégorie</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3">Vendu</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3">Prix</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3">Coût</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3">Stock</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3">Seuil</th>
-              <th className="border-b-2 border-[#16181A] px-3 py-3">Réappro.</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Produit et catégorie">Produit</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Catégorie du produit">Catégorie</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Unités vendues à la date sélectionnée uniquement">Vendu Auj.</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Prix de vente au client">Prix Vente</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Prix d'achat / coût pour la succursale">Prix Achat</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Quantité actuellement en stock">Stock</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Niveau de stock en dessous duquel une alerte apparaît (n'est pas le stock actuel)">Seuil Alerte</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3" title="Quantité à ajouter au stock existant">Ajout Stock</th>
               <th className="border-b-2 border-[#16181A] px-3 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -1423,6 +1423,8 @@ function BranchProductsSection({
                         type="number"
                         min="0"
                         value={restockValue}
+                        placeholder="+ Qté"
+                        title="Quantité à ajouter au stock actuel"
                         onChange={(event) =>
                           setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
                         }
