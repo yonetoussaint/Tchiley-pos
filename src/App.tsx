@@ -3,7 +3,8 @@ import './App.css';
 import {
   ShoppingCart, Boxes, History, Gauge, AlertTriangle,
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
-  Smartphone, FileClock, PackagePlus, Pencil, Check
+  Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
+  Store, Users
 } from 'lucide-react';
 
 /* =========================================================================
@@ -921,6 +922,9 @@ function OwnerBoard({
   products: Product[];
   selectedBranchId: string | null;
 }) {
+  const [menuOpen, setMenuOpen] = useState(true);
+  const [activeSection, setActiveSection] = useState<'overview' | 'branches' | 'analytics' | 'users'>('overview');
+
   const updateUser = (userId: string, patch: Partial<User>) => {
     setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, ...patch } : user)));
   };
@@ -939,143 +943,203 @@ function OwnerBoard({
   const stockAlertCount = products.filter((p) => p.stock <= p.seuil).length;
   const totalRevenue = ventes.reduce((sum, vente) => sum + vente.total, 0);
 
+  const menuItems = [
+    { id: 'overview', label: 'Vue d’ensemble', icon: Gauge },
+    { id: 'branches', label: 'Succursales', icon: Store },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'users', label: 'Utilisateurs', icon: Users },
+  ] as const;
+
   return (
-    <div className="min-h-screen bg-[#ECE7DC] px-6 py-8 text-[#16181A]">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-col gap-4 border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#16181A] md:flex-row md:items-end md:justify-between">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Panneau propriétaire</div>
-            <h1 className="mt-2 font-serif text-4xl">Administration centrale</h1>
-          </div>
-          <div className="flex gap-2">
+    <div className="min-h-screen bg-[#ECE7DC] px-4 py-6 text-[#16181A] md:px-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-4 flex items-center justify-between border-2 border-[#16181A] bg-[#FBFAF6] p-4 shadow-[8px_8px_0_#16181A]">
+          <div className="flex items-center gap-3">
             <button
-              onClick={onBackToBranches}
-              className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              className="flex h-11 w-11 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31]"
+              aria-label="Toggle menu"
             >
-              Retour
+              <Menu size={18} />
             </button>
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Panneau propriétaire</div>
+              <h1 className="mt-1 font-serif text-2xl md:text-4xl">Administration centrale</h1>
+            </div>
           </div>
+
+          <button
+            onClick={onBackToBranches}
+            className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+          >
+            Retour
+          </button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#16181A]">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Succursales</div>
-            <div className="mt-2 font-serif text-3xl">{branches.length}</div>
-          </div>
-          <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#C1440E]">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Ventes du jour</div>
-            <div className="mt-2 font-serif text-3xl">{salesToday.length}</div>
-          </div>
-          <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#2F6B4F]">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Revenu total</div>
-            <div className="mt-2 font-serif text-3xl">{fmtHTG(totalRevenue)}</div>
-          </div>
-        </div>
-
-        {selectedBranch && (
-          <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
-            <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Succursale ouverte</div>
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="font-serif text-2xl">{selectedBranch.nom}</div>
-                <div className="text-[12px] text-[#4B5560]">{selectedBranch.ville} • {selectedBranch.adresse}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={selectedBranch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[10px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-wide text-[#4B5560]'}>
-                  {selectedBranch.statut}
-                </span>
-                <button
-                  onClick={() => onOpenBranch(selectedBranch.id)}
-                  className="border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
-                >
-                  Revoir la succursale
-                </button>
-              </div>
+        <div className="flex flex-col gap-5 lg:flex-row">
+          <aside
+            className={
+              'overflow-hidden border-2 border-[#16181A] bg-[#16181A] text-[#ECE7DC] shadow-[8px_8px_0_#C1440E] transition-all duration-200 ' +
+              (menuOpen ? 'w-full lg:w-72' : 'w-full lg:w-20')
+            }
+          >
+            <div className="border-b-2 border-[#3a3d40] px-4 py-4">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-[#8b929a]">Menu</div>
+              {menuOpen && (
+                <div className="mt-2 font-serif text-xl text-[#ECE7DC]">Gestion générale</div>
+              )}
             </div>
-          </div>
-        )}
 
-        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="space-y-5">
-            <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-serif text-2xl">Succursales actives</h2>
-                <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
-                  {stockAlertCount} alertes
-                </span>
-              </div>
-              <div className="space-y-3">
-                {branches.map((branch) => (
-                  <div key={branch.id} className="flex flex-col gap-3 border-2 border-[#16181A] bg-white p-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <div className="font-serif text-xl">{branch.nom}</div>
-                      <div className="text-[12px] text-[#4B5560]">{branch.ville} • {branch.adresse}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={branch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[10px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-wide text-[#4B5560]'}>
-                        {branch.statut}
-                      </span>
-                      <button
-                        onClick={() => onOpenBranch(branch.id)}
-                        className="border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
-                      >
-                        Ouvrir
-                      </button>
-                    </div>
+            <nav className="space-y-2 p-3">
+              {menuItems.map(({ id, label, icon: Icon }) => {
+                const active = activeSection === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => setActiveSection(id)}
+                    className={
+                      'flex w-full items-center gap-3 border-2 px-3 py-2.5 text-left text-sm transition-colors ' +
+                      (active
+                        ? 'border-[#C1440E] bg-[#C1440E] text-white'
+                        : 'border-transparent text-[#c7ccd1] hover:border-[#3a3d40] hover:bg-[#1f2225]')
+                    }
+                  >
+                    <Icon size={17} strokeWidth={2} />
+                    {menuOpen && <span>{label}</span>}
+                  </button>
+                );
+              })}
+            </nav>
+          </aside>
+
+          <main className="flex-1 space-y-5">
+            {activeSection === 'overview' && (
+              <>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#16181A]">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Succursales</div>
+                    <div className="mt-2 font-serif text-3xl">{branches.length}</div>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#16181A]">
-              <h2 className="mb-4 font-serif text-2xl">Analytics</h2>
-              <AnalyticsView ventes={ventes} products={products} branches={branches} />
-            </div>
-          </div>
-
-          <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
-            <h2 className="mb-4 font-serif text-2xl">Gestion des utilisateurs</h2>
-            <div className="space-y-3">
-              {users.map((user) => (
-                <div key={user.id} className="border-2 border-[#16181A] bg-white p-3">
-                  <div className="mb-3 flex items-center gap-3">
-                    <img src={user.profilePic} alt={user.name} className="h-10 w-10 border-2 border-[#16181A] object-cover" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{user.name}</div>
-                      <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">{user.role === 'owner' ? 'Propriétaire' : 'Vendeur'}</div>
-                    </div>
+                  <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#C1440E]">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Ventes du jour</div>
+                    <div className="mt-2 font-serif text-3xl">{salesToday.length}</div>
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Nom</label>
-                    <input
-                      value={user.name}
-                      onChange={(event) => updateUser(user.id, { name: event.target.value })}
-                      className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
-                    />
-
-                    <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Mot de passe</label>
-                    <input
-                      type="password"
-                      value={user.password}
-                      onChange={(event) => updateUser(user.id, { password: event.target.value })}
-                      className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
-                    />
-
-                    <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Rôle</label>
-                    <select
-                      value={user.role}
-                      onChange={(event) => updateUser(user.id, { role: event.target.value as UserRole })}
-                      className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
-                    >
-                      <option value="owner">Propriétaire</option>
-                      <option value="seller">Vendeur</option>
-                    </select>
+                  <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#2F6B4F]">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Revenu total</div>
+                    <div className="mt-2 font-serif text-3xl">{fmtHTG(totalRevenue)}</div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+
+                {selectedBranch && (
+                  <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+                    <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Succursale ouverte</div>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <div className="font-serif text-2xl">{selectedBranch.nom}</div>
+                        <div className="text-[12px] text-[#4B5560]">{selectedBranch.ville} • {selectedBranch.adresse}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={selectedBranch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[10px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-wide text-[#4B5560]'}>
+                          {selectedBranch.statut}
+                        </span>
+                        <button
+                          onClick={() => onOpenBranch(selectedBranch.id)}
+                          className="border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
+                        >
+                          Revoir la succursale
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeSection === 'branches' && (
+              <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="font-serif text-2xl">Succursales actives</h2>
+                  <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
+                    {stockAlertCount} alertes
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {branches.map((branch) => (
+                    <div key={branch.id} className="flex flex-col gap-3 border-2 border-[#16181A] bg-white p-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <div className="font-serif text-xl">{branch.nom}</div>
+                        <div className="text-[12px] text-[#4B5560]">{branch.ville} • {branch.adresse}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={branch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[10px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-wide text-[#4B5560]'}>
+                          {branch.statut}
+                        </span>
+                        <button
+                          onClick={() => onOpenBranch(branch.id)}
+                          className="border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
+                        >
+                          Ouvrir
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'analytics' && (
+              <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#16181A]">
+                <h2 className="mb-4 font-serif text-2xl">Analytics</h2>
+                <AnalyticsView ventes={ventes} products={products} branches={branches} />
+              </div>
+            )}
+
+            {activeSection === 'users' && (
+              <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+                <h2 className="mb-4 font-serif text-2xl">Gestion des utilisateurs</h2>
+                <div className="space-y-3">
+                  {users.map((user) => (
+                    <div key={user.id} className="border-2 border-[#16181A] bg-white p-3">
+                      <div className="mb-3 flex items-center gap-3">
+                        <img src={user.profilePic} alt={user.name} className="h-10 w-10 border-2 border-[#16181A] object-cover" />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-medium">{user.name}</div>
+                          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">{user.role === 'owner' ? 'Propriétaire' : 'Vendeur'}</div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Nom</label>
+                        <input
+                          value={user.name}
+                          onChange={(event) => updateUser(user.id, { name: event.target.value })}
+                          className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
+                        />
+
+                        <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Mot de passe</label>
+                        <input
+                          type="password"
+                          value={user.password}
+                          onChange={(event) => updateUser(user.id, { password: event.target.value })}
+                          className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
+                        />
+
+                        <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Rôle</label>
+                        <select
+                          value={user.role}
+                          onChange={(event) => updateUser(user.id, { role: event.target.value as UserRole })}
+                          className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
+                        >
+                          <option value="owner">Propriétaire</option>
+                          <option value="seller">Vendeur</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </main>
         </div>
       </div>
     </div>
