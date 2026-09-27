@@ -595,15 +595,21 @@ function BranchSelectionView({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="min-h-screen bg-[#ECE7DC] px-6 py-8 text-[#16181A]">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex items-end justify-between gap-4 border-b-2 border-[#16181A] pb-4">
+    <div className="branch-page min-h-screen px-6 py-8 text-[#16181A]">
+      <div className="mx-auto max-w-7xl">
+        <div className="branch-hero mb-8 flex flex-col gap-4 border-2 border-[#16181A] bg-[#FBFAF6] p-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Plateforme de gestion</div>
-            <h1 className="mt-2 font-serif text-4xl">Choisir une succursale</h1>
+            <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Plateforme de gestion</div>
+            <h1 className="mt-3 font-serif text-4xl leading-tight md:text-5xl">Choisir une succursale</h1>
+            <p className="mt-2 max-w-2xl text-sm text-[#4B5560]">
+              Sélectionnez le point de vente Tchiley pour ouvrir la caisse, gérer le stock et suivre les ventes.
+            </p>
           </div>
-          <div className="border-2 border-[#16181A] bg-[#FBFAF6] px-3 py-2 text-sm">
-            {branches.length} succursales
+
+          <div className="branch-stat border-2 border-[#16181A] bg-[#16181A] px-4 py-3 text-left text-[#FBFAF6] shadow-[6px_6px_0_#C1440E]">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-[#c7ccd1]">Actifs</div>
+            <div className="mt-1 font-serif text-2xl leading-none">{branches.length}</div>
+            <div className="mt-1 text-[12px] text-[#dfe2e5]">succursales</div>
           </div>
         </div>
 
@@ -612,13 +618,13 @@ function BranchSelectionView({
             <button
               key={branch.id}
               onClick={() => onSelect(branch.id)}
-              className="group flex h-full flex-col border-2 border-[#16181A] bg-[#FBFAF6] p-5 text-left transition-colors hover:border-[#C1440E] hover:bg-white"
+              className="branch-card group flex h-full flex-col p-5 text-left"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="font-serif text-xl">{branch.nom}</div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="font-serif text-xl leading-tight text-[#16181A]">{branch.nom}</div>
                 <span
                   className={
-                    'border-2 px-2 py-0.5 text-[10px] uppercase tracking-wide ' +
+                    'branch-badge border-2 px-2 py-0.5 text-[10px] uppercase tracking-wide ' +
                     (branch.statut === 'Ouvert'
                       ? 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]'
                       : 'border-[#4B5560] bg-[#F3F4F6] text-[#4B5560]')
@@ -628,17 +634,17 @@ function BranchSelectionView({
                 </span>
               </div>
 
-              <div className="mt-4 text-[13px] text-[#4B5560]">
-                <div>{branch.ville}</div>
-                <div className="mt-1">{branch.adresse}</div>
+              <div className="mt-4 space-y-1 text-[13px] text-[#4B5560]">
+                <div className="font-medium text-[#16181A]">{branch.ville}</div>
+                <div>{branch.adresse}</div>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-2 text-[12px]">
-                <div className="border-2 border-[#16181A] bg-[#ECE7DC] p-2">
+                <div className="branch-metric border-2 border-[#16181A] bg-[#ECE7DC] p-2">
                   <div className="text-[#4B5560]">Ventes</div>
                   <div className="mt-1 font-serif text-lg">{branch.ventesDuJour}</div>
                 </div>
-                <div className="border-2 border-[#16181A] bg-[#ECE7DC] p-2">
+                <div className="branch-metric border-2 border-[#16181A] bg-[#ECE7DC] p-2">
                   <div className="text-[#4B5560]">Alertes</div>
                   <div className="mt-1 font-serif text-lg">{branch.alertesStock}</div>
                 </div>
@@ -650,7 +656,7 @@ function BranchSelectionView({
 
               <div className="mt-5 flex items-center justify-between border-t-2 border-[#16181A] pt-3 text-[13px] font-medium">
                 <span>Ouvrir</span>
-                <span className="group-hover:translate-x-1 transition-transform">→</span>
+                <span className="group-hover:translate-x-1 transition-transform duration-200">→</span>
               </div>
             </button>
           ))}
