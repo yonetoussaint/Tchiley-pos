@@ -949,6 +949,21 @@ function OwnerBoard({
   const stockAlertCount = products.filter((p) => p.stock <= p.seuil).length;
   const totalRevenue = ventes.reduce((sum, vente) => sum + vente.total, 0);
 
+  const stockByBranch = branches.map((branch) => {
+    const totalStock = products.reduce((sum, product) => sum + product.stock, 0);
+    const lowStockItems = products.filter((product) => product.stock <= product.seuil).length;
+    const criticalProduct = products
+      .filter((product) => product.stock <= product.seuil)
+      .sort((a, b) => a.stock - b.stock)[0];
+
+    return {
+      ...branch,
+      totalStock,
+      lowStockItems,
+      criticalProduct: criticalProduct ? criticalProduct.nom : 'Aucun',
+    };
+  });
+
   const menuItems = [
     { id: 'overview', label: 'Vue d’ensemble', icon: Gauge },
     { id: 'branches', label: 'Succursales', icon: Store },
@@ -1058,6 +1073,43 @@ function OwnerBoard({
                     </div>
                   </div>
                 )}
+
+                <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#16181A]">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="font-serif text-2xl">Stocks par succursale</h2>
+                    <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
+                      {products.length} articles
+                    </span>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {stockByBranch.map((branch) => (
+                      <div key={branch.id} className="border-2 border-[#16181A] bg-white p-4">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <div className="font-serif text-xl leading-tight">{branch.nom}</div>
+                          <span className={branch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[9px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[9px] uppercase tracking-wide text-[#4B5560]'}>
+                            {branch.statut}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 text-[12px] text-[#4B5560]">
+                          <div className="flex justify-between border-b border-[#d9d2c5] pb-1">
+                            <span>Stock total</span>
+                            <span className="font-bold text-[#16181A]">{branch.totalStock}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-[#d9d2c5] pb-1">
+                            <span>Articles bas</span>
+                            <span className="font-bold text-[#C1440E]">{branch.lowStockItems}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Critique</span>
+                            <span className="font-bold text-[#16181A]">{branch.criticalProduct}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </>
             )}
 
