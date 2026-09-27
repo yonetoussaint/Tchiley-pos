@@ -26,6 +26,101 @@ svg {
   display: block;
 }
 
+.field-shell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 76px;
+  border: 1px solid #d9d2c5;
+  border-radius: 10px;
+  padding: 8px 8px 7px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(22, 24, 26, 0.02);
+}
+
+.field-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #4b5560;
+}
+
+.field-value {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  font-weight: 700;
+  color: #16181a;
+}
+
+.field-input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d9d2c5;
+  border-radius: 8px;
+  background: white;
+  padding: 7px 8px;
+  font-size: 13px;
+  color: #16181a;
+  outline: none;
+}
+
+.field-input:focus {
+  border-color: #c1440e;
+  box-shadow: 0 0 0 2px rgba(193, 68, 14, 0.08);
+}
+
+.field-product { background: #f8f4ea; }
+.field-category { background: #f8f8f7; }
+.field-sold { background: #f4f1ea; }
+.field-price { background: #fff8eb; }
+.field-cost { background: #f3f4f6; }
+.field-stock { background: #f0f9f3; }
+.field-threshold { background: #fff4eb; }
+.field-restock { background: #edf5ff; }
+.field-branch { background: #f4f1ed; }
+
+.field-input-price,
+.field-input-cost,
+.field-input-stock,
+.field-input-threshold,
+.field-input-restock {
+  min-width: 0;
+}
+
+.field-input-low-stock {
+  border-color: #c1440e;
+  background: #fff7f2;
+}
+
+.field-input-stock {
+  border-color: #80b995;
+}
+
+.restock-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.restock-button {
+  border: 2px solid #16181a;
+  background: #2f6b4f;
+  color: white;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.restock-button:hover {
+  background: #255a40;
+}
+
 @media print {
   body * {
     visibility: hidden !important;
