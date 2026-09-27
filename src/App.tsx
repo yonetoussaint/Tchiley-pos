@@ -508,16 +508,6 @@ export default function GestionMateriaux() {
           setSelectedBranchId(null);
           goToRoute('user');
         }}
-        onOpenBranch={(branchId: string) => {
-          // Owner previews the branch's actual point-of-sale, read-only.
-          setSelectedBranchId(branchId);
-          setOwnerAccess(true);
-          setIsReadOnly(true);
-          if (window.location.pathname.toLowerCase() !== '/user') {
-            window.history.pushState({}, '', '/user');
-          }
-          setAppRoute('sellerBoard');
-        }}
         branches={SUCURSALES}
         ventes={ventes}
         products={products}
@@ -813,7 +803,6 @@ function OwnerBoard({
   setUsers,
   setProducts,
   onBackToBranches,
-  onOpenBranch,
   branches,
   ventes,
   products,
@@ -823,7 +812,6 @@ function OwnerBoard({
   setUsers: Dispatch<SetStateAction<User[]>>;
   setProducts: Dispatch<SetStateAction<Product[]>>;
   onBackToBranches: () => void;
-  onOpenBranch: (branchId: string) => void;
   branches: Branch[];
   ventes: SaleRecord[];
   products: Product[];
