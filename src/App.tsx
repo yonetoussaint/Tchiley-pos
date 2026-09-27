@@ -928,6 +928,12 @@ function OwnerBoard({
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState<string>(branches[0]?.id ?? 'gros-morne');
   const [inventorySearch, setInventorySearch] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [branchInventoryIds, setBranchInventoryIds] = useState<Record<string, string[]>>({
+    'gros-morne': ['p01', 'p03', 'p05', 'p08', 'p11'],
+    'saint-marc': ['p02', 'p04', 'p06', 'p09', 'p13'],
+    'majuin': ['p14', 'p16', 'p17', 'p20', 'p21'],
+    'oreste': ['p07', 'p10', 'p12', 'p18', 'p19'],
+  });
 
   const updateUser = (userId: string, patch: Partial<User>) => {
     setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, ...patch } : user)));
@@ -985,14 +991,58 @@ function OwnerBoard({
     { id: 'users', label: 'Utilisateurs', icon: Users },
   ] as const;
 
-  const inventoryProductsByBranch: Record<string, Product[]> = {
-    'gros-morne': INITIAL_PRODUCTS.filter((product) => ['p01', 'p03', 'p05', 'p08', 'p11'].includes(product.id)),
-    'saint-marc': INITIAL_PRODUCTS.filter((product) => ['p02', 'p04', 'p06', 'p09', 'p13'].includes(product.id)),
-    'majuin': INITIAL_PRODUCTS.filter((product) => ['p14', 'p16', 'p17', 'p20', 'p21'].includes(product.id)),
-    'oreste': INITIAL_PRODUCTS.filter((product) => ['p07', 'p10', 'p12', 'p18', 'p19'].includes(product.id)),
+  const updateProduct = (productId: string, patch: Partial<Product>) => {
+    setProducts((prev) => prev.map((product) => (product.id === productId ? { ...product, ...patch } : product)));
   };
 
-  const activeInventoryProducts = inventoryProductsByBranch[inventoryBranchFilter] ?? [];
+  const activeInventoryProducts = useMemo(() => {
+    const productIds = branchInventoryIds[inventoryBranchFilter] ?? [];
+    return productIds
+      .map((productId) => products.find((product) => product.id === productId))
+      .filter((product): product is Product => Boolean(product));
+  }, [branchInventoryIds, inventoryBranchFilter, products]);
+
+  const soldByProductToday = useMemo(() => {
+    const totals: Record<string, number> = {};
+
+    ventes.forEach((vente) => {
+      const sameDay =
+        vente.date.getDate() === selectedDate.getDate() &&
+        vente.date.getMonth() === selectedDate.getMonth() &&
+        vente.date.getFullYear() === selectedDate.getFullYear();
+
+      if (!sameDay) return;
+
+      vente.lignes.forEach((ligne) => {
+        const product = products.find((item) => item.nom.toLowerCase() === ligne.nom.toLowerCase());
+        const key = product?.id ?? ligne.nom.toLowerCase();
+        totals[key] = (totals[key] ?? 0) + ligne.qte;
+      });
+    });
+
+    return totals;
+  }, [products, selectedDate, ventes]);
+
+  const handleAddProduct = () => {
+    const branchName = branches.find((branch) => branch.id === inventoryBranchFilter)?.nom ?? 'Succursale';
+    const createdId = `p${Date.now()}`;
+    const newProduct: Product = {
+      id: createdId,
+      nom: `${branchName} - Nouveau produit`,
+      categorie: 'Autre',
+      prix: 0,
+      prixAchat: 0,
+      stock: 0,
+      seuil: 5,
+      unite: 'unité',
+    };
+
+    setProducts((prev) => [newProduct, ...prev]);
+    setBranchInventoryIds((prev) => ({
+      ...prev,
+      [inventoryBranchFilter]: [createdId, ...(prev[inventoryBranchFilter] ?? [])],
+    }));
+  };
 
   return (
     <div className="min-h-screen bg-[#ECE7DC] px-4 py-6 text-[#16181A] md:px-6">
@@ -1255,23 +1305,33 @@ function OwnerBoard({
                   </div>
                 </div>
 
-                <div className="mb-4 flex items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 shadow-[4px_4px_0_#C1440E]">
-                  <Search className="h-4 w-4 text-[#4B5560]" />
-                  <input
-                    type="text"
-                    value={inventorySearch}
-                    onChange={(event) => setInventorySearch(event.target.value)}
-                    placeholder="Rechercher un produit..."
-                    className="w-full border-none bg-transparent text-sm text-[#16181A] outline-none placeholder:text-[#4B5560]"
-                  />
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="flex flex-1 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 shadow-[4px_4px_0_#C1440E]">
+                    <Search className="h-4 w-4 text-[#4B5560]" />
+                    <input
+                      type="text"
+                      value={inventorySearch}
+                      onChange={(event) => setInventorySearch(event.target.value)}
+                      placeholder="Rechercher un produit..."
+                      className="w-full border-none bg-transparent text-sm text-[#16181A] outline-none placeholder:text-[#4B5560]"
+                    />
+                  </div>
+                  <button
+                    onClick={handleAddProduct}
+                    className="flex items-center gap-2 border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
+                  >
+                    <Plus size={14} />
+                    Nouveau
+                  </button>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[700px] border-2 border-[#16181A] bg-white text-left">
+                  <table className="w-full min-w-[900px] border-2 border-[#16181A] bg-white text-left">
                     <thead className="bg-[#ECE7DC] text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
                       <tr>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Produit</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Catégorie</th>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3">Vendu</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Prix</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Stock</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Seuil</th>
@@ -1286,15 +1346,54 @@ function OwnerBoard({
                         })
                         .map((product) => {
                           const branchName = branches.find((branch) => branch.id === inventoryBranchFilter)?.nom ?? 'Succursale';
+                          const soldToday = soldByProductToday[product.id] ?? 0;
                           return (
                             <tr key={product.id} className="border-b border-[#d9d2c5] text-[13px]">
-                              <td className="px-3 py-3 font-medium">{product.nom}</td>
-                              <td className="px-3 py-3">{product.categorie}</td>
-                              <td className="px-3 py-3">{fmtHTG(product.prix)}</td>
-                              <td className={product.stock <= product.seuil ? 'px-3 py-3 font-bold text-[#C1440E]' : 'px-3 py-3 font-bold text-[#2F6B4F]'}>
-                                {product.stock}
+                              <td className="px-3 py-3 font-medium">
+                                <input
+                                  value={product.nom}
+                                  onChange={(event) => updateProduct(product.id, { nom: event.target.value })}
+                                  className="w-full min-w-[180px] border border-[#d9d2c5] bg-white px-2 py-1 outline-none focus:border-[#C1440E]"
+                                />
                               </td>
-                              <td className="px-3 py-3">{product.seuil}</td>
+                              <td className="px-3 py-3">
+                                <input
+                                  value={product.categorie}
+                                  onChange={(event) => updateProduct(product.id, { categorie: event.target.value })}
+                                  className="w-full min-w-[140px] border border-[#d9d2c5] bg-white px-2 py-1 outline-none focus:border-[#C1440E]"
+                                />
+                              </td>
+                              <td className="px-3 py-3 font-bold text-[#16181A]">{soldToday}</td>
+                              <td className="px-3 py-3">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={product.prix}
+                                  onChange={(event) => updateProduct(product.id, { prix: Number(event.target.value) || 0 })}
+                                  className="w-24 border border-[#d9d2c5] bg-white px-2 py-1 outline-none focus:border-[#C1440E]"
+                                />
+                              </td>
+                              <td className="px-3 py-3">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={product.stock}
+                                  onChange={(event) => updateProduct(product.id, { stock: Number(event.target.value) || 0 })}
+                                  className={
+                                    'w-20 border px-2 py-1 outline-none focus:border-[#C1440E] ' +
+                                    (product.stock <= product.seuil ? 'border-[#C1440E] bg-[#FFF7F2]' : 'border-[#d9d2c5] bg-white')
+                                  }
+                                />
+                              </td>
+                              <td className="px-3 py-3">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={product.seuil}
+                                  onChange={(event) => updateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
+                                  className="w-20 border border-[#d9d2c5] bg-white px-2 py-1 outline-none focus:border-[#C1440E]"
+                                />
+                              </td>
                               <td className="px-3 py-3">{branchName}</td>
                             </tr>
                           );
