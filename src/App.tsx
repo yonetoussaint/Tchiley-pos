@@ -218,6 +218,7 @@ export default function GestionMateriaux() {
   const [recherche, setRecherche] = useState<string>('');
   const [ventes, setVentes] = useState<SaleRecord[]>([]);
   const [checkoutOuvert, setCheckoutOuvert] = useState<boolean>(false);
+  const [lastReceipt, setLastReceipt] = useState<SaleRecord | null>(null);
   const [invRecherche, setInvRecherche] = useState<string>('');
   const [editStockId, setEditStockId] = useState<string | null>(null);
   const [editStockVal, setEditStockVal] = useState<string>('');
@@ -306,8 +307,10 @@ export default function GestionMateriaux() {
         return ligne ? { ...p, stock: p.stock - ligne.qte } : p;
       })
     );
+    setLastReceipt(vente);
     setCart([]);
     setCheckoutOuvert(false);
+    window.setTimeout(() => window.print(), 120);
   }
 
   function commencerEditStock(produit: Product) {
@@ -511,6 +514,79 @@ export default function GestionMateriaux() {
           fermer={() => setCheckoutOuvert(false)}
           finaliserVente={finaliserVente}
         />
+      )}
+
+      {lastReceipt && (
+        <div className="receipt-print fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
+          <div className="w-full max-w-md border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#16181A]">
+            <div className="flex items-center justify-between border-b-2 border-[#16181A] pb-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Reçu</div>
+                <div className="mt-1 font-serif text-2xl">Tchiley</div>
+              </div>
+              <button
+                onClick={() => setLastReceipt(null)}
+                className="print-close text-[#4B5560] hover:text-[#C1440E]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-1 text-[12px] text-[#4B5560]">
+              <div className="flex justify-between">
+                <span>Ticket</span>
+                <span className="font-medium text-[#16181A]">{lastReceipt.id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Date</span>
+                <span>{lastReceipt.date.toLocaleString('fr-HT')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Paiement</span>
+                <span>{PAYMENT_METHODS.find((m) => m.id === lastReceipt.paiement)?.label || lastReceipt.paiement}</span>
+              </div>
+            </div>
+
+            <div className="mt-5 border-t-2 border-b-2 border-[#16181A] py-3">
+              {lastReceipt.lignes.map((ligne, index) => (
+                <div key={`${lastReceipt.id}-${index}`} className="mb-2 flex justify-between gap-3 text-[13px]">
+                  <span>{ligne.qte} × {ligne.nom}</span>
+                  <span>{fmtHTG(ligne.sousTotal)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 space-y-2 text-[13px]">
+              <div className="flex justify-between">
+                <span className="text-[#4B5560]">Total</span>
+                <span className="font-serif text-xl">{fmtHTG(lastReceipt.total)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#4B5560]">Reçu</span>
+                <span>{fmtHTG(lastReceipt.recu)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#4B5560]">Monnaie</span>
+                <span>{fmtHTG(lastReceipt.monnaie)}</span>
+              </div>
+            </div>
+
+            <div className="print-actions mt-5 flex gap-2">
+              <button
+                onClick={() => setLastReceipt(null)}
+                className="flex-1 border-2 border-[#16181A] bg-white py-2.5 text-[14px] hover:bg-[#ECE7DC]"
+              >
+                Fermer
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="flex-1 border-2 border-[#16181A] bg-[#2F6B4F] py-2.5 text-[14px] font-medium text-white hover:bg-[#255a40]"
+              >
+                Imprimer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

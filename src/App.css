@@ -26,3 +26,32 @@ svg {
   display: block;
 }
 
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .receipt-print,
+  .receipt-print * {
+    visibility: visible !important;
+  }
+
+  .receipt-print {
+    position: static !important;
+    background: white !important;
+    display: block !important;
+    inset: auto !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .receipt-print .print-actions,
+  .receipt-print .print-close {
+    display: none !important;
+  }
+
+  @page {
+    margin: 12mm;
+  }
+}
+
