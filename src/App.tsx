@@ -182,7 +182,7 @@ const SUCURSALES: Branch[] = [
     statut: 'Ouvert',
     ventesDuJour: 18,
     alertesStock: 4,
-    motDePasse: 'grosmorne2026',
+    motDePasse: '1234',
   },
   {
     id: 'saint-marc',
@@ -193,7 +193,7 @@ const SUCURSALES: Branch[] = [
     statut: 'Ouvert',
     ventesDuJour: 12,
     alertesStock: 2,
-    motDePasse: 'saintmarc2026',
+    motDePasse: '1234',
   },
   {
     id: 'majuin',
@@ -204,7 +204,7 @@ const SUCURSALES: Branch[] = [
     statut: 'Ouvert',
     ventesDuJour: 9,
     alertesStock: 3,
-    motDePasse: 'majuin2026',
+    motDePasse: '1234',
   },
   {
     id: 'oreste',
@@ -215,11 +215,11 @@ const SUCURSALES: Branch[] = [
     statut: 'Ouvert',
     ventesDuJour: 7,
     alertesStock: 2,
-    motDePasse: 'oreste2026',
+    motDePasse: '1234',
   },
 ];
 
-const OWNER_PASSWORD = 'tchileyowner2026';
+const OWNER_PASSWORD = '1234';
 
 const INITIAL_USERS: User[] = [
   {
@@ -233,7 +233,7 @@ const INITIAL_USERS: User[] = [
   {
     id: 'seller-gros-morne',
     name: 'Jean A.',
-    password: 'grosmorne2026',
+    password: '1234',
     profilePic: 'https://ui-avatars.com/api/?name=Jean+A&background=16181A&color=fff&size=128',
     role: 'seller',
     branchId: 'gros-morne',
@@ -241,7 +241,7 @@ const INITIAL_USERS: User[] = [
   {
     id: 'seller-saint-marc',
     name: 'Michel R.',
-    password: 'saintmarc2026',
+    password: '1234',
     profilePic: 'https://ui-avatars.com/api/?name=Michel+R&background=4B5560&color=fff&size=128',
     role: 'seller',
     branchId: 'saint-marc',
