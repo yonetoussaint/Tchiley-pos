@@ -930,6 +930,8 @@ function OwnerBoard({
   const [branchSheetBranch, setBranchSheetBranch] = useState<Branch | null>(null);
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState<string>(branches[0]?.id ?? 'gros-morne');
   const [inventorySearch, setInventorySearch] = useState<string>('');
+  const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<string>('Tout');
+  const [inventoryStatusFilter, setInventoryStatusFilter] = useState<'all' | 'low' | 'normal'>('all');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [rowActionProductId, setRowActionProductId] = useState<string | null>(null);
   const [historyProductId, setHistoryProductId] = useState<string | null>(null);
@@ -1366,6 +1368,44 @@ function OwnerBoard({
                   </button>
                 </div>
 
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => setInventoryCategoryFilter(category)}
+                      className={
+                        'border-2 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.16em] ' +
+                        (inventoryCategoryFilter === category
+                          ? 'border-[#16181A] bg-[#16181A] text-white'
+                          : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
+                      }
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {[
+                    { id: 'all', label: 'Tous' },
+                    { id: 'low', label: 'En stock bas' },
+                    { id: 'normal', label: 'Normal' },
+                  ].map((status) => (
+                    <button
+                      key={status.id}
+                      onClick={() => setInventoryStatusFilter(status.id as 'all' | 'low' | 'normal')}
+                      className={
+                        'border-2 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.16em] ' +
+                        (inventoryStatusFilter === status.id
+                          ? 'border-[#C1440E] bg-[#C1440E] text-white'
+                          : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
+                      }
+                    >
+                      {status.label}
+                    </button>
+                  ))}
+                </div>
+
                 {selectedHistoryProduct && (
                   <div className="mb-4 border-2 border-[#16181A] bg-[#F0F8FF] p-3">
                     <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Historique produit</div>
@@ -1397,8 +1437,15 @@ function OwnerBoard({
                     <tbody>
                       {activeInventoryProducts
                         .filter((product) => {
-                          const matchesSearch = product.nom.toLowerCase().includes(inventorySearch.toLowerCase()) || product.categorie.toLowerCase().includes(inventorySearch.toLowerCase());
-                          return matchesSearch;
+                          const matchesCategory = inventoryCategoryFilter === 'Tout' || product.categorie === inventoryCategoryFilter;
+                          const matchesStatus =
+                            inventoryStatusFilter === 'all' ||
+                            (inventoryStatusFilter === 'low' && product.stock <= product.seuil) ||
+                            (inventoryStatusFilter === 'normal' && product.stock > product.seuil);
+                          const matchesSearch =
+                            product.nom.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+                            product.categorie.toLowerCase().includes(inventorySearch.toLowerCase());
+                          return matchesCategory && matchesStatus && matchesSearch;
                         })
                         .map((product) => {
                           const soldToday = soldByProductToday[product.id] ?? 0;
