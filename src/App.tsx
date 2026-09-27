@@ -931,6 +931,8 @@ function OwnerBoard({
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState<string>(branches[0]?.id ?? 'gros-morne');
   const [inventorySearch, setInventorySearch] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [rowActionProductId, setRowActionProductId] = useState<string | null>(null);
+  const [historyProductId, setHistoryProductId] = useState<string | null>(null);
   const [restockByProduct, setRestockByProduct] = useState<Record<string, number>>({});
   const [branchInventoryIds, setBranchInventoryIds] = useState<Record<string, string[]>>({
     'gros-morne': ['p01', 'p03', 'p05', 'p08', 'p11'],
@@ -1058,6 +1060,30 @@ function OwnerBoard({
       [product.id]: 0,
     }));
   };
+
+  const handleDeleteProduct = (product: Product) => {
+    setProducts((prev) => prev.filter((item) => item.id !== product.id));
+    setBranchInventoryIds((prev) => ({
+      ...prev,
+      [inventoryBranchFilter]: (prev[inventoryBranchFilter] ?? []).filter((id) => id !== product.id),
+    }));
+    setRestockByProduct((prev) => {
+      const next = { ...prev };
+      delete next[product.id];
+      return next;
+    });
+    setRowActionProductId(null);
+  };
+
+  const handleEditProduct = (productId: string) => {
+    setRowActionProductId((prev) => (prev === productId ? null : productId));
+  };
+
+  const handleViewHistory = (product: Product) => {
+    setHistoryProductId((prev) => (prev === product.id ? null : product.id));
+  };
+
+  const selectedHistoryProduct = products.find((product) => product.id === historyProductId) ?? null;
 
   return (
     <div className="min-h-screen w-full bg-[#ECE7DC] px-4 py-6 text-[#16181A] md:px-6">
@@ -1340,6 +1366,18 @@ function OwnerBoard({
                   </button>
                 </div>
 
+                {selectedHistoryProduct && (
+                  <div className="mb-4 border-2 border-[#16181A] bg-[#F0F8FF] p-3">
+                    <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Historique produit</div>
+                    <div className="flex flex-wrap items-center gap-3 text-[12px] text-[#16181A]">
+                      <span className="font-serif text-lg">{selectedHistoryProduct.nom}</span>
+                      <span className="border-2 border-[#16181A] bg-white px-2 py-1">Vendu: {soldByProductToday[selectedHistoryProduct.id] ?? 0}</span>
+                      <span className="border-2 border-[#16181A] bg-white px-2 py-1">Stock: {selectedHistoryProduct.stock}</span>
+                      <span className="border-2 border-[#16181A] bg-white px-2 py-1">Seuil: {selectedHistoryProduct.seuil}</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[960px] border-2 border-[#16181A] bg-white text-left">
                     <thead className="bg-[#ECE7DC] text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
@@ -1353,6 +1391,7 @@ function OwnerBoard({
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Stock Ferm.</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Seuil</th>
                         <th className="border-b-2 border-[#16181A] px-3 py-3">Réappro.</th>
+                        <th className="border-b-2 border-[#16181A] px-3 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1367,7 +1406,13 @@ function OwnerBoard({
                           const closingStock = product.stock;
                           const restockValue = restockByProduct[product.id] ?? 0;
                           return (
-                            <tr key={product.id} className="border-b border-[#d9d2c5] align-top text-[13px]">
+                            <tr
+                              key={product.id}
+                              className={
+                                'border-b border-[#d9d2c5] align-top text-[13px] ' +
+                                (rowActionProductId === product.id ? 'bg-[#FFF8F2]' : '')
+                              }
+                            >
                               <td className="px-3 py-3 font-medium">
                                 <div className="field-shell field-product">
                                   <span className="field-label">Produit</span>
@@ -1461,6 +1506,33 @@ function OwnerBoard({
                                       className="restock-button"
                                     >
                                       +
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-3 py-3">
+                                <div className="flex flex-col items-end gap-2">
+                                  <button
+                                    onClick={() => handleViewHistory(product)}
+                                    className="flex items-center gap-1 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
+                                  >
+                                    <History size={12} />
+                                    History
+                                  </button>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleEditProduct(product.id)}
+                                      className="flex items-center gap-1 border-2 border-[#16181A] bg-white px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
+                                    >
+                                      <Pencil size={12} />
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteProduct(product)}
+                                      className="flex items-center gap-1 border-2 border-[#C1440E] bg-[#FDF1EC] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#C1440E] hover:bg-[#F8E2D8]"
+                                    >
+                                      <Trash2 size={12} />
+                                      Delete
                                     </button>
                                   </div>
                                 </div>
