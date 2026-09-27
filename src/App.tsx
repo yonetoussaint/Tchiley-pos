@@ -1266,6 +1266,8 @@ function BranchProductsSection({
   const handleCancelClick = () => setEditingId(null);
   const handleSaveClick = async (id: string) => {
     setSavingId(id);
+    const savedProduct = branchProducts.find((item) => item.id === id);
+    if (savedProduct) onRestockProduct(savedProduct);
     await new Promise((resolve) => setTimeout(resolve, 300));
     setSavingId(null);
     setEditingId(null);
@@ -1356,8 +1358,8 @@ function BranchProductsSection({
                 <th className="px-3 py-3 text-center" title="Unités vendues à la date sélectionnée uniquement">Vendu Auj.</th>
                 <th className="px-3 py-3 text-center" title="Prix de vente au client">Prix Vente</th>
                 <th className="px-3 py-3 text-center" title="Prix d'achat / coût pour la succursale">Prix Achat</th>
-                <th className="px-3 py-3 text-center" title="Stock d'ouverture">Ouverture</th>
-                <th className="px-3 py-3 text-center" title="Stock de fermeture">Fermeture</th>
+                <th className="px-3 py-3 text-center" title="Stock d'ouverture">Stock Ouverture</th>
+                <th className="px-3 py-3 text-center" title="Stock de fermeture">Stock Fermeture</th>
                 <th className="px-3 py-3 text-center" title="Niveau de stock en dessous duquel une alerte apparaît">Seuil Alerte</th>
                 <th className="px-3 py-3 text-center" title="Quantité à ajouter au stock existant">Ajout Stock</th>
                 <th className="px-3 py-3 text-center">Actions</th>
@@ -1486,37 +1488,21 @@ function BranchProductsSection({
                       />
                     </td>
                     <td className="px-3 py-2.5 text-center">
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="number"
-                          min="0"
-                          value={restockValue}
-                          placeholder="+ Qté"
-                          title="Quantité à ajouter au stock actuel"
-                          onChange={(event) =>
-                            setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
-                          }
-                          disabled={!isEditing(product.id)}
-                          className={`flex-1 h-8 px-2 text-center font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
-                            isEditing(product.id)
-                              ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF]'
-                              : 'border-2 border-transparent bg-transparent'
-                          }`}
-                        />
-                        <button
-                          onClick={() => onRestockProduct(product)}
-                          disabled={restockValue <= 0 || !isEditing(product.id)}
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center transition-all duration-150 ${
-                            isEditing(product.id)
-                              ? 'border-2 border-[#16181A] bg-[#2F6B4F] text-white hover:bg-[#255a40] hover:scale-105 disabled:opacity-40 disabled:hover:bg-[#2F6B4F] disabled:hover:scale-100'
-                              : 'border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A] hover:text-[#16181A] disabled:opacity-40'
-                          }`}
-                          aria-label="Réapprovisionner"
-                          title="Ajouter au stock"
-                        >
-                          <Plus size={12} />
-                        </button>
-                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={restockValue}
+                        title="Quantité à ajouter au stock actuel (appliquée à l'enregistrement)"
+                        onChange={(event) =>
+                          setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
+                        }
+                        disabled={!isEditing(product.id)}
+                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
+                          isEditing(product.id)
+                            ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF] focus:shadow-[0_0_0_2px_rgba(47,107,79,0.15)]'
+                            : 'border-2 border-transparent bg-transparent'
+                        }`}
+                      />
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -1797,35 +1783,21 @@ function BranchProductsSection({
                   </div>
                   <div className="col-span-2">
                     <span className="uppercase tracking-[0.16em] text-[#4B5560]">Ajout Stock</span>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        min="0"
-                        value={restockValue}
-                        placeholder="+ Qté"
-                        onChange={(event) =>
-                          setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
-                        }
-                        disabled={!editing}
-                        className={`flex-1 h-8 px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
-                          editing
-                            ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF]'
-                            : 'border-2 border-transparent bg-transparent'
-                        }`}
-                      />
-                      <button
-                        onClick={() => onRestockProduct(product)}
-                        disabled={restockValue <= 0 || !editing}
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center transition-all duration-150 ${
-                          editing
-                            ? 'border-2 border-[#16181A] bg-[#2F6B4F] text-white hover:bg-[#255a40] hover:scale-105 disabled:opacity-40 disabled:hover:bg-[#2F6B4F] disabled:hover:scale-100'
-                            : 'border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A] hover:text-[#16181A] disabled:opacity-40'
-                        }`}
-                        aria-label="Réapprovisionner"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      value={restockValue}
+                      placeholder="Qté"
+                      onChange={(event) =>
+                        setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
+                      }
+                      disabled={!editing}
+                      className={`h-8 w-full px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
+                        editing
+                          ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF]'
+                          : 'border-2 border-transparent bg-transparent'
+                      }`}
+                    />
                   </div>
                 </div>
               </div>
