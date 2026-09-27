@@ -1410,7 +1410,7 @@ function OwnerBoard({
                               <tr
                                 key={`${product.id}-main`}
                                 className={
-                                  'border-b border-[#d9d2c5] align-top text-[13px] ' +
+                                  'border-b border-[#d9d2c5] bg-white align-top text-[13px] transition-colors ' +
                                   (rowActionProductId === product.id ? 'bg-[#FFF8F2]' : '')
                                 }
                               >
@@ -1469,7 +1469,7 @@ function OwnerBoard({
                               <tr
                                 key={`${product.id}-detail`}
                                 className={
-                                  'border-b border-[#d9d2c5] bg-[#FDFBF7] align-top text-[13px] ' +
+                                  'border-b border-[#d9d2c5] bg-[#FCFAF7] align-top text-[13px] transition-colors ' +
                                   (rowActionProductId === product.id ? 'bg-[#FFF8F2]' : '')
                                 }
                               >
@@ -1523,30 +1523,28 @@ function OwnerBoard({
                                 <td className="px-3 py-3">
                                   <div className="field-shell field-restock">
                                     <span className="field-label">Actions</span>
-                                    <div className="flex flex-col items-start gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                       <button
                                         onClick={() => handleViewHistory(product)}
-                                        className="flex items-center gap-1 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
+                                        className="flex items-center gap-1 border border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
                                       >
-                                        <History size={12} />
-                                        History
+                                        <History size={11} />
+                                        Hist.
                                       </button>
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          onClick={() => handleEditProduct(product.id)}
-                                          className="flex items-center gap-1 border-2 border-[#16181A] bg-white px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
-                                        >
-                                          <Pencil size={12} />
-                                          Edit
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeleteProduct(product)}
-                                          className="flex items-center gap-1 border-2 border-[#C1440E] bg-[#FDF1EC] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#C1440E] hover:bg-[#F8E2D8]"
-                                        >
-                                          <Trash2 size={12} />
-                                          Delete
-                                        </button>
-                                      </div>
+                                      <button
+                                        onClick={() => handleEditProduct(product.id)}
+                                        className="flex items-center gap-1 border border-[#16181A] bg-white px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
+                                      >
+                                        <Pencil size={11} />
+                                        Edit
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteProduct(product)}
+                                        className="flex items-center gap-1 border border-[#C1440E] bg-[#FDF1EC] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#C1440E] hover:bg-[#F8E2D8]"
+                                      >
+                                        <Trash2 size={11} />
+                                        Del.
+                                      </button>
                                     </div>
                                   </div>
                                 </td>
