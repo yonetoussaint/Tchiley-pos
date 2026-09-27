@@ -4,7 +4,7 @@ import {
   ShoppingCart, Boxes, History, Gauge, AlertTriangle,
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
-  Users
+  Users, Loader2
 } from 'lucide-react';
 
 /* =========================================================================
@@ -1254,6 +1254,21 @@ function BranchProductsSection({
     return matchesCategory && matchesStatus && matchesSearch;
   });
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const isEditing = (id: string) => editingId === id;
+  const isSaving = (id: string) => savingId === id;
+
+  const handleEditClick = (id: string) => setEditingId(id);
+  const handleCancelClick = () => setEditingId(null);
+  const handleSaveClick = async (id: string) => {
+    setSavingId(id);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    setSavingId(null);
+    setEditingId(null);
+  };
+
   return (
     <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
       <div className="mb-5 flex items-center justify-between">
@@ -1467,15 +1482,59 @@ function BranchProductsSection({
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => onViewHistory(product)}
-                          className="flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#4B5560] transition-all duration-150 hover:bg-[#ECE7DC] hover:border-[#16181A] hover:text-[#16181A]"
+                          disabled={isEditing(product.id)}
+                          className={`flex h-9 w-9 items-center justify-center transition-all duration-150 ${
+                            isEditing(product.id)
+                              ? 'border-2 border-transparent bg-transparent text-[#8b929a] cursor-not-allowed'
+                              : 'border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A] hover:text-[#16181A]'
+                          }`}
                           aria-label="Historique"
                           title="Historique"
                         >
                           <History size={14} />
                         </button>
+                        {!isEditing(product.id) ? (
+                          <button
+                            onClick={() => handleEditClick(product.id)}
+                            className="flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#16181A] transition-all duration-150 hover:bg-[#ECE7DC] hover:border-[#16181A]"
+                            aria-label="Modifier"
+                            title="Modifier"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleSaveClick(product.id)}
+                              disabled={isSaving(product.id)}
+                              className={`flex h-9 w-9 items-center justify-center border-2 transition-all duration-150 ${
+                                isSaving(product.id)
+                                  ? 'border-[#2F6B4F] bg-[#2F6B4F] text-white cursor-wait'
+                                  : 'border-[#2F6B4F] bg-transparent text-[#2F6B4F] hover:bg-[#E9F5EF] hover:border-[#2F6B4F]'
+                              }`}
+                              aria-label={isSaving(product.id) ? 'Enregistrement...' : 'Enregistrer'}
+                              title={isSaving(product.id) ? 'Enregistrement...' : 'Enregistrer'}
+                            >
+                              {isSaving(product.id) ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                            </button>
+                            <button
+                              onClick={handleCancelClick}
+                              className="flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#C1440E] transition-all duration-150 hover:bg-[#FDF1EC] hover:border-[#C1440E]"
+                              aria-label="Annuler"
+                              title="Annuler"
+                            >
+                              <X size={14} />
+                            </button>
+                          </>
+                        )}
                         <button
                           onClick={() => onDeleteProduct(product)}
-                          className="flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#C1440E] transition-all duration-150 hover:bg-[#FDF1EC] hover:border-[#C1440E]"
+                          disabled={isEditing(product.id)}
+                          className={`flex h-9 w-9 items-center justify-center transition-all duration-150 ${
+                            isEditing(product.id)
+                              ? 'border-2 border-transparent bg-transparent text-[#8b929a] cursor-not-allowed'
+                              : 'border-2 border-transparent bg-transparent text-[#C1440E] hover:bg-[#FDF1EC] hover:border-[#C1440E]'
+                          }`}
                           aria-label="Supprimer"
                           title="Supprimer"
                         >
@@ -1508,6 +1567,8 @@ function BranchProductsSection({
             const restockValue = restockByProduct[product.id] ?? 0;
             const isLowStock = product.stock <= product.seuil;
             const isOutOfStock = product.stock <= 0;
+            const editing = isEditing(product.id);
+            const saving = isSaving(product.id);
             return (
               <div
                 key={product.id}
@@ -1532,27 +1593,82 @@ function BranchProductsSection({
                       <input
                         value={product.nom}
                         onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
-                        className="text-[14px] font-medium border-2 border-transparent bg-transparent px-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                        disabled={!editing}
+                        className={`text-[14px] font-medium px-1 outline-none transition-all duration-150 ${
+                          editing
+                            ? 'border-2 border-[#C1440E] bg-white focus:border-[#C1440E] focus:bg-white'
+                            : 'border-2 border-transparent bg-transparent'
+                        }`}
                       />
                       <input
                         value={product.categorie}
                         onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
-                        className="text-[11px] uppercase tracking-[0.16em] text-[#4B5560] border-2 border-transparent bg-transparent px-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                        disabled={!editing}
+                        className={`text-[11px] uppercase tracking-[0.16em] text-[#4B5560] px-1 outline-none transition-all duration-150 ${
+                          editing
+                            ? 'border-2 border-[#C1440E] bg-white focus:border-[#C1440E] focus:bg-white'
+                            : 'border-2 border-transparent bg-transparent'
+                        }`}
                       />
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => onViewHistory(product)}
-                      className="p-2 border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A]"
+                      disabled={editing}
+                      className={`p-2 transition-all duration-150 ${
+                        editing
+                          ? 'border-2 border-transparent bg-transparent text-[#8b929a] cursor-not-allowed'
+                          : 'border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A]'
+                      }`}
                       aria-label="Historique"
                     >
                       <History size={14} />
                     </button>
+                    {!editing ? (
+                      <button
+                        onClick={() => handleEditClick(product.id)}
+                        className="p-2 border-2 border-transparent bg-transparent text-[#16181A] transition-all duration-150 hover:bg-[#ECE7DC] hover:border-[#16181A]"
+                        aria-label="Modifier"
+                        title="Modifier"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleSaveClick(product.id)}
+                          disabled={saving}
+                          className={`p-2 border-2 transition-all duration-150 ${
+                            saving
+                              ? 'border-[#2F6B4F] bg-[#2F6B4F] text-white cursor-wait'
+                              : 'border-[#2F6B4F] bg-transparent text-[#2F6B4F] hover:bg-[#E9F5EF] hover:border-[#2F6B4F]'
+                          }`}
+                          aria-label={saving ? 'Enregistrement...' : 'Enregistrer'}
+                          title={saving ? 'Enregistrement...' : 'Enregistrer'}
+                        >
+                          {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                        </button>
+                        <button
+                          onClick={handleCancelClick}
+                          className="p-2 border-2 border-transparent bg-transparent text-[#C1440E] transition-all duration-150 hover:bg-[#FDF1EC] hover:border-[#C1440E]"
+                          aria-label="Annuler"
+                          title="Annuler"
+                        >
+                          <X size={14} />
+                        </button>
+                      </>
+                    )}
                     <button
                       onClick={() => onDeleteProduct(product)}
-                      className="p-2 border-2 border-transparent bg-transparent text-[#C1440E] hover:bg-[#FDF1EC] hover:border-[#C1440E]"
+                      disabled={editing}
+                      className={`p-2 transition-all duration-150 ${
+                        editing
+                          ? 'border-2 border-transparent bg-transparent text-[#8b929a] cursor-not-allowed'
+                          : 'border-2 border-transparent bg-transparent text-[#C1440E] hover:bg-[#FDF1EC] hover:border-[#C1440E]'
+                      }`}
                       aria-label="Supprimer"
+                      title="Supprimer"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -1571,7 +1687,12 @@ function BranchProductsSection({
                       min="0"
                       value={product.prix}
                       onChange={(event) => onUpdateProduct(product.id, { prix: Number(event.target.value) || 0 })}
-                      className="w-full text-right font-medium tabular-nums text-[#2F6B4F] border-2 border-transparent bg-transparent px-1 outline-none focus:border-[#2F6B4F] focus:bg-[#E9F5EF]"
+                      disabled={!editing}
+                      className={`w-full text-right font-medium tabular-nums text-[#2F6B4F] px-1 outline-none transition-all duration-150 ${
+                        editing
+                          ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF]'
+                          : 'border-2 border-transparent bg-transparent'
+                      }`}
                     />
                   </div>
                   <div>
@@ -1581,7 +1702,12 @@ function BranchProductsSection({
                       min="0"
                       value={product.prixAchat}
                       onChange={(event) => onUpdateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
-                      className="w-full text-right font-medium tabular-nums text-[#4B5560] border-2 border-transparent bg-transparent px-1 outline-none focus:border-[#4B5560] focus:bg-[#F3F4F6]"
+                      disabled={!editing}
+                      className={`w-full text-right font-medium tabular-nums text-[#4B5560] px-1 outline-none transition-all duration-150 ${
+                        editing
+                          ? 'border-2 border-[#4B5560] bg-[#F3F4F6] focus:border-[#4B5560] focus:bg-[#F3F4F6]'
+                          : 'border-2 border-transparent bg-transparent'
+                      }`}
                     />
                   </div>
                   <div className="col-span-2">
@@ -1604,7 +1730,12 @@ function BranchProductsSection({
                         min="0"
                         value={product.seuil}
                         onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
-                        className="w-16 h-8 border-2 border-transparent bg-transparent px-1 text-right font-medium tabular-nums text-[#8a6d00] outline-none focus:border-[#F2B705] focus:bg-[#FDF6DC]"
+                        disabled={!editing}
+                        className={`w-16 h-8 px-1 text-right font-medium tabular-nums text-[#8a6d00] outline-none transition-all duration-150 ${
+                          editing
+                            ? 'border-2 border-[#F2B705] bg-[#FDF6DC] focus:border-[#F2B705] focus:bg-[#FDF6DC]'
+                            : 'border-2 border-transparent bg-transparent'
+                        }`}
                         placeholder="Seuil"
                       />
                     </div>
@@ -1620,12 +1751,21 @@ function BranchProductsSection({
                         onChange={(event) =>
                           setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
                         }
-                        className="flex-1 h-8 border-2 border-transparent bg-transparent px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none focus:border-[#2F6B4F] focus:bg-[#E9F5EF]"
+                        disabled={!editing}
+                        className={`flex-1 h-8 px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
+                          editing
+                            ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF]'
+                            : 'border-2 border-transparent bg-transparent'
+                        }`}
                       />
                       <button
                         onClick={() => onRestockProduct(product)}
-                        disabled={restockValue <= 0}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#2F6B4F] text-white hover:bg-[#255a40] disabled:opacity-40"
+                        disabled={restockValue <= 0 || !editing}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center transition-all duration-150 ${
+                          editing
+                            ? 'border-2 border-[#16181A] bg-[#2F6B4F] text-white hover:bg-[#255a40] disabled:opacity-40'
+                            : 'border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A] hover:text-[#16181A] disabled:opacity-40'
+                        }`}
                         aria-label="Réapprovisionner"
                       >
                         <Plus size={12} />
