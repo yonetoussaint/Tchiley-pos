@@ -4,7 +4,7 @@ import {
   ShoppingCart, Boxes, History, Gauge, AlertTriangle,
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
-  Store, Users
+  Users
 } from 'lucide-react';
 
 /* =========================================================================
@@ -509,13 +509,14 @@ export default function GestionMateriaux() {
           goToRoute('user');
         }}
         onOpenBranch={(branchId: string) => {
+          // Owner previews the branch's actual point-of-sale, read-only.
           setSelectedBranchId(branchId);
-          setAppRoute('admin');
           setOwnerAccess(true);
-          setOwnerPasswordInput('');
-          setOwnerPasswordError('');
           setIsReadOnly(true);
-          goToRoute('admin');
+          if (window.location.pathname.toLowerCase() !== '/user') {
+            window.history.pushState({}, '', '/user');
+          }
+          setAppRoute('sellerBoard');
         }}
         branches={SUCURSALES}
         ventes={ventes}
@@ -783,124 +784,27 @@ export default function GestionMateriaux() {
   );
 }
 
-function AnalyticsView({
-  ventes,
-  products,
-  branches,
-}: {
-  ventes: SaleRecord[];
-  products: Product[];
-  branches: Branch[];
-}) {
-  const totalRevenue = ventes.reduce((s, v) => s + v.total, 0);
+/* =========================================================================
+   OWNER / ADMIN AREA
+   Navigation model: the branches are a top-level tab bar (always visible).
+   Whichever branch tab is active, a hamburger button reveals that branch's
+   own section menu (Tableau de Bord / Produits / Rapports / Utilisateurs).
+   ========================================================================= */
 
-  const totalProfit = ventes.reduce((s, v) => {
-    const saleProfit = v.lignes.reduce((acc, l) => {
-      const p = products.find((prod) => prod.nom === l.nom);
-      const cost = p ? p.prixAchat * l.qte : 0;
-      return acc + (l.sousTotal - cost);
-    }, 0);
-    return s + saleProfit;
-  }, 0);
+type OwnerSection = 'dashboard' | 'products' | 'reports' | 'users';
 
-  const branchStats = branches.map((b) => {
-    const bVentes = ventes.filter((v) => v.branchId === b.id);
-    const revenue = bVentes.reduce((s, v) => s + v.total, 0);
-    return {
-      nom: b.nom,
-      revenue,
-      count: bVentes.length,
-    };
-  }).sort((a, b) => b.revenue - a.revenue);
+const OWNER_SECTIONS: Array<{ id: OwnerSection; label: string; icon: typeof Gauge }> = [
+  { id: 'dashboard', label: 'Tableau de Bord', icon: Gauge },
+  { id: 'products', label: 'Produits', icon: Boxes },
+  { id: 'reports', label: 'Rapports', icon: BarChart3 },
+  { id: 'users', label: 'Utilisateurs', icon: Users },
+];
 
-  const productPerformance = products.map((p) => {
-    const qteVendue = ventes.flatMap((v) => v.lignes)
-      .filter((l) => l.nom === p.nom)
-      .reduce((s, l) => s + l.qte, 0);
-    return {
-      nom: p.nom,
-      qte: qteVendue,
-      stock: p.stock,
-    };
-  });
-
-  const topSellers = [...productPerformance].sort((a, b) => b.qte - a.qte).slice(0, 5);
-  const slowestMovers = [...productPerformance].sort((a, b) => a.qte - b.qte).slice(0, 5);
-
-  const maxRevenue = Math.max(...branchStats.map((b) => b.revenue), 1);
-
+function isSameDay(a: Date, b: Date) {
   return (
-    <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
-          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Revenu Total</div>
-          <div className="mt-2 font-serif text-3xl">{fmtHTG(totalRevenue)}</div>
-        </div>
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
-          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Profit Net Estimé</div>
-          <div className="mt-2 font-serif text-3xl text-[#2F6B4F]">{fmtHTG(totalProfit)}</div>
-        </div>
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
-          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Nombre de Ventes</div>
-          <div className="mt-2 font-serif text-3xl">{ventes.length}</div>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
-          <h2 className="mb-6 font-serif text-2xl">Revenus par Succursale</h2>
-          <div className="flex items-end gap-4 h-48 px-2">
-            {branchStats.map((b) => (
-              <div key={b.nom} className="flex-1 flex flex-col items-center gap-2">
-                <div 
-                  className="w-full bg-[#C1440E] border-2 border-[#16181A]" 
-                  style={{ height: `${(b.revenue / maxRevenue) * 100}%` }}
-                />
-                <div className="text-[9px] uppercase tracking-tight text-center truncate w-full">
-                  {b.nom.split(' ').pop()}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 space-y-2">
-            {branchStats.map((b, i) => (
-              <div key={b.nom} className="flex justify-between text-[12px] border-b border-gray-100 py-1">
-                <span>{i + 1}. {b.nom}</span>
-                <span className="font-bold">{fmtHTG(b.revenue)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
-          <h2 className="mb-6 font-serif text-2xl">Performance Produits</h2>
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <div className="text-[11px] uppercase font-bold text-[#2F6B4F] mb-3">Meilleures Ventes</div>
-              <div className="space-y-2">
-                {topSellers.map((p) => (
-                  <div key={p.nom} className="flex justify-between text-[11px]">
-                    <span className="truncate mr-2">{p.nom}</span>
-                    <span className="font-bold">{p.qte} u.</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] uppercase font-bold text-[#C1440E] mb-3">Ventes Faibles</div>
-              <div className="space-y-2">
-                {slowestMovers.map((p) => (
-                  <div key={p.nom} className="flex justify-between text-[11px]">
-                    <span className="truncate mr-2">{p.nom}</span>
-                    <span className="font-bold">{p.qte} u.</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    a.getDate() === b.getDate() &&
+    a.getMonth() === b.getMonth() &&
+    a.getFullYear() === b.getFullYear()
   );
 }
 
@@ -925,15 +829,14 @@ function OwnerBoard({
   products: Product[];
   selectedBranchId: string | null;
 }) {
-  const [menuOpen, setMenuOpen] = useState(true);
-  const [activeSection, setActiveSection] = useState<'overview' | 'branches' | 'inventory' | 'analytics' | 'users'>('branches');
-  const [branchSheetBranch, setBranchSheetBranch] = useState<Branch | null>(null);
-  const [inventoryBranchFilter, setInventoryBranchFilter] = useState<string>(branches[0]?.id ?? 'gros-morne');
+  const [activeBranchId, setActiveBranchId] = useState<string>(selectedBranchId ?? branches[0]?.id ?? '');
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const [activeSection, setActiveSection] = useState<OwnerSection>('dashboard');
+
   const [inventorySearch, setInventorySearch] = useState<string>('');
   const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<string>('Tout');
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState<'all' | 'low' | 'normal'>('all');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [rowActionProductId, setRowActionProductId] = useState<string | null>(null);
   const [historyProductId, setHistoryProductId] = useState<string | null>(null);
   const [restockByProduct, setRestockByProduct] = useState<Record<string, number>>({});
   const [branchInventoryIds, setBranchInventoryIds] = useState<Record<string, string[]>>({
@@ -943,96 +846,55 @@ function OwnerBoard({
     'oreste': ['p07', 'p10', 'p12', 'p18', 'p19'],
   });
 
-  const updateUser = (userId: string, patch: Partial<User>) => {
-    setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, ...patch } : user)));
-  };
+  useEffect(() => {
+    if (selectedBranchId) setActiveBranchId(selectedBranchId);
+  }, [selectedBranchId]);
 
-  const selectedBranch = branches.find((branch) => branch.id === selectedBranchId) ?? null;
+  const activeBranch = branches.find((b) => b.id === activeBranchId) ?? branches[0] ?? null;
 
-  const handleOpenBranch = (branch: Branch) => {
-    setBranchSheetBranch(branch);
-    onOpenBranch(branch.id);
-  };
+  const branchProductIds = branchInventoryIds[activeBranchId] ?? [];
+  const branchProducts = useMemo(
+    () =>
+      branchProductIds
+        .map((id) => products.find((p) => p.id === id))
+        .filter((p): p is Product => Boolean(p)),
+    [branchProductIds, products]
+  );
+  const branchVentes = useMemo(
+    () => ventes.filter((v) => v.branchId === activeBranchId),
+    [ventes, activeBranchId]
+  );
+  const branchUsers = users.filter((u) => u.branchId === activeBranchId);
 
-  const salesToday = ventes.filter((vente) => {
-    return (
-      vente.date.getDate() === selectedDate.getDate() &&
-      vente.date.getMonth() === selectedDate.getMonth() &&
-      vente.date.getFullYear() === selectedDate.getFullYear()
-    );
-  });
-
-  const shiftSelectedDate = (offset: number) => {
-    const nextDate = new Date(selectedDate);
-    nextDate.setDate(nextDate.getDate() + offset);
-    setSelectedDate(nextDate);
-  };
-
-  const isCurrentDateSelected = selectedDate.toDateString() === new Date().toDateString();
-
-  const stockAlertCount = products.filter((p) => p.stock <= p.seuil).length;
-  const totalRevenue = ventes.reduce((sum, vente) => sum + vente.total, 0);
-
-  const stockByBranch = branches.map((branch) => {
-    const totalStock = products.reduce((sum, product) => sum + product.stock, 0);
-    const lowStockItems = products.filter((product) => product.stock <= product.seuil).length;
-    const criticalProduct = products
-      .filter((product) => product.stock <= product.seuil)
-      .sort((a, b) => a.stock - b.stock)[0];
-
-    return {
-      ...branch,
-      totalStock,
-      lowStockItems,
-      criticalProduct: criticalProduct ? criticalProduct.nom : 'Aucun',
-    };
-  });
-
-  const recentSales = [...ventes].slice(0, 4);
-  const lowStockProducts = [...products].filter((product) => product.stock <= product.seuil).slice(0, 5);
-
-  const menuItems = [
-    { id: 'overview', label: 'Vue d’ensemble', icon: Gauge },
-    { id: 'branches', label: 'Succursales', icon: Store },
-    { id: 'inventory', label: 'Inventaire', icon: Boxes },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'users', label: 'Utilisateurs', icon: Users },
-  ] as const;
-
-  const updateProduct = (productId: string, patch: Partial<Product>) => {
-    setProducts((prev) => prev.map((product) => (product.id === productId ? { ...product, ...patch } : product)));
-  };
-
-  const activeInventoryProducts = useMemo(() => {
-    const productIds = branchInventoryIds[inventoryBranchFilter] ?? [];
-    return productIds
-      .map((productId) => products.find((product) => product.id === productId))
-      .filter((product): product is Product => Boolean(product));
-  }, [branchInventoryIds, inventoryBranchFilter, products]);
+  const salesToday = branchVentes.filter((v) => isSameDay(v.date, selectedDate));
+  const stockAlertCount = branchProducts.filter((p) => p.stock <= p.seuil).length;
+  const totalRevenueBranch = branchVentes.reduce((sum, v) => sum + v.total, 0);
+  const lowStockProducts = branchProducts.filter((p) => p.stock <= p.seuil).slice(0, 5);
+  const recentSales = [...branchVentes].slice(0, 4);
 
   const soldByProductToday = useMemo(() => {
     const totals: Record<string, number> = {};
-
-    ventes.forEach((vente) => {
-      const sameDay =
-        vente.date.getDate() === selectedDate.getDate() &&
-        vente.date.getMonth() === selectedDate.getMonth() &&
-        vente.date.getFullYear() === selectedDate.getFullYear();
-
-      if (!sameDay) return;
-
+    branchVentes.forEach((vente) => {
+      if (!isSameDay(vente.date, selectedDate)) return;
       vente.lignes.forEach((ligne) => {
         const product = products.find((item) => item.nom.toLowerCase() === ligne.nom.toLowerCase());
         const key = product?.id ?? ligne.nom.toLowerCase();
         totals[key] = (totals[key] ?? 0) + ligne.qte;
       });
     });
-
     return totals;
-  }, [products, selectedDate, ventes]);
+  }, [branchVentes, products, selectedDate]);
+
+  const updateProduct = (productId: string, patch: Partial<Product>) => {
+    setProducts((prev) => prev.map((product) => (product.id === productId ? { ...product, ...patch } : product)));
+  };
+
+  const updateUser = (userId: string, patch: Partial<User>) => {
+    setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, ...patch } : user)));
+  };
 
   const handleAddProduct = () => {
-    const branchName = branches.find((branch) => branch.id === inventoryBranchFilter)?.nom ?? 'Succursale';
+    const branchName = activeBranch?.nom ?? 'Succursale';
     const createdId = `p${Date.now()}`;
     const newProduct: Product = {
       id: createdId,
@@ -1048,7 +910,7 @@ function OwnerBoard({
     setProducts((prev) => [newProduct, ...prev]);
     setBranchInventoryIds((prev) => ({
       ...prev,
-      [inventoryBranchFilter]: [createdId, ...(prev[inventoryBranchFilter] ?? [])],
+      [activeBranchId]: [createdId, ...(prev[activeBranchId] ?? [])],
     }));
   };
 
@@ -1057,702 +919,704 @@ function OwnerBoard({
     if (qty <= 0) return;
 
     updateProduct(product.id, { stock: product.stock + qty });
-    setRestockByProduct((prev) => ({
-      ...prev,
-      [product.id]: 0,
-    }));
+    setRestockByProduct((prev) => ({ ...prev, [product.id]: 0 }));
   };
 
   const handleDeleteProduct = (product: Product) => {
     setProducts((prev) => prev.filter((item) => item.id !== product.id));
     setBranchInventoryIds((prev) => ({
       ...prev,
-      [inventoryBranchFilter]: (prev[inventoryBranchFilter] ?? []).filter((id) => id !== product.id),
+      [activeBranchId]: (prev[activeBranchId] ?? []).filter((id) => id !== product.id),
     }));
     setRestockByProduct((prev) => {
       const next = { ...prev };
       delete next[product.id];
       return next;
     });
-    setRowActionProductId(null);
-  };
-
-  const handleEditProduct = (productId: string) => {
-    setRowActionProductId((prev) => (prev === productId ? null : productId));
   };
 
   const handleViewHistory = (product: Product) => {
     setHistoryProductId((prev) => (prev === product.id ? null : product.id));
   };
 
-  const selectedHistoryProduct = products.find((product) => product.id === historyProductId) ?? null;
+  const shiftSelectedDate = (offset: number) => {
+    const nextDate = new Date(selectedDate);
+    nextDate.setDate(nextDate.getDate() + offset);
+    setSelectedDate(nextDate);
+  };
+
+  const isCurrentDateSelected = selectedDate.toDateString() === new Date().toDateString();
+  const selectedHistoryProduct = branchProducts.find((p) => p.id === historyProductId) ?? null;
+
+  const selectBranchTab = (branchId: string) => {
+    setActiveBranchId(branchId);
+    setActiveSection('dashboard');
+    setMenuOpen(false);
+  };
+
+  const selectSection = (section: OwnerSection) => {
+    setActiveSection(section);
+    setMenuOpen(false);
+  };
+
+  if (!activeBranch) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#ECE7DC] text-[#16181A]">
+        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-6 text-sm">Aucune succursale disponible.</div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <div className="min-h-screen w-full bg-[#ECE7DC] px-4 py-6 text-[#16181A] md:px-6">
-        <div className="w-full">
-          <div className="mb-4 flex items-center justify-between border-2 border-[#16181A] bg-[#FBFAF6] p-4 shadow-[8px_8px_0_#16181A]">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Panneau propriétaire</div>
-              <h1 className="mt-1 font-serif text-2xl md:text-4xl">Administration centrale</h1>
-            </div>
+    <div className="min-h-screen w-full bg-[#ECE7DC] text-[#16181A]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#16181A] bg-[#FBFAF6] px-4 py-4 md:px-6">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Panneau propriétaire</div>
+          <h1 className="mt-1 font-serif text-2xl md:text-3xl">Administration centrale</h1>
+        </div>
+        <button
+          onClick={onBackToBranches}
+          className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+        >
+          Retour
+        </button>
+      </div>
 
+      {/* Sucursales — top-level tab bar */}
+      <div className="flex gap-1 overflow-x-auto border-b-2 border-[#16181A] bg-[#16181A] px-3 pt-2">
+        {branches.map((branch) => {
+          const actif = branch.id === activeBranchId;
+          return (
             <button
-              onClick={onBackToBranches}
-              className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+              key={branch.id}
+              onClick={() => selectBranchTab(branch.id)}
+              className={
+                '-mb-[2px] shrink-0 whitespace-nowrap border-2 border-b-0 px-4 py-2.5 text-[12px] uppercase tracking-wide ' +
+                (actif
+                  ? 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]'
+                  : 'border-transparent text-[#c7ccd1] hover:bg-[#1f2225]')
+              }
             >
-              Retour
+              {branch.nom.replace('Tchiley Construction', '').trim() || branch.nom}
             </button>
-          </div>
+          );
+        })}
+      </div>
 
-          <div className="mb-5 border-2 border-[#16181A] bg-[#FBFAF6] shadow-[8px_8px_0_#C1440E]">
-            <div className="flex flex-wrap items-center gap-3 border-b-2 border-[#16181A] p-3">
-              <button
-                onClick={() => setMenuOpen((prev) => !prev)}
-                className="flex h-10 w-10 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31]"
-                aria-label="Toggle menu"
+      <div className="px-4 py-5 md:px-6">
+        {/* Active branch panel header + hamburger menu */}
+        <div className="mb-4 flex flex-wrap items-center gap-3 border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[6px_6px_0_#16181A]">
+          <button
+            onClick={() => setMenuOpen((prev) => !prev)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31]"
+            aria-label="Menu de la succursale"
+          >
+            <Menu size={18} />
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-serif text-xl leading-tight">{activeBranch.nom}</span>
+              <span
+                className={
+                  'border-2 px-2 py-0.5 text-[9px] uppercase tracking-wide ' +
+                  (activeBranch.statut === 'Ouvert'
+                    ? 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]'
+                    : 'border-[#4B5560] bg-[#F3F4F6] text-[#4B5560]')
+                }
               >
-                <Menu size={18} />
-              </button>
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[#4B5560]">Succursales</div>
+                {activeBranch.statut}
+              </span>
             </div>
-
-            {menuOpen && (
-              <div className="flex flex-wrap gap-2 p-3">
-                {branches.map((branch) => (
-                  <button
-                    key={branch.id}
-                    onClick={() => handleOpenBranch(branch)}
-                    className={
-                      'border-2 px-3 py-2 text-[11px] uppercase tracking-[0.18em] ' +
-                      (branch.id === selectedBranchId
-                        ? 'border-[#16181A] bg-[#16181A] text-white'
-                        : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
-                    }
-                  >
-                    {branch.nom}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {menuOpen && (
-              <div className="border-t-2 border-[#16181A] bg-[#ECE7DC] p-3">
-                <div className="flex flex-wrap gap-2">
-                  {menuItems.map(({ id, label, icon: Icon }) => {
-                    const active = activeSection === id;
-                    return (
-                      <button
-                        key={id}
-                        onClick={() => setActiveSection(id)}
-                        className={
-                          'flex items-center gap-2 border-2 px-3 py-2 text-[10px] uppercase tracking-[0.18em] ' +
-                          (active
-                            ? 'border-[#C1440E] bg-[#C1440E] text-white'
-                            : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#F7F3EC]')
-                        }
-                      >
-                        <Icon size={14} />
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <div className="text-[12px] text-[#4B5560]">
+              {activeBranch.ville} • {activeBranch.adresse} • Responsable: {activeBranch.gestionnaire}
+            </div>
           </div>
 
-          <main className="space-y-5">
-            {activeSection === 'overview' && (
-              <>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#16181A]">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Succursales</div>
-                    <div className="mt-2 font-serif text-3xl">{branches.length}</div>
-                  </div>
-                  <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#C1440E]">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Ventes du jour</div>
-                    <div className="mt-2 font-serif text-3xl">{salesToday.length}</div>
-                  </div>
-                  <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#2F6B4F]">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Revenu total</div>
-                    <div className="mt-2 font-serif text-3xl">{fmtHTG(totalRevenue)}</div>
-                  </div>
-                </div>
+          <button
+            onClick={() => onOpenBranch(activeBranch.id)}
+            className="shrink-0 border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
+          >
+            Ouvrir la caisse
+          </button>
+        </div>
 
-                {selectedBranch && (
-                  <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
-                    <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Succursale ouverte</div>
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <div className="font-serif text-2xl">{selectedBranch.nom}</div>
-                        <div className="text-[12px] text-[#4B5560]">{selectedBranch.ville} • {selectedBranch.adresse}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={selectedBranch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[10px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-wide text-[#4B5560]'}>
-                          {selectedBranch.statut}
-                        </span>
-                        <button
-                          onClick={() => handleOpenBranch(selectedBranch)}
-                          className="border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
-                        >
-                          Revoir la succursale
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+        {menuOpen && (
+          <div className="mb-4 flex flex-wrap gap-2 border-2 border-[#16181A] bg-[#FBFAF6] p-3">
+            {OWNER_SECTIONS.map(({ id, label, icon: Icon }) => {
+              const active = activeSection === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => selectSection(id)}
+                  className={
+                    'flex items-center gap-2 border-2 px-3 py-2 text-[11px] uppercase tracking-[0.18em] ' +
+                    (active
+                      ? 'border-[#C1440E] bg-[#C1440E] text-white'
+                      : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#F7F3EC]')
+                  }
+                >
+                  <Icon size={14} />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-                <div className="grid gap-5 xl:grid-cols-[1.4fr_0.6fr]">
-                  <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#16181A]">
-                    <div className="mb-4 flex items-center justify-between">
-                      <h2 className="font-serif text-2xl">Stocks par succursale</h2>
-                      <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
-                        {products.length} articles
-                      </span>
-                    </div>
+        <main className="space-y-5">
+          {activeSection === 'dashboard' && (
+            <BranchDashboardSection
+              branch={activeBranch}
+              branchProducts={branchProducts}
+              salesToday={salesToday}
+              totalRevenue={totalRevenueBranch}
+              stockAlertCount={stockAlertCount}
+              lowStockProducts={lowStockProducts}
+              recentSales={recentSales}
+            />
+          )}
 
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {stockByBranch.map((branch) => (
-                        <div key={branch.id} className="border-2 border-[#16181A] bg-white p-4">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <div className="font-serif text-xl leading-tight">{branch.nom}</div>
-                            <span className={branch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[9px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[9px] uppercase tracking-wide text-[#4B5560]'}>
-                              {branch.statut}
-                            </span>
-                          </div>
+          {activeSection === 'products' && (
+            <BranchProductsSection
+              branchProducts={branchProducts}
+              inventorySearch={inventorySearch}
+              setInventorySearch={setInventorySearch}
+              inventoryCategoryFilter={inventoryCategoryFilter}
+              setInventoryCategoryFilter={setInventoryCategoryFilter}
+              inventoryStatusFilter={inventoryStatusFilter}
+              setInventoryStatusFilter={setInventoryStatusFilter}
+              selectedDate={selectedDate}
+              shiftSelectedDate={shiftSelectedDate}
+              isCurrentDateSelected={isCurrentDateSelected}
+              soldByProductToday={soldByProductToday}
+              restockByProduct={restockByProduct}
+              setRestockByProduct={setRestockByProduct}
+              selectedHistoryProduct={selectedHistoryProduct}
+              onAddProduct={handleAddProduct}
+              onUpdateProduct={updateProduct}
+              onRestockProduct={handleRestockProduct}
+              onDeleteProduct={handleDeleteProduct}
+              onViewHistory={handleViewHistory}
+            />
+          )}
 
-                          <div className="space-y-2 text-[12px] text-[#4B5560]">
-                            <div className="flex justify-between border-b border-[#d9d2c5] pb-1">
-                              <span>Stock total</span>
-                              <span className="font-bold text-[#16181A]">{branch.totalStock}</span>
-                            </div>
-                            <div className="flex justify-between border-b border-[#d9d2c5] pb-1">
-                              <span>Articles bas</span>
-                              <span className="font-bold text-[#C1440E]">{branch.lowStockItems}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Critique</span>
-                              <span className="font-bold text-[#16181A]">{branch.criticalProduct}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+          {activeSection === 'reports' && (
+            <BranchReportsSection branch={activeBranch} ventes={branchVentes} products={branchProducts} />
+          )}
 
-                  <div className="space-y-5">
-                    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
-                      <h3 className="mb-3 font-serif text-2xl">Alertes</h3>
-                      <div className="space-y-2">
-                        {lowStockProducts.map((product) => (
-                          <div key={product.id} className="flex items-center justify-between border-b border-[#d9d2c5] pb-2 text-[12px]">
-                            <span>{product.nom}</span>
-                            <span className="font-bold text-[#C1440E]">{product.stock} en stock</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+          {activeSection === 'users' && (
+            <BranchUsersSection branchUsers={branchUsers} onUpdateUser={updateUser} />
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
 
-                    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
-                      <h3 className="mb-3 font-serif text-2xl">Ventes récentes</h3>
-                      <div className="space-y-2">
-                        {recentSales.map((sale) => (
-                          <div key={sale.id} className="border-b border-[#d9d2c5] pb-2 text-[12px]">
-                            <div className="flex justify-between gap-3">
-                              <span className="font-medium">{sale.id}</span>
-                              <span>{fmtHTG(sale.total)}</span>
-                            </div>
-                            <div className="mt-1 text-[#4B5560]">{sale.date.toLocaleDateString('fr-HT')}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {activeSection === 'branches' && (
-              <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="font-serif text-2xl">Succursales</h2>
-                  <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
-                    {stockAlertCount} alertes
-                  </span>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {branches.map((branch) => (
-                    <button
-                      key={branch.id}
-                      onClick={() => handleOpenBranch(branch)}
-                      className="group flex h-full flex-col justify-between border-2 border-[#16181A] bg-white p-4 text-left shadow-[6px_6px_0_#16181A] transition-transform hover:-translate-y-1 hover:bg-[#F7F3EC]"
-                    >
-                      <div>
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                          <span className="font-serif text-2xl leading-tight">{branch.nom}</span>
-                          <span className={branch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[9px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[9px] uppercase tracking-wide text-[#4B5560]'}>
-                            {branch.statut}
-                          </span>
-                        </div>
-
-                        <div className="space-y-3 text-[12px] text-[#4B5560]">
-                          <div className="border-b border-[#d9d2c5] pb-2">{branch.ville} • {branch.adresse}</div>
-                          <div className="flex items-center justify-between border-b border-[#d9d2c5] pb-2">
-                            <span>Gestionnaire</span>
-                            <span className="font-medium text-[#16181A]">{branch.gestionnaire}</span>
-                          </div>
-                          <div className="flex items-center justify-between border-b border-[#d9d2c5] pb-2">
-                            <span>Ventes</span>
-                            <span className="font-medium text-[#16181A]">{branch.ventesDuJour}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span>Alertes</span>
-                            <span className="font-medium text-[#C1440E]">{branch.alertesStock}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 flex items-center justify-between border-t-2 border-[#16181A] pt-3">
-                        <span className="text-[10px] uppercase tracking-[0.18em] text-[#4B5560]">Ouvrir</span>
-                        <span className="inline-flex h-8 w-8 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-white group-hover:bg-[#2b2e31]">
-                          <ChevronRight size={16} />
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeSection === 'inventory' && (
-              <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="font-serif text-2xl">Inventaire global</h2>
-                  <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
-                    {products.length} produits
-                  </span>
-                </div>
-
-                <div className="mb-4 flex flex-col gap-3 border-b-2 border-[#16181A] pb-3">
-                  <div className="flex flex-wrap gap-2">
-                    {branches.map((branch) => (
-                      <button
-                        key={branch.id}
-                        onClick={() => setInventoryBranchFilter(branch.id)}
-                        className={
-                          'border-2 px-3 py-2 text-[11px] uppercase tracking-[0.18em] ' +
-                          (inventoryBranchFilter === branch.id
-                            ? 'border-[#16181A] bg-[#16181A] text-white'
-                            : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
-                        }
-                      >
-                        {branch.nom.split(' ').slice(-1)[0]}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => shiftSelectedDate(-1)}
-                      className="border-2 border-[#16181A] bg-white px-2 py-2 text-[10px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
-                    >
-                      Préc.
-                    </button>
-                    <div className="flex-1 border-2 border-[#16181A] bg-[#ECE7DC] px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em]">
-                      {selectedDate.toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </div>
-                    <button
-                      onClick={() => shiftSelectedDate(1)}
-                      disabled={isCurrentDateSelected}
-                      className={
-                        'border-2 border-[#16181A] px-2 py-2 text-[10px] uppercase tracking-[0.18em] ' +
-                        (isCurrentDateSelected
-                          ? 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]'
-                          : 'bg-white hover:bg-[#ECE7DC]')
-                      }
-                    >
-                      Suiv.
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div className="flex flex-1 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 shadow-[4px_4px_0_#C1440E]">
-                    <Search className="h-4 w-4 text-[#4B5560]" />
-                    <input
-                      type="text"
-                      value={inventorySearch}
-                      onChange={(event) => setInventorySearch(event.target.value)}
-                      placeholder="Rechercher un produit..."
-                      className="w-full border-none bg-transparent text-sm text-[#16181A] outline-none placeholder:text-[#4B5560]"
-                    />
-                    <select
-                      value={inventoryCategoryFilter}
-                      onChange={(event) => setInventoryCategoryFilter(event.target.value)}
-                      className="border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-[#16181A] outline-none"
-                      aria-label="Filtrer par catégorie"
-                    >
-                      {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    onClick={handleAddProduct}
-                    className="flex items-center gap-2 border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
-                  >
-                    <Plus size={14} />
-                    Nouveau
-                  </button>
-                </div>
-
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {[
-                    { id: 'all', label: 'Tous' },
-                    { id: 'low', label: 'En stock bas' },
-                    { id: 'normal', label: 'Normal' },
-                  ].map((status) => (
-                    <button
-                      key={status.id}
-                      onClick={() => setInventoryStatusFilter(status.id as 'all' | 'low' | 'normal')}
-                      className={
-                        'border-2 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.16em] ' +
-                        (inventoryStatusFilter === status.id
-                          ? 'border-[#C1440E] bg-[#C1440E] text-white'
-                          : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
-                      }
-                    >
-                      {status.label}
-                    </button>
-                  ))}
-                </div>
-
-                {selectedHistoryProduct && (
-                  <div className="mb-4 border-2 border-[#16181A] bg-[#F0F8FF] p-3">
-                    <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Historique produit</div>
-                    <div className="flex flex-wrap items-center gap-3 text-[12px] text-[#16181A]">
-                      <span className="font-serif text-lg">{selectedHistoryProduct.nom}</span>
-                      <span className="border-2 border-[#16181A] bg-white px-2 py-1">Vendu: {soldByProductToday[selectedHistoryProduct.id] ?? 0}</span>
-                      <span className="border-2 border-[#16181A] bg-white px-2 py-1">Stock: {selectedHistoryProduct.stock}</span>
-                      <span className="border-2 border-[#16181A] bg-white px-2 py-1">Seuil: {selectedHistoryProduct.seuil}</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[960px] border-2 border-[#16181A] bg-white text-left">
-                    <thead className="bg-[#ECE7DC] text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
-                      <tr>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Produit</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Catégorie</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Vendu</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Prix</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Coût</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Stock Ouv.</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Stock Ferm.</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Seuil</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3">Réappro.</th>
-                        <th className="border-b-2 border-[#16181A] px-3 py-3 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activeInventoryProducts
-                        .filter((product) => {
-                          const matchesCategory = inventoryCategoryFilter === 'Tout' || product.categorie === inventoryCategoryFilter;
-                          const matchesStatus =
-                            inventoryStatusFilter === 'all' ||
-                            (inventoryStatusFilter === 'low' && product.stock <= product.seuil) ||
-                            (inventoryStatusFilter === 'normal' && product.stock > product.seuil);
-                          const matchesSearch =
-                            product.nom.toLowerCase().includes(inventorySearch.toLowerCase()) ||
-                            product.categorie.toLowerCase().includes(inventorySearch.toLowerCase());
-                          return matchesCategory && matchesStatus && matchesSearch;
-                        })
-                        .map((product) => {
-                          const soldToday = soldByProductToday[product.id] ?? 0;
-                          const openingStock = Math.max(0, product.stock + soldToday);
-                          const closingStock = product.stock;
-                          const restockValue = restockByProduct[product.id] ?? 0;
-                          return (
-                            <tr
-                              key={product.id}
-                              className={
-                                'border-b border-[#d9d2c5] align-top text-[13px] ' +
-                                (rowActionProductId === product.id ? 'bg-[#FFF8F2]' : '')
-                              }
-                            >
-                              <td className="px-3 py-3 font-medium">
-                                <div className="field-shell field-product">
-                                  <span className="field-label">Produit</span>
-                                  <input
-                                    value={product.nom}
-                                    onChange={(event) => updateProduct(product.id, { nom: event.target.value })}
-                                    className="field-input field-input-product"
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-category">
-                                  <span className="field-label">Catégorie</span>
-                                  <input
-                                    value={product.categorie}
-                                    onChange={(event) => updateProduct(product.id, { categorie: event.target.value })}
-                                    className="field-input field-input-category"
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-sold">
-                                  <span className="field-label">Vendu</span>
-                                  <div className="field-value field-value-readonly">{soldToday}</div>
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-price">
-                                  <span className="field-label">Prix</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={product.prix}
-                                    onChange={(event) => updateProduct(product.id, { prix: Number(event.target.value) || 0 })}
-                                    className="field-input field-input-price"
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-cost">
-                                  <span className="field-label">Coût</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={product.prixAchat}
-                                    onChange={(event) => updateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
-                                    className="field-input field-input-cost"
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-opening">
-                                  <span className="field-label">Ouverture</span>
-                                  <div className="field-value field-value-readonly">{openingStock}</div>
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-closing">
-                                  <span className="field-label">Stock Ferm.</span>
-                                  <div className="field-value field-value-readonly">{closingStock}</div>
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-threshold">
-                                  <span className="field-label">Seuil</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={product.seuil}
-                                    onChange={(event) => updateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
-                                    className="field-input field-input-threshold"
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="field-shell field-restock">
-                                  <span className="field-label">Réappro.</span>
-                                  <div className="restock-control">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={restockValue}
-                                      onChange={(event) => setRestockByProduct((prev) => ({
-                                        ...prev,
-                                        [product.id]: Number(event.target.value) || 0,
-                                      }))}
-                                      className="field-input field-input-restock"
-                                    />
-                                    <button
-                                      onClick={() => handleRestockProduct(product)}
-                                      className="restock-button"
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="flex flex-col items-end gap-2">
-                                  <button
-                                    onClick={() => handleViewHistory(product)}
-                                    className="flex items-center gap-1 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
-                                  >
-                                    <History size={12} />
-                                    History
-                                  </button>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => handleEditProduct(product.id)}
-                                      className="flex items-center gap-1 border-2 border-[#16181A] bg-white px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
-                                    >
-                                      <Pencil size={12} />
-                                      Edit
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteProduct(product)}
-                                      className="flex items-center gap-1 border-2 border-[#C1440E] bg-[#FDF1EC] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#C1440E] hover:bg-[#F8E2D8]"
-                                    >
-                                      <Trash2 size={12} />
-                                      Delete
-                                    </button>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {activeSection === 'analytics' && (
-              <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#16181A]">
-                <h2 className="mb-4 font-serif text-2xl">Analytics</h2>
-                <AnalyticsView ventes={ventes} products={products} branches={branches} />
-              </div>
-            )}
-
-            {activeSection === 'users' && (
-              <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
-                <h2 className="mb-4 font-serif text-2xl">Gestion des utilisateurs</h2>
-                <div className="space-y-3">
-                  {users.map((user) => (
-                    <div key={user.id} className="border-2 border-[#16181A] bg-white p-3">
-                      <div className="mb-3 flex items-center gap-3">
-                        <img src={user.profilePic} alt={user.name} className="h-10 w-10 border-2 border-[#16181A] object-cover" />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium">{user.name}</div>
-                          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">{user.role === 'owner' ? 'Propriétaire' : 'Vendeur'}</div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Nom</label>
-                        <input
-                          value={user.name}
-                          onChange={(event) => updateUser(user.id, { name: event.target.value })}
-                          className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
-                        />
-
-                        <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Mot de passe</label>
-                        <input
-                          type="password"
-                          value={user.password}
-                          onChange={(event) => updateUser(user.id, { password: event.target.value })}
-                          className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
-                        />
-
-                        <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Rôle</label>
-                        <select
-                          value={user.role}
-                          onChange={(event) => updateUser(user.id, { role: event.target.value as UserRole })}
-                          className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
-                        >
-                          <option value="owner">Propriétaire</option>
-                          <option value="seller">Vendeur</option>
-                        </select>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </main>
+function BranchDashboardSection({
+  branch,
+  branchProducts,
+  salesToday,
+  totalRevenue,
+  stockAlertCount,
+  lowStockProducts,
+  recentSales,
+}: {
+  branch: Branch;
+  branchProducts: Product[];
+  salesToday: SaleRecord[];
+  totalRevenue: number;
+  stockAlertCount: number;
+  lowStockProducts: Product[];
+  recentSales: SaleRecord[];
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#16181A]">
+          <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Ventes du jour</div>
+          <div className="mt-2 font-serif text-3xl">{salesToday.length}</div>
+        </div>
+        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#C1440E]">
+          <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Revenu total</div>
+          <div className="mt-2 font-serif text-3xl">{fmtHTG(totalRevenue)}</div>
+        </div>
+        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#2F6B4F]">
+          <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Articles en stock bas</div>
+          <div className="mt-2 font-serif text-3xl text-[#C1440E]">{stockAlertCount}</div>
         </div>
       </div>
 
-      {branchSheetBranch && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 md:p-6">
-          <div className="w-full max-w-2xl rounded-none border-2 border-[#16181A] bg-[#FBFAF6] shadow-[12px_12px_0_#16181A]">
-            <div className="flex items-center justify-between border-b-2 border-[#16181A] px-5 py-4">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.22em] text-[#4B5560]">Gestion de succursale</div>
-                <div className="mt-1 font-serif text-2xl">{branchSheetBranch.nom}</div>
-              </div>
-              <button
-                onClick={() => setBranchSheetBranch(null)}
-                className="flex h-9 w-9 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
-                aria-label="Fermer"
-              >
-                <X size={16} />
-              </button>
+      <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-4">
+        <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Détails</div>
+        <div className="mt-1 text-[13px] text-[#4B5560]">
+          {branch.ville} • {branch.adresse} • {branchProducts.length} article{branchProducts.length !== 1 ? 's' : ''} en inventaire
+        </div>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
+          <h3 className="mb-3 font-serif text-2xl">Alertes Stock Bas</h3>
+          {lowStockProducts.length === 0 ? (
+            <div className="text-[13px] text-[#4B5560]">Tous les stocks sont à un niveau sain.</div>
+          ) : (
+            <div className="space-y-2">
+              {lowStockProducts.map((product) => (
+                <div key={product.id} className="flex items-center justify-between border-b border-[#d9d2c5] pb-2 text-[12px]">
+                  <span>{product.nom}</span>
+                  <span className="font-bold text-[#C1440E]">{product.stock} en stock</span>
+                </div>
+              ))}
             </div>
+          )}
+        </div>
 
-            <div className="grid gap-4 p-5 md:grid-cols-3">
-              <div className="border-2 border-[#16181A] bg-white p-3">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Statut</div>
-                <div className="mt-2 font-serif text-xl">{branchSheetBranch.statut}</div>
+        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+          <h3 className="mb-3 font-serif text-2xl">Ventes récentes</h3>
+          {recentSales.length === 0 ? (
+            <div className="text-[13px] text-[#4B5560]">Aucune vente enregistrée pour l'instant.</div>
+          ) : (
+            <div className="space-y-2">
+              {recentSales.map((sale) => (
+                <div key={sale.id} className="border-b border-[#d9d2c5] pb-2 text-[12px]">
+                  <div className="flex justify-between gap-3">
+                    <span className="font-medium">{sale.id}</span>
+                    <span>{fmtHTG(sale.total)}</span>
+                  </div>
+                  <div className="mt-1 text-[#4B5560]">{sale.date.toLocaleDateString('fr-HT')}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BranchProductsSection({
+  branchProducts,
+  inventorySearch,
+  setInventorySearch,
+  inventoryCategoryFilter,
+  setInventoryCategoryFilter,
+  inventoryStatusFilter,
+  setInventoryStatusFilter,
+  selectedDate,
+  shiftSelectedDate,
+  isCurrentDateSelected,
+  soldByProductToday,
+  restockByProduct,
+  setRestockByProduct,
+  selectedHistoryProduct,
+  onAddProduct,
+  onUpdateProduct,
+  onRestockProduct,
+  onDeleteProduct,
+  onViewHistory,
+}: {
+  branchProducts: Product[];
+  inventorySearch: string;
+  setInventorySearch: Dispatch<SetStateAction<string>>;
+  inventoryCategoryFilter: string;
+  setInventoryCategoryFilter: Dispatch<SetStateAction<string>>;
+  inventoryStatusFilter: 'all' | 'low' | 'normal';
+  setInventoryStatusFilter: Dispatch<SetStateAction<'all' | 'low' | 'normal'>>;
+  selectedDate: Date;
+  shiftSelectedDate: (offset: number) => void;
+  isCurrentDateSelected: boolean;
+  soldByProductToday: Record<string, number>;
+  restockByProduct: Record<string, number>;
+  setRestockByProduct: Dispatch<SetStateAction<Record<string, number>>>;
+  selectedHistoryProduct: Product | null;
+  onAddProduct: () => void;
+  onUpdateProduct: (productId: string, patch: Partial<Product>) => void;
+  onRestockProduct: (product: Product) => void;
+  onDeleteProduct: (product: Product) => void;
+  onViewHistory: (product: Product) => void;
+}) {
+  const filteredProducts = branchProducts.filter((product) => {
+    const matchesCategory = inventoryCategoryFilter === 'Tout' || product.categorie === inventoryCategoryFilter;
+    const matchesStatus =
+      inventoryStatusFilter === 'all' ||
+      (inventoryStatusFilter === 'low' && product.stock <= product.seuil) ||
+      (inventoryStatusFilter === 'normal' && product.stock > product.seuil);
+    const matchesSearch =
+      product.nom.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+      product.categorie.toLowerCase().includes(inventorySearch.toLowerCase());
+    return matchesCategory && matchesStatus && matchesSearch;
+  });
+
+  return (
+    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-serif text-2xl">Produits</h2>
+        <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
+          {branchProducts.length} produits
+        </span>
+      </div>
+
+      <div className="mb-4 flex items-center justify-between gap-2 border-b-2 border-[#16181A] pb-3">
+        <button
+          onClick={() => shiftSelectedDate(-1)}
+          className="border-2 border-[#16181A] bg-white px-2 py-2 text-[10px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+        >
+          Préc.
+        </button>
+        <div className="flex-1 border-2 border-[#16181A] bg-[#ECE7DC] px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em]">
+          {selectedDate.toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </div>
+        <button
+          onClick={() => shiftSelectedDate(1)}
+          disabled={isCurrentDateSelected}
+          className={
+            'border-2 border-[#16181A] px-2 py-2 text-[10px] uppercase tracking-[0.18em] ' +
+            (isCurrentDateSelected ? 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]' : 'bg-white hover:bg-[#ECE7DC]')
+          }
+        >
+          Suiv.
+        </button>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-[220px] flex-1 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 shadow-[4px_4px_0_#C1440E]">
+          <Search className="h-4 w-4 text-[#4B5560]" />
+          <input
+            type="text"
+            value={inventorySearch}
+            onChange={(event) => setInventorySearch(event.target.value)}
+            placeholder="Rechercher un produit..."
+            className="w-full border-none bg-transparent text-sm text-[#16181A] outline-none placeholder:text-[#4B5560]"
+          />
+          <select
+            value={inventoryCategoryFilter}
+            onChange={(event) => setInventoryCategoryFilter(event.target.value)}
+            className="border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-[#16181A] outline-none"
+            aria-label="Filtrer par catégorie"
+          >
+            {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={onAddProduct}
+          className="flex items-center gap-2 border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
+        >
+          <Plus size={14} />
+          Nouveau
+        </button>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {[
+          { id: 'all', label: 'Tous' },
+          { id: 'low', label: 'En stock bas' },
+          { id: 'normal', label: 'Normal' },
+        ].map((status) => (
+          <button
+            key={status.id}
+            onClick={() => setInventoryStatusFilter(status.id as 'all' | 'low' | 'normal')}
+            className={
+              'border-2 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.16em] ' +
+              (inventoryStatusFilter === status.id
+                ? 'border-[#C1440E] bg-[#C1440E] text-white'
+                : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
+            }
+          >
+            {status.label}
+          </button>
+        ))}
+      </div>
+
+      {selectedHistoryProduct && (
+        <div className="mb-4 border-2 border-[#16181A] bg-[#F0F8FF] p-3">
+          <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Historique produit</div>
+          <div className="flex flex-wrap items-center gap-3 text-[12px] text-[#16181A]">
+            <span className="font-serif text-lg">{selectedHistoryProduct.nom}</span>
+            <span className="border-2 border-[#16181A] bg-white px-2 py-1">Vendu: {soldByProductToday[selectedHistoryProduct.id] ?? 0}</span>
+            <span className="border-2 border-[#16181A] bg-white px-2 py-1">Stock: {selectedHistoryProduct.stock}</span>
+            <span className="border-2 border-[#16181A] bg-white px-2 py-1">Seuil: {selectedHistoryProduct.seuil}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] border-2 border-[#16181A] bg-white text-left">
+          <thead className="bg-[#ECE7DC] text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
+            <tr>
+              <th className="border-b-2 border-[#16181A] px-3 py-3">Produit</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3">Catégorie</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3">Vendu</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3">Prix</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3">Coût</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3">Stock</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3">Seuil</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3">Réappro.</th>
+              <th className="border-b-2 border-[#16181A] px-3 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.map((product) => {
+              const soldToday = soldByProductToday[product.id] ?? 0;
+              const restockValue = restockByProduct[product.id] ?? 0;
+              return (
+                <tr key={product.id} className="border-b border-[#d9d2c5] align-top text-[13px]">
+                  <td className="px-3 py-3 font-medium">
+                    <input
+                      value={product.nom}
+                      onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
+                      className="w-full border-2 border-transparent bg-transparent px-1 py-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <input
+                      value={product.categorie}
+                      onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
+                      className="w-full border-2 border-transparent bg-transparent px-1 py-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                    />
+                  </td>
+                  <td className="px-3 py-3 text-[#4B5560]">{soldToday}</td>
+                  <td className="px-3 py-3">
+                    <input
+                      type="number"
+                      min="0"
+                      value={product.prix}
+                      onChange={(event) => onUpdateProduct(product.id, { prix: Number(event.target.value) || 0 })}
+                      className="w-20 border-2 border-transparent bg-transparent px-1 py-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <input
+                      type="number"
+                      min="0"
+                      value={product.prixAchat}
+                      onChange={(event) => onUpdateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
+                      className="w-20 border-2 border-transparent bg-transparent px-1 py-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <span className={product.stock <= product.seuil ? 'font-bold text-[#C1440E]' : ''}>{product.stock}</span>
+                  </td>
+                  <td className="px-3 py-3">
+                    <input
+                      type="number"
+                      min="0"
+                      value={product.seuil}
+                      onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
+                      className="w-16 border-2 border-transparent bg-transparent px-1 py-1 outline-none focus:border-[#C1440E] focus:bg-white"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        value={restockValue}
+                        onChange={(event) =>
+                          setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
+                        }
+                        className="w-16 border-2 border-[#16181A] bg-white px-1 py-1 outline-none focus:border-[#C1440E]"
+                      />
+                      <button
+                        onClick={() => onRestockProduct(product)}
+                        className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-[#2F6B4F] text-white hover:bg-[#255a40]"
+                        aria-label="Réapprovisionner"
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => onViewHistory(product)}
+                        className="flex items-center gap-1 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#16181A] hover:bg-[#ECE7DC]"
+                      >
+                        <History size={12} />
+                        Historique
+                      </button>
+                      <button
+                        onClick={() => onDeleteProduct(product)}
+                        className="flex items-center gap-1 border-2 border-[#C1440E] bg-[#FDF1EC] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[#C1440E] hover:bg-[#F8E2D8]"
+                      >
+                        <Trash2 size={12} />
+                        Suppr.
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {filteredProducts.length === 0 && (
+              <tr>
+                <td colSpan={9} className="px-3 py-8 text-center text-[13px] text-[#4B5560]">
+                  Aucun produit ne correspond aux filtres.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function BranchReportsSection({
+  branch,
+  ventes,
+  products,
+}: {
+  branch: Branch;
+  ventes: SaleRecord[];
+  products: Product[];
+}) {
+  const totalRevenue = ventes.reduce((s, v) => s + v.total, 0);
+
+  const totalProfit = ventes.reduce((s, v) => {
+    const saleProfit = v.lignes.reduce((acc, l) => {
+      const p = products.find((prod) => prod.nom === l.nom);
+      const cost = p ? p.prixAchat * l.qte : 0;
+      return acc + (l.sousTotal - cost);
+    }, 0);
+    return s + saleProfit;
+  }, 0);
+
+  const productPerformance = products.map((p) => {
+    const qteVendue = ventes
+      .flatMap((v) => v.lignes)
+      .filter((l) => l.nom === p.nom)
+      .reduce((s, l) => s + l.qte, 0);
+    return { nom: p.nom, qte: qteVendue, stock: p.stock };
+  });
+
+  const topSellers = [...productPerformance].sort((a, b) => b.qte - a.qte).slice(0, 5);
+  const slowestMovers = [...productPerformance].sort((a, b) => a.qte - b.qte).slice(0, 5);
+
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d;
+  });
+  const revenueByDay = last7Days.map((day) => ({
+    label: day.toLocaleDateString('fr-HT', { weekday: 'short' }),
+    total: ventes.filter((v) => v.date.toDateString() === day.toDateString()).reduce((s, v) => s + v.total, 0),
+  }));
+  const maxDayRevenue = Math.max(...revenueByDay.map((d) => d.total), 1);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
+          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Revenu Total</div>
+          <div className="mt-2 font-serif text-3xl">{fmtHTG(totalRevenue)}</div>
+        </div>
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
+          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Profit Net Estimé</div>
+          <div className="mt-2 font-serif text-3xl text-[#2F6B4F]">{fmtHTG(totalProfit)}</div>
+        </div>
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
+          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Nombre de Ventes</div>
+          <div className="mt-2 font-serif text-3xl">{ventes.length}</div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
+          <h2 className="mb-6 font-serif text-2xl">Revenus — 7 derniers jours</h2>
+          <div className="flex h-48 items-end gap-3 px-2">
+            {revenueByDay.map((d, i) => (
+              <div key={i} className="flex flex-1 flex-col items-center gap-2">
+                <div
+                  className="w-full border-2 border-[#16181A] bg-[#C1440E]"
+                  style={{ height: `${(d.total / maxDayRevenue) * 100}%` }}
+                />
+                <div className="text-[9px] uppercase tracking-tight">{d.label}</div>
               </div>
-              <div className="border-2 border-[#16181A] bg-white p-3">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Ventes</div>
-                <div className="mt-2 font-serif text-xl">{branchSheetBranch.ventesDuJour}</div>
-              </div>
-              <div className="border-2 border-[#16181A] bg-white p-3">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Alertes</div>
-                <div className="mt-2 font-serif text-xl">{branchSheetBranch.alertesStock}</div>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
+          <h2 className="mb-6 font-serif text-2xl">Performance — {branch.nom.split(' ').pop()}</h2>
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <div className="mb-3 text-[11px] font-bold uppercase text-[#2F6B4F]">Meilleures Ventes</div>
+              <div className="space-y-2">
+                {topSellers.map((p) => (
+                  <div key={p.nom} className="flex justify-between text-[11px]">
+                    <span className="mr-2 truncate">{p.nom}</span>
+                    <span className="font-bold">{p.qte} u.</span>
+                  </div>
+                ))}
               </div>
             </div>
-
-            <div className="px-5 pb-5">
-              <div className="mb-3 text-[12px] text-[#4B5560]">
-                {branchSheetBranch.ville} • {branchSheetBranch.adresse} • Responsable: {branchSheetBranch.gestionnaire}
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  onClick={() => {
-                    setBranchSheetBranch(null);
-                    onOpenBranch(branchSheetBranch.id);
-                  }}
-                  className="border-2 border-[#16181A] bg-[#16181A] px-4 py-3 text-left text-[12px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
-                >
-                  Ouvrir la caisse
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveSection('branches');
-                    setBranchSheetBranch(null);
-                  }}
-                  className="border-2 border-[#16181A] bg-white px-4 py-3 text-left text-[12px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
-                >
-                  Gérer la succursale
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveSection('analytics');
-                    setBranchSheetBranch(null);
-                  }}
-                  className="border-2 border-[#16181A] bg-white px-4 py-3 text-left text-[12px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
-                >
-                  Rapports & analytics
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveSection('users');
-                    setBranchSheetBranch(null);
-                  }}
-                  className="border-2 border-[#16181A] bg-white px-4 py-3 text-left text-[12px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
-                >
-                  Utilisateurs
-                </button>
+            <div>
+              <div className="mb-3 text-[11px] font-bold uppercase text-[#C1440E]">Ventes Faibles</div>
+              <div className="space-y-2">
+                {slowestMovers.map((p) => (
+                  <div key={p.nom} className="flex justify-between text-[11px]">
+                    <span className="mr-2 truncate">{p.nom}</span>
+                    <span className="font-bold">{p.qte} u.</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BranchUsersSection({
+  branchUsers,
+  onUpdateUser,
+}: {
+  branchUsers: User[];
+  onUpdateUser: (userId: string, patch: Partial<User>) => void;
+}) {
+  return (
+    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+      <h2 className="mb-4 font-serif text-2xl">Utilisateurs de la succursale</h2>
+      {branchUsers.length === 0 ? (
+        <div className="text-[13px] text-[#4B5560]">Aucun vendeur assigné à cette succursale.</div>
+      ) : (
+        <div className="space-y-3">
+          {branchUsers.map((user) => (
+            <div key={user.id} className="border-2 border-[#16181A] bg-white p-3">
+              <div className="mb-3 flex items-center gap-3">
+                <img src={user.profilePic} alt={user.name} className="h-10 w-10 border-2 border-[#16181A] object-cover" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{user.name}</div>
+                  <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Vendeur</div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Nom</label>
+                <input
+                  value={user.name}
+                  onChange={(event) => onUpdateUser(user.id, { name: event.target.value })}
+                  className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
+                />
+
+                <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Mot de passe</label>
+                <input
+                  type="password"
+                  value={user.password}
+                  onChange={(event) => onUpdateUser(user.id, { password: event.target.value })}
+                  className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
