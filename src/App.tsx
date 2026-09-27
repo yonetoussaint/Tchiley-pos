@@ -2265,7 +2265,8 @@ function VenteView({
       <section className="flex flex-1 flex-col overflow-hidden">
         <div className="flex items-center gap-3 border-b-2 border-[#16181A] bg-[#FBFAF6] px-6 py-4">
           <div className="relative flex-1 max-w-sm">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4B5560]" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4B5560]"
+            />
             <input
               value={recherche}
               onChange={(e) => setRecherche(e.target.value)}
@@ -2515,7 +2516,8 @@ function InventaireView({
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="flex items-center gap-3 border-b-2 border-[#16181A] bg-[#FBFAF6] px-6 py-4">
         <div className="relative max-w-sm flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4B5560]" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4B5560]"
+          />
           <input
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
