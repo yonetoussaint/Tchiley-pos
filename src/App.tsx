@@ -438,8 +438,9 @@ export default function GestionMateriaux() {
 
     if (ownerAccess) {
       setSelectedBranchId(branchId);
-      setAppRoute('sellerBoard');
+      setAppRoute('admin');
       setIsReadOnly(true);
+      goToRoute('admin');
       return;
     }
 
@@ -512,10 +513,12 @@ export default function GestionMateriaux() {
           setOwnerPasswordInput('');
           setOwnerPasswordError('');
           setIsReadOnly(true);
+          goToRoute('admin');
         }}
         branches={SUCURSALES}
         ventes={ventes}
         products={products}
+        selectedBranchId={selectedBranchId}
       />
     );
   }
@@ -907,6 +910,7 @@ function OwnerBoard({
   branches,
   ventes,
   products,
+  selectedBranchId,
 }: {
   users: User[];
   setUsers: Dispatch<SetStateAction<User[]>>;
@@ -915,10 +919,13 @@ function OwnerBoard({
   branches: Branch[];
   ventes: SaleRecord[];
   products: Product[];
+  selectedBranchId: string | null;
 }) {
   const updateUser = (userId: string, patch: Partial<User>) => {
     setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, ...patch } : user)));
   };
+
+  const selectedBranch = branches.find((branch) => branch.id === selectedBranchId) ?? null;
 
   const salesToday = ventes.filter((vente) => {
     const auj = new Date();
@@ -964,6 +971,29 @@ function OwnerBoard({
             <div className="mt-2 font-serif text-3xl">{fmtHTG(totalRevenue)}</div>
           </div>
         </div>
+
+        {selectedBranch && (
+          <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+            <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Succursale ouverte</div>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="font-serif text-2xl">{selectedBranch.nom}</div>
+                <div className="text-[12px] text-[#4B5560]">{selectedBranch.ville} • {selectedBranch.adresse}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={selectedBranch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[10px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-wide text-[#4B5560]'}>
+                  {selectedBranch.statut}
+                </span>
+                <button
+                  onClick={() => onOpenBranch(selectedBranch.id)}
+                  className="border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
+                >
+                  Revoir la succursale
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-5">
