@@ -924,12 +924,18 @@ function OwnerBoard({
 }) {
   const [menuOpen, setMenuOpen] = useState(true);
   const [activeSection, setActiveSection] = useState<'overview' | 'branches' | 'analytics' | 'users'>('overview');
+  const [branchSheetBranch, setBranchSheetBranch] = useState<Branch | null>(null);
 
   const updateUser = (userId: string, patch: Partial<User>) => {
     setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, ...patch } : user)));
   };
 
   const selectedBranch = branches.find((branch) => branch.id === selectedBranchId) ?? null;
+
+  const handleOpenBranch = (branch: Branch) => {
+    setBranchSheetBranch(branch);
+    onOpenBranch(branch.id);
+  };
 
   const salesToday = ventes.filter((vente) => {
     const auj = new Date();
@@ -1043,7 +1049,7 @@ function OwnerBoard({
                           {selectedBranch.statut}
                         </span>
                         <button
-                          onClick={() => onOpenBranch(selectedBranch.id)}
+                          onClick={() => handleOpenBranch(selectedBranch)}
                           className="border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
                         >
                           Revoir la succursale
@@ -1075,7 +1081,7 @@ function OwnerBoard({
                           {branch.statut}
                         </span>
                         <button
-                          onClick={() => onOpenBranch(branch.id)}
+                          onClick={() => handleOpenBranch(branch)}
                           className="border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
                         >
                           Ouvrir
@@ -1142,6 +1148,86 @@ function OwnerBoard({
           </main>
         </div>
       </div>
+
+      {branchSheetBranch && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 md:p-6">
+          <div className="w-full max-w-2xl rounded-none border-2 border-[#16181A] bg-[#FBFAF6] shadow-[12px_12px_0_#16181A]">
+            <div className="flex items-center justify-between border-b-2 border-[#16181A] px-5 py-4">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.22em] text-[#4B5560]">Gestion de succursale</div>
+                <div className="mt-1 font-serif text-2xl">{branchSheetBranch.nom}</div>
+              </div>
+              <button
+                onClick={() => setBranchSheetBranch(null)}
+                className="flex h-9 w-9 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
+                aria-label="Fermer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid gap-4 p-5 md:grid-cols-3">
+              <div className="border-2 border-[#16181A] bg-white p-3">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Statut</div>
+                <div className="mt-2 font-serif text-xl">{branchSheetBranch.statut}</div>
+              </div>
+              <div className="border-2 border-[#16181A] bg-white p-3">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Ventes</div>
+                <div className="mt-2 font-serif text-xl">{branchSheetBranch.ventesDuJour}</div>
+              </div>
+              <div className="border-2 border-[#16181A] bg-white p-3">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Alertes</div>
+                <div className="mt-2 font-serif text-xl">{branchSheetBranch.alertesStock}</div>
+              </div>
+            </div>
+
+            <div className="px-5 pb-5">
+              <div className="mb-3 text-[12px] text-[#4B5560]">
+                {branchSheetBranch.ville} • {branchSheetBranch.adresse} • Responsable: {branchSheetBranch.gestionnaire}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  onClick={() => {
+                    setBranchSheetBranch(null);
+                    onOpenBranch(branchSheetBranch.id);
+                  }}
+                  className="border-2 border-[#16181A] bg-[#16181A] px-4 py-3 text-left text-[12px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
+                >
+                  Ouvrir la caisse
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveSection('branches');
+                    setBranchSheetBranch(null);
+                  }}
+                  className="border-2 border-[#16181A] bg-white px-4 py-3 text-left text-[12px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+                >
+                  Gérer la succursale
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveSection('analytics');
+                    setBranchSheetBranch(null);
+                  }}
+                  className="border-2 border-[#16181A] bg-white px-4 py-3 text-left text-[12px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+                >
+                  Rapports & analytics
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveSection('users');
+                    setBranchSheetBranch(null);
+                  }}
+                  className="border-2 border-[#16181A] bg-white px-4 py-3 text-left text-[12px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+                >
+                  Utilisateurs
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
