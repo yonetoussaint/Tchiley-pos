@@ -926,7 +926,7 @@ function OwnerBoard({
   selectedBranchId: string | null;
 }) {
   const [menuOpen, setMenuOpen] = useState(true);
-  const [activeSection, setActiveSection] = useState<'overview' | 'branches' | 'inventory' | 'analytics' | 'users'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'branches' | 'inventory' | 'analytics' | 'users'>('branches');
   const [branchSheetBranch, setBranchSheetBranch] = useState<Branch | null>(null);
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState<string>(branches[0]?.id ?? 'gros-morne');
   const [inventorySearch, setInventorySearch] = useState<string>('');
@@ -1276,34 +1276,50 @@ function OwnerBoard({
             {activeSection === 'branches' && (
               <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
                 <div className="mb-4 flex items-center justify-between">
-                  <h2 className="font-serif text-2xl">Succursales actives</h2>
+                  <h2 className="font-serif text-2xl">Succursales</h2>
                   <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-[0.2em]">
                     {stockAlertCount} alertes
                   </span>
                 </div>
-                <div className="space-y-3">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {branches.map((branch) => (
-                    <div key={branch.id} className="flex flex-col gap-3 border-2 border-[#16181A] bg-white p-4 md:flex-row md:items-center md:justify-between">
+                    <button
+                      key={branch.id}
+                      onClick={() => handleOpenBranch(branch)}
+                      className="group flex h-full flex-col justify-between border-2 border-[#16181A] bg-white p-4 text-left shadow-[6px_6px_0_#16181A] transition-transform hover:-translate-y-1 hover:bg-[#F7F3EC]"
+                    >
                       <div>
-                        <div className="font-serif text-xl">{branch.nom}</div>
-                        <div className="text-[12px] text-[#4B5560]">{branch.ville} • {branch.adresse}</div>
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <span className="font-serif text-2xl leading-tight">{branch.nom}</span>
+                          <span className={branch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[9px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[9px] uppercase tracking-wide text-[#4B5560]'}>
+                            {branch.statut}
+                          </span>
+                        </div>
+
+                        <div className="space-y-3 text-[12px] text-[#4B5560]">
+                          <div className="border-b border-[#d9d2c5] pb-2">{branch.ville} • {branch.adresse}</div>
+                          <div className="flex items-center justify-between border-b border-[#d9d2c5] pb-2">
+                            <span>Gestionnaire</span>
+                            <span className="font-medium text-[#16181A]">{branch.gestionnaire}</span>
+                          </div>
+                          <div className="flex items-center justify-between border-b border-[#d9d2c5] pb-2">
+                            <span>Ventes</span>
+                            <span className="font-medium text-[#16181A]">{branch.ventesDuJour}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Alertes</span>
+                            <span className="font-medium text-[#C1440E]">{branch.alertesStock}</span>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={branch.statut === 'Ouvert' ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] px-2 py-1 text-[10px] uppercase tracking-wide text-[#2F6B4F]' : 'border-2 border-[#4B5560] bg-[#F3F4F6] px-2 py-1 text-[10px] uppercase tracking-wide text-[#4B5560]'}>
-                          {branch.statut}
+                      <div className="mt-4 flex items-center justify-between border-t-2 border-[#16181A] pt-3">
+                        <span className="text-[10px] uppercase tracking-[0.18em] text-[#4B5560]">Ouvrir</span>
+                        <span className="inline-flex h-8 w-8 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-white group-hover:bg-[#2b2e31]">
+                          <ChevronRight size={16} />
                         </span>
-                        <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1 text-[10px] uppercase tracking-wide text-[#16181A]">
-                          {branch.ventesDuJour} ventes
-                        </span>
-                        <button
-                          onClick={() => handleOpenBranch(branch)}
-                          className="border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white hover:bg-[#2b2e31]"
-                        >
-                          Ouvrir
-                        </button>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
