@@ -830,7 +830,7 @@ function OwnerBoard({
   selectedBranchId: string | null;
 }) {
   const [activeBranchId, setActiveBranchId] = useState<string>(selectedBranchId ?? branches[0]?.id ?? '');
-  const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const [menuOpen, setMenuOpen] = useState<boolean>(true);
   const [activeSection, setActiveSection] = useState<OwnerSection>('dashboard');
 
   const [inventorySearch, setInventorySearch] = useState<string>('');
@@ -951,12 +951,10 @@ function OwnerBoard({
   const selectBranchTab = (branchId: string) => {
     setActiveBranchId(branchId);
     setActiveSection('dashboard');
-    setMenuOpen(false);
   };
 
   const selectSection = (section: OwnerSection) => {
     setActiveSection(section);
-    setMenuOpen(false);
   };
 
   if (!activeBranch) {
@@ -1042,28 +1040,35 @@ function OwnerBoard({
         </div>
 
         <div className="flex items-start gap-4">
-          {menuOpen && (
-            <nav className="w-56 shrink-0 border-2 border-[#16181A] bg-[#FBFAF6] p-2">
-              {OWNER_SECTIONS.map(({ id, label, icon: Icon }) => {
-                const active = activeSection === id;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => selectSection(id)}
-                    className={
-                      'mb-1 flex w-full items-center gap-3 border-2 px-3 py-2.5 text-left text-[11px] uppercase tracking-[0.18em] last:mb-0 ' +
-                      (active
-                        ? 'border-[#C1440E] bg-[#C1440E] text-white'
-                        : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
-                    }
-                  >
-                    <Icon size={15} />
-                    {label}
-                  </button>
-                );
-              })}
-            </nav>
-          )}
+          <nav
+            className={
+              'shrink-0 border-2 border-[#16181A] bg-[#FBFAF6] p-2 transition-[width] duration-150 ' +
+              (menuOpen ? 'w-56' : 'w-14')
+            }
+          >
+            {OWNER_SECTIONS.map(({ id, label, icon: Icon }) => {
+              const active = activeSection === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => selectSection(id)}
+                  title={menuOpen ? undefined : label}
+                  aria-label={label}
+                  className={
+                    'mb-1 flex w-full items-center text-left text-[11px] uppercase tracking-[0.18em] last:mb-0 border-2 py-2.5 ' +
+                    (menuOpen ? 'gap-3 px-3' : 'justify-center px-0') +
+                    ' ' +
+                    (active
+                      ? 'border-[#C1440E] bg-[#C1440E] text-white'
+                      : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                  }
+                >
+                  <Icon size={15} className="shrink-0" />
+                  {menuOpen && <span>{label}</span>}
+                </button>
+              );
+            })}
+          </nav>
 
           <main className="min-w-0 flex-1 space-y-5">
             {activeSection === 'dashboard' && (
