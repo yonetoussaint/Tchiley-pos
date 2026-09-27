@@ -514,6 +514,8 @@ export default function GestionMateriaux() {
           setIsReadOnly(true);
         }}
         branches={SUCURSALES}
+        ventes={ventes}
+        products={products}
       />
     );
   }
@@ -776,23 +778,127 @@ export default function GestionMateriaux() {
   );
 }
 
-function OwnerBoard({
-  users,
-  setUsers,
-  onBackToBranches,
-  onOpenBranch,
-  branches,
+function AnalyticsView({
   ventes,
   products,
+  branches,
 }: {
-  users: User[];
-  setUsers: Dispatch<SetStateAction<User[]>>;
-  onBackToBranches: () => void;
-  onOpenBranch: (branchId: string) => void;
-  branches: Branch[];
   ventes: SaleRecord[];
   products: Product[];
+  branches: Branch[];
 }) {
+  const totalRevenue = ventes.reduce((s, v) => s + v.total, 0);
+
+  const totalProfit = ventes.reduce((s, v) => {
+    const saleProfit = v.lignes.reduce((acc, l) => {
+      const p = products.find((prod) => prod.nom === l.nom);
+      const cost = p ? p.prixAchat * l.qte : 0;
+      return acc + (l.sousTotal - cost);
+    }, 0);
+    return s + saleProfit;
+  }, 0);
+
+  const branchStats = branches.map((b) => {
+    const bVentes = ventes.filter((v) => v.branchId === b.id);
+    const revenue = bVentes.reduce((s, v) => s + v.total, 0);
+    return {
+      nom: b.nom,
+      revenue,
+      count: bVentes.length,
+    };
+  }).sort((a, b) => b.revenue - a.revenue);
+
+  const productPerformance = products.map((p) => {
+    const qteVendue = ventes.flatMap((v) => v.lignes)
+      .filter((l) => l.nom === p.nom)
+      .reduce((s, l) => s + l.qte, 0);
+    return {
+      nom: p.nom,
+      qte: qteVendue,
+      stock: p.stock,
+    };
+  });
+
+  const topSellers = [...productPerformance].sort((a, b) => b.qte - a.qte).slice(0, 5);
+  const slowestMovers = [...productPerformance].sort((a, b) => a.qte - b.qte).slice(0, 5);
+
+  const maxRevenue = Math.max(...branchStats.map((b) => b.revenue), 1);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 md:grid-cols-3">
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
+          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Revenu Total</div>
+          <div className="mt-2 font-serif text-3xl">{fmtHTG(totalRevenue)}</div>
+        </div>
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
+          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Profit Net Estimé</div>
+          <div className="mt-2 font-serif text-3xl text-[#2F6B4F]">{fmtHTG(totalProfit)}</div>
+        </div>
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
+          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Nombre de Ventes</div>
+          <div className="mt-2 font-serif text-3xl">{ventes.length}</div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
+          <h2 className="mb-6 font-serif text-2xl">Revenus par Succursale</h2>
+          <div className="flex items-end gap-4 h-48 px-2">
+            {branchStats.map((b) => (
+              <div key={b.nom} className="flex-1 flex flex-col items-center gap-2">
+                <div 
+                  className="w-full bg-[#C1440E] border-2 border-[#16181A]" 
+                  style={{ height: `${(b.revenue / maxRevenue) * 100}%` }}
+                />
+                <div className="text-[9px] uppercase tracking-tight text-center truncate w-full">
+                  {b.nom.split(' ').pop()}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 space-y-2">
+            {branchStats.map((b, i) => (
+              <div key={b.nom} className="flex justify-between text-[12px] border-b border-gray-100 py-1">
+                <span>{i + 1}. {b.nom}</span>
+                <span className="font-bold">{fmtHTG(b.revenue)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
+          <h2 className="mb-6 font-serif text-2xl">Performance Produits</h2>
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <div className="text-[11px] uppercase font-bold text-[#2F6B4F] mb-3">Meilleures Ventes</div>
+              <div className="space-y-2">
+                {topSellers.map((p) => (
+                  <div key={p.nom} className="flex justify-between text-[11px]">
+                    <span className="truncate mr-2">{p.nom}</span>
+                    <span className="font-bold">{p.qte} u.</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] uppercase font-bold text-[#C1440E] mb-3">Ventes Faibles</div>
+              <div className="space-y-2">
+                {slowestMovers.map((p) => (
+                  <div key={p.nom} className="flex justify-between text-[11px]">
+                    <span className="truncate mr-2">{p.nom}</span>
+                    <span className="font-bold">{p.qte} u.</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
   const [activeTab, setActiveTab] = useState<'users' | 'analytics'>('users');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
