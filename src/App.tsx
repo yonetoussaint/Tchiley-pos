@@ -507,8 +507,8 @@ export default function GestionMateriaux() {
         }}
         onOpenBranch={(branchId: string) => {
           setSelectedBranchId(branchId);
-          setAppRoute('sellerBoard');
-          setOwnerAccess(false);
+          setAppRoute('admin');
+          setOwnerAccess(true);
           setOwnerPasswordInput('');
           setOwnerPasswordError('');
           setIsReadOnly(true);
