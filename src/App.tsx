@@ -1041,74 +1041,76 @@ function OwnerBoard({
           </button>
         </div>
 
-        {menuOpen && (
-          <div className="mb-4 flex flex-wrap gap-2 border-2 border-[#16181A] bg-[#FBFAF6] p-3">
-            {OWNER_SECTIONS.map(({ id, label, icon: Icon }) => {
-              const active = activeSection === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => selectSection(id)}
-                  className={
-                    'flex items-center gap-2 border-2 px-3 py-2 text-[11px] uppercase tracking-[0.18em] ' +
-                    (active
-                      ? 'border-[#C1440E] bg-[#C1440E] text-white'
-                      : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#F7F3EC]')
-                  }
-                >
-                  <Icon size={14} />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        <main className="space-y-5">
-          {activeSection === 'dashboard' && (
-            <BranchDashboardSection
-              branch={activeBranch}
-              branchProducts={branchProducts}
-              salesToday={salesToday}
-              totalRevenue={totalRevenueBranch}
-              stockAlertCount={stockAlertCount}
-              lowStockProducts={lowStockProducts}
-              recentSales={recentSales}
-            />
+        <div className="flex items-start gap-4">
+          {menuOpen && (
+            <nav className="w-56 shrink-0 border-2 border-[#16181A] bg-[#FBFAF6] p-2">
+              {OWNER_SECTIONS.map(({ id, label, icon: Icon }) => {
+                const active = activeSection === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => selectSection(id)}
+                    className={
+                      'mb-1 flex w-full items-center gap-3 border-2 px-3 py-2.5 text-left text-[11px] uppercase tracking-[0.18em] last:mb-0 ' +
+                      (active
+                        ? 'border-[#C1440E] bg-[#C1440E] text-white'
+                        : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                    }
+                  >
+                    <Icon size={15} />
+                    {label}
+                  </button>
+                );
+              })}
+            </nav>
           )}
 
-          {activeSection === 'products' && (
-            <BranchProductsSection
-              branchProducts={branchProducts}
-              inventorySearch={inventorySearch}
-              setInventorySearch={setInventorySearch}
-              inventoryCategoryFilter={inventoryCategoryFilter}
-              setInventoryCategoryFilter={setInventoryCategoryFilter}
-              inventoryStatusFilter={inventoryStatusFilter}
-              setInventoryStatusFilter={setInventoryStatusFilter}
-              selectedDate={selectedDate}
-              shiftSelectedDate={shiftSelectedDate}
-              isCurrentDateSelected={isCurrentDateSelected}
-              soldByProductToday={soldByProductToday}
-              restockByProduct={restockByProduct}
-              setRestockByProduct={setRestockByProduct}
-              selectedHistoryProduct={selectedHistoryProduct}
-              onAddProduct={handleAddProduct}
-              onUpdateProduct={updateProduct}
-              onRestockProduct={handleRestockProduct}
-              onDeleteProduct={handleDeleteProduct}
-              onViewHistory={handleViewHistory}
-            />
-          )}
+          <main className="min-w-0 flex-1 space-y-5">
+            {activeSection === 'dashboard' && (
+              <BranchDashboardSection
+                branch={activeBranch}
+                branchProducts={branchProducts}
+                salesToday={salesToday}
+                totalRevenue={totalRevenueBranch}
+                stockAlertCount={stockAlertCount}
+                lowStockProducts={lowStockProducts}
+                recentSales={recentSales}
+              />
+            )}
 
-          {activeSection === 'reports' && (
-            <BranchReportsSection branch={activeBranch} ventes={branchVentes} products={branchProducts} />
-          )}
+            {activeSection === 'products' && (
+              <BranchProductsSection
+                branchProducts={branchProducts}
+                inventorySearch={inventorySearch}
+                setInventorySearch={setInventorySearch}
+                inventoryCategoryFilter={inventoryCategoryFilter}
+                setInventoryCategoryFilter={setInventoryCategoryFilter}
+                inventoryStatusFilter={inventoryStatusFilter}
+                setInventoryStatusFilter={setInventoryStatusFilter}
+                selectedDate={selectedDate}
+                shiftSelectedDate={shiftSelectedDate}
+                isCurrentDateSelected={isCurrentDateSelected}
+                soldByProductToday={soldByProductToday}
+                restockByProduct={restockByProduct}
+                setRestockByProduct={setRestockByProduct}
+                selectedHistoryProduct={selectedHistoryProduct}
+                onAddProduct={handleAddProduct}
+                onUpdateProduct={updateProduct}
+                onRestockProduct={handleRestockProduct}
+                onDeleteProduct={handleDeleteProduct}
+                onViewHistory={handleViewHistory}
+              />
+            )}
 
-          {activeSection === 'users' && (
-            <BranchUsersSection branchUsers={branchUsers} onUpdateUser={updateUser} />
-          )}
-        </main>
+            {activeSection === 'reports' && (
+              <BranchReportsSection branch={activeBranch} ventes={branchVentes} products={branchProducts} />
+            )}
+
+            {activeSection === 'users' && (
+              <BranchUsersSection branchUsers={branchUsers} onUpdateUser={updateUser} />
+            )}
+          </main>
+        </div>
       </div>
     </div>
   );
