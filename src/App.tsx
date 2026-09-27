@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import './App.css';
 import {
   ShoppingCart, Boxes, History, Gauge, AlertTriangle,
@@ -248,7 +248,7 @@ const INITIAL_USERS: User[] = [
 
 export default function GestionMateriaux() {
   const [view, setView] = useState<View>('vente');
-  const [appRoute, setAppRoute] = useState<'portal' | 'sellerBranchSelection' | 'sellerBoard' | 'ownerBoard'>('portal');
+  const [appRoute, setAppRoute] = useState<'admin' | 'user' | 'sellerBoard'>('admin');
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [pendingBranchId, setPendingBranchId] = useState<string | null>(null);
   const [branchPasswordInput, setBranchPasswordInput] = useState<string>('');
@@ -400,6 +400,30 @@ export default function GestionMateriaux() {
 
   const brancheEnAttente = SUCURSALES.find((branch) => branch.id === pendingBranchId) ?? null;
 
+  const goToRoute = (route: 'admin' | 'user') => {
+    const destination = route === 'admin' ? '/admin' : '/user';
+    if (window.location.pathname.toLowerCase() !== destination) {
+      window.history.pushState({}, '', destination);
+    }
+    setAppRoute(route);
+  };
+
+  useEffect(() => {
+    const currentPath = window.location.pathname.toLowerCase();
+    if (currentPath === '/admin') {
+      setAppRoute('admin');
+      return;
+    }
+
+    if (currentPath === '/user') {
+      setAppRoute('user');
+      return;
+    }
+
+    window.history.replaceState({}, '', '/admin');
+    setAppRoute('admin');
+  }, []);
+
   const ouvrirSuccursale = (branchId: string) => {
     const branche = SUCURSALES.find((item) => item.id === branchId);
     if (!branche) return;
@@ -421,8 +445,9 @@ export default function GestionMateriaux() {
       setOwnerModalOpen(false);
       setOwnerPasswordInput('');
       setOwnerPasswordError('');
-      setAppRoute('ownerBoard');
+      setAppRoute('admin');
       setSelectedBranchId(null);
+      goToRoute('admin');
       return;
     }
 
@@ -444,24 +469,23 @@ export default function GestionMateriaux() {
     setBranchPasswordError('Mot de passe incorrect. Veuillez réessayer.');
   };
 
-  if (appRoute === 'portal') {
-    return (
-      <PortalSelectionView
-        onSelectOwner={() => {
-          setOwnerPasswordInput('');
-          setOwnerPasswordError('');
-          setOwnerModalOpen(true);
-        }}
-        onSelectSeller={() => {
-          setBranchPasswordInput('');
-          setBranchPasswordError('');
-          setAppRoute('sellerBranchSelection');
-        }}
-      />
-    );
-  }
+  if (appRoute === 'admin') {
+    if (!ownerAccess) {
+      return (
+        <OwnerAccessModal
+          passwordValue={ownerPasswordInput}
+          setPasswordValue={setOwnerPasswordInput}
+          errorMessage={ownerPasswordError}
+          onClose={() => {
+            setOwnerPasswordInput('');
+            setOwnerPasswordError('');
+            goToRoute('user');
+          }}
+          onConfirm={validerAccesProprietaire}
+        />
+      );
+    }
 
-  if (appRoute === 'ownerBoard') {
     return (
       <OwnerBoard
         users={users}
@@ -469,76 +493,36 @@ export default function GestionMateriaux() {
         onBackToBranches={() => {
           setOwnerAccess(false);
           setSelectedBranchId(null);
-          setAppRoute('portal');
+          goToRoute('user');
         }}
         onOpenBranch={(branchId) => {
           setSelectedBranchId(branchId);
           setAppRoute('sellerBoard');
+          setOwnerAccess(false);
+          setOwnerPasswordInput('');
+          setOwnerPasswordError('');
         }}
         branches={SUCURSALES}
       />
     );
   }
 
-  if (appRoute === 'sellerBranchSelection') {
+  if (appRoute === 'user' || !selectedBranchId) {
     return (
       <>
         <BranchSelectionView
           branches={SUCURSALES}
           onSelect={ouvrirSuccursale}
           ownerAccess={ownerAccess}
-          onOwnerLogin={() => setOwnerModalOpen(true)}
-          onOwnerLogout={() => {
-            setOwnerAccess(false);
+          onOwnerLogin={() => {
             setOwnerPasswordInput('');
             setOwnerPasswordError('');
-            setAppRoute('portal');
+            goToRoute('admin');
           }}
-        />
-        {ownerModalOpen && (
-          <OwnerAccessModal
-            passwordValue={ownerPasswordInput}
-            setPasswordValue={setOwnerPasswordInput}
-            errorMessage={ownerPasswordError}
-            onClose={() => {
-              setOwnerModalOpen(false);
-              setOwnerPasswordInput('');
-              setOwnerPasswordError('');
-            }}
-            onConfirm={validerAccesProprietaire}
-          />
-        )}
-        {brancheEnAttente && (
-          <BranchAccessModal
-            branch={brancheEnAttente}
-            passwordValue={branchPasswordInput}
-            setPasswordValue={setBranchPasswordInput}
-            errorMessage={branchPasswordError}
-            onClose={() => {
-              setPendingBranchId(null);
-              setBranchPasswordInput('');
-              setBranchPasswordError('');
-            }}
-            onConfirm={validerAccesSuccursale}
-          />
-        )}
-      </>
-    );
-  }
-
-  if (!selectedBranchId) {
-    return (
-      <>
-        <BranchSelectionView
-          branches={SUCURSALES}
-          onSelect={ouvrirSuccursale}
-          ownerAccess={ownerAccess}
-          onOwnerLogin={() => setOwnerModalOpen(true)}
           onOwnerLogout={() => {
             setOwnerAccess(false);
             setOwnerPasswordInput('');
             setOwnerPasswordError('');
-            setAppRoute('portal');
           }}
         />
         {ownerModalOpen && (
@@ -779,49 +763,6 @@ export default function GestionMateriaux() {
   );
 }
 
-function PortalSelectionView({
-  onSelectOwner,
-  onSelectSeller,
-}: {
-  onSelectOwner: () => void;
-  onSelectSeller: () => void;
-}) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[#ECE7DC] p-6 text-[#16181A]">
-      <div className="w-full max-w-5xl border-2 border-[#16181A] bg-[#FBFAF6] shadow-[10px_10px_0_#16181A]">
-        <div className="border-b-2 border-[#16181A] px-6 py-5">
-          <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Accès</div>
-          <h1 className="mt-2 font-serif text-4xl md:text-5xl">Choisissez votre portail</h1>
-        </div>
-
-        <div className="grid gap-5 p-6 md:grid-cols-2">
-          <button
-            onClick={onSelectOwner}
-            className="border-2 border-[#16181A] bg-[#16181A] p-6 text-left text-white transition-transform hover:-translate-y-1 hover:bg-[#2b2e31]"
-          >
-            <div className="text-[10px] uppercase tracking-[0.28em] text-[#c7ccd1]">Route propriétaire</div>
-            <div className="mt-3 font-serif text-3xl">Admin Tchiley</div>
-            <p className="mt-3 max-w-xs text-sm text-[#dfe2e5]">
-              Gérer les utilisateurs, les comptes, les mots de passe et visualiser toutes les succursales.
-            </p>
-          </button>
-
-          <button
-            onClick={onSelectSeller}
-            className="border-2 border-[#16181A] bg-[#FBFAF6] p-6 text-left transition-transform hover:-translate-y-1 hover:bg-[#ECE7DC]"
-          >
-            <div className="text-[10px] uppercase tracking-[0.28em] text-[#4B5560]">Route vendeur</div>
-            <div className="mt-3 font-serif text-3xl">Caisse / Succursale</div>
-            <p className="mt-3 max-w-xs text-sm text-[#4B5560]">
-              Accéder directement aux ventes, au stock et au tableau de bord d’une succursale.
-            </p>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function OwnerBoard({
   users,
   setUsers,
@@ -932,7 +873,7 @@ function OwnerBoard({
               onClick={onBackToBranches}
               className="border-2 border-[#16181A] bg-white px-4 py-2 text-[12px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
             >
-              Retour aux succursales
+              Retour à l’espace vendeur
             </button>
           </div>
         </div>
