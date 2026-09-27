@@ -206,12 +206,18 @@ const SUCURSALES: Branch[] = [
   },
 ];
 
+const OWNER_PASSWORD = 'tchileyowner2026';
+
 export default function GestionMateriaux() {
   const [view, setView] = useState<View>('vente');
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [pendingBranchId, setPendingBranchId] = useState<string | null>(null);
   const [branchPasswordInput, setBranchPasswordInput] = useState<string>('');
   const [branchPasswordError, setBranchPasswordError] = useState<string>('');
+  const [ownerAccess, setOwnerAccess] = useState<boolean>(false);
+  const [ownerPasswordInput, setOwnerPasswordInput] = useState<string>('');
+  const [ownerPasswordError, setOwnerPasswordError] = useState<string>('');
+  const [ownerModalOpen, setOwnerModalOpen] = useState<boolean>(false);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [categorie, setCategorie] = useState<string>('Tout');
@@ -358,9 +364,26 @@ export default function GestionMateriaux() {
     const branche = SUCURSALES.find((item) => item.id === branchId);
     if (!branche) return;
 
+    if (ownerAccess) {
+      setSelectedBranchId(branchId);
+      return;
+    }
+
     setPendingBranchId(branchId);
     setBranchPasswordInput('');
     setBranchPasswordError('');
+  };
+
+  const validerAccesProprietaire = () => {
+    if (ownerPasswordInput.trim() === OWNER_PASSWORD) {
+      setOwnerAccess(true);
+      setOwnerModalOpen(false);
+      setOwnerPasswordInput('');
+      setOwnerPasswordError('');
+      return;
+    }
+
+    setOwnerPasswordError('Mot de passe propriétaire incorrect.');
   };
 
   const validerAccesSuccursale = () => {
@@ -380,7 +403,30 @@ export default function GestionMateriaux() {
   if (!selectedBranchId) {
     return (
       <>
-        <BranchSelectionView branches={SUCURSALES} onSelect={ouvrirSuccursale} />
+        <BranchSelectionView
+          branches={SUCURSALES}
+          onSelect={ouvrirSuccursale}
+          ownerAccess={ownerAccess}
+          onOwnerLogin={() => setOwnerModalOpen(true)}
+          onOwnerLogout={() => {
+            setOwnerAccess(false);
+            setOwnerPasswordInput('');
+            setOwnerPasswordError('');
+          }}
+        />
+        {ownerModalOpen && (
+          <OwnerAccessModal
+            passwordValue={ownerPasswordInput}
+            setPasswordValue={setOwnerPasswordInput}
+            errorMessage={ownerPasswordError}
+            onClose={() => {
+              setOwnerModalOpen(false);
+              setOwnerPasswordInput('');
+              setOwnerPasswordError('');
+            }}
+            onConfirm={validerAccesProprietaire}
+          />
+        )}
         {brancheEnAttente && (
           <BranchAccessModal
             branch={brancheEnAttente}
@@ -518,15 +564,15 @@ export default function GestionMateriaux() {
 
       {lastReceipt && (
         <div className="receipt-print fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
-          <div className="w-full max-w-md border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#16181A]">
-            <div className="flex items-center justify-between border-b-2 border-[#16181A] pb-3">
+          <div className="w-full max-w-md border-2 border-[#16181A] bg-white p-4 shadow-[8px_8px_0_#16181A]">
+            <div className="flex items-start justify-between border-b-2 border-[#16181A] pb-3">
               <div>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Reçu</div>
-                <div className="mt-1 font-serif text-2xl">Tchiley</div>
+                <div className="text-[10px] uppercase tracking-[0.28em] text-[#4B5560]">Ticket de vente</div>
+                <div className="mt-1 font-serif text-[26px] leading-none text-[#16181A]">Tchiley</div>
               </div>
               <button
                 onClick={() => setLastReceipt(null)}
-                className="print-close text-[#4B5560] hover:text-[#C1440E]"
+                className="print-close mt-1 text-[#4B5560] hover:text-[#C1440E]"
               >
                 <X size={18} />
               </button>
@@ -534,8 +580,8 @@ export default function GestionMateriaux() {
 
             <div className="mt-4 space-y-1 text-[12px] text-[#4B5560]">
               <div className="flex justify-between">
-                <span>Ticket</span>
-                <span className="font-medium text-[#16181A]">{lastReceipt.id}</span>
+                <span>Réf.</span>
+                <span className="font-semibold text-[#16181A]">{lastReceipt.id}</span>
               </div>
               <div className="flex justify-between">
                 <span>Date</span>
@@ -548,26 +594,40 @@ export default function GestionMateriaux() {
             </div>
 
             <div className="mt-5 border-t-2 border-b-2 border-[#16181A] py-3">
+              <div className="mb-2 flex justify-between text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
+                <span>Article</span>
+                <span>Montant</span>
+              </div>
+
               {lastReceipt.lignes.map((ligne, index) => (
-                <div key={`${lastReceipt.id}-${index}`} className="mb-2 flex justify-between gap-3 text-[13px]">
-                  <span>{ligne.qte} × {ligne.nom}</span>
-                  <span>{fmtHTG(ligne.sousTotal)}</span>
+                <div key={`${lastReceipt.id}-${index}`} className="mb-2 space-y-1 text-[13px]">
+                  <div className="flex justify-between gap-3">
+                    <span className="pr-2">{ligne.qte} × {ligne.nom}</span>
+                    <span>{fmtHTG(ligne.sousTotal)}</span>
+                  </div>
+                  <div className="text-right text-[11px] text-[#4B5560]">
+                    {fmtHTG(ligne.prix)} / unité
+                  </div>
                 </div>
               ))}
             </div>
 
             <div className="mt-4 space-y-2 text-[13px]">
               <div className="flex justify-between">
-                <span className="text-[#4B5560]">Total</span>
-                <span className="font-serif text-xl">{fmtHTG(lastReceipt.total)}</span>
+                <span className="text-[#4B5560]">Sous-total</span>
+                <span>{fmtHTG(lastReceipt.total)}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between border-t border-[#c7c2b4] pt-2">
                 <span className="text-[#4B5560]">Reçu</span>
                 <span>{fmtHTG(lastReceipt.recu)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#4B5560]">Monnaie</span>
-                <span>{fmtHTG(lastReceipt.monnaie)}</span>
+                <span className="font-medium text-[#2F6B4F]">{fmtHTG(lastReceipt.monnaie)}</span>
+              </div>
+              <div className="flex justify-between border-t-2 border-[#16181A] pt-3 font-serif text-[22px]">
+                <span>Total</span>
+                <span>{fmtHTG(lastReceipt.total)}</span>
               </div>
             </div>
 
@@ -588,6 +648,75 @@ export default function GestionMateriaux() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function OwnerAccessModal({
+  passwordValue,
+  setPasswordValue,
+  errorMessage,
+  onClose,
+  onConfirm,
+}: {
+  passwordValue: string;
+  setPasswordValue: Dispatch<SetStateAction<string>>;
+  errorMessage: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md border-2 border-[#16181A] bg-[#FBFAF6]">
+        <div className="flex items-center justify-between border-b-2 border-[#16181A] px-5 py-4">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Accès propriétaire</div>
+            <div className="mt-1 font-serif text-2xl">Panneau principal</div>
+          </div>
+          <button onClick={onClose} className="text-[#4B5560] hover:text-[#C1440E]" aria-label="Fermer">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="px-5 py-5">
+          <div className="mb-3 text-[13px] text-[#4B5560]">
+            Entrez le mot de passe du propriétaire pour accéder à l’ensemble du système.
+          </div>
+          <label className="mb-1 block text-[12px] uppercase tracking-wide text-[#4B5560]">
+            Mot de passe propriétaire
+          </label>
+          <input
+            type="password"
+            value={passwordValue}
+            onChange={(e) => setPasswordValue(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
+            placeholder="••••••••"
+            autoFocus
+            className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+          />
+
+          {errorMessage && (
+            <div className="mt-3 border-2 border-[#C1440E] bg-[#FDF1EC] px-3 py-2 text-[12px] text-[#C1440E]">
+              {errorMessage}
+            </div>
+          )}
+
+          <div className="mt-5 flex gap-2">
+            <button
+              onClick={onClose}
+              className="flex-1 border-2 border-[#16181A] bg-white py-2.5 text-[14px] hover:bg-[#ECE7DC]"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 border-2 border-[#16181A] bg-[#16181A] py-2.5 text-[14px] font-medium text-white hover:bg-[#2b2e31]"
+            >
+              Ouvrir
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -666,9 +795,15 @@ function BranchAccessModal({
 function BranchSelectionView({
   branches,
   onSelect,
+  ownerAccess,
+  onOwnerLogin,
+  onOwnerLogout,
 }: {
   branches: Branch[];
   onSelect: (id: string) => void;
+  ownerAccess: boolean;
+  onOwnerLogin: () => void;
+  onOwnerLogout: () => void;
 }) {
   return (
     <div className="branch-page min-h-screen px-6 py-8 text-[#16181A]">
@@ -682,10 +817,24 @@ function BranchSelectionView({
             </p>
           </div>
 
-          <div className="branch-stat border-2 border-[#16181A] bg-[#16181A] px-4 py-3 text-left text-[#FBFAF6] shadow-[6px_6px_0_#C1440E]">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-[#c7ccd1]">Actifs</div>
-            <div className="mt-1 font-serif text-2xl leading-none">{branches.length}</div>
-            <div className="mt-1 text-[12px] text-[#dfe2e5]">succursales</div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={ownerAccess ? onOwnerLogout : onOwnerLogin}
+              className={
+                'border-2 px-3 py-2 text-[11px] uppercase tracking-[0.18em] ' +
+                (ownerAccess
+                  ? 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]'
+                  : 'border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31]')
+              }
+            >
+              {ownerAccess ? 'Propriétaire actif' : 'Accès propriétaire'}
+            </button>
+
+            <div className="branch-stat border-2 border-[#16181A] bg-[#16181A] px-4 py-3 text-left text-[#FBFAF6] shadow-[6px_6px_0_#C1440E]">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-[#c7ccd1]">Actifs</div>
+              <div className="mt-1 font-serif text-2xl leading-none">{branches.length}</div>
+              <div className="mt-1 text-[12px] text-[#dfe2e5]">succursales</div>
+            </div>
           </div>
         </div>
 
