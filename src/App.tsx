@@ -5,7 +5,8 @@ import {
   ShoppingCart, Boxes, History, Gauge, AlertTriangle,
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
-  Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown
+  Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown,
+  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight
 } from 'lucide-react';
 
 /* =========================================================================
@@ -369,6 +370,62 @@ function summarizeCash(
   };
 }
 
+/* ---------- Coffre (all money in / out of the business) ---------- */
+type CoffreAccountId = 'especes' | 'moncash' | 'natcash';
+type CoffreKind = 'entree' | 'sortie' | 'transfert';
+
+type CoffreEntry = {
+  id: string;
+  branchId: string;
+  date: Date;
+  kind: CoffreKind;
+  categorie: string;
+  compte: CoffreAccountId; // credited (entree) or debited (sortie / transfert)
+  compteDest?: CoffreAccountId; // transfert only
+  montant: number;
+  note?: string;
+};
+
+const COFFRE_ACCOUNTS: Array<{ id: CoffreAccountId; label: string; icon: typeof Banknote }> = [
+  { id: 'especes', label: 'Espèces', icon: Banknote },
+  { id: 'moncash', label: 'MonCash', icon: Smartphone },
+  { id: 'natcash', label: 'NatCash', icon: Smartphone },
+];
+
+const COFFRE_CATEGORIES: Record<'entree' | 'sortie', string[]> = {
+  entree: ['Versement caisse', 'Renflouement', 'Remboursement client', 'Apport propriétaire', 'Solde initial', 'Autre entrée'],
+  sortie: ['Achat marchandises', 'Dépense courante', 'Salaire', 'Retrait propriétaire', 'Autre sortie'],
+};
+
+const COFFRE_KIND_META: Record<CoffreKind, { label: string; plural: string; icon: typeof Plus }> = {
+  entree: { label: 'Entrée', plural: 'Entrées', icon: ArrowDownLeft },
+  sortie: { label: 'Sortie', plural: 'Sorties', icon: ArrowUpRight },
+  transfert: { label: 'Transfert', plural: 'Transferts', icon: ArrowLeftRight },
+};
+
+type CoffrePeriod = 'jour' | 'mois' | 'annee' | 'tout';
+const COFFRE_PERIODS: Array<{ id: CoffrePeriod; label: string }> = [
+  { id: 'jour', label: 'Jour' },
+  { id: 'mois', label: 'Mois' },
+  { id: 'annee', label: 'Année' },
+  { id: 'tout', label: 'Tout' },
+];
+
+const coffreAccountLabel = (id: CoffreAccountId) => COFFRE_ACCOUNTS.find((a) => a.id === id)?.label ?? id;
+
+function coffreBalances(entries: CoffreEntry[]): Record<CoffreAccountId, number> {
+  const b: Record<CoffreAccountId, number> = { especes: 0, moncash: 0, natcash: 0 };
+  for (const e of entries) {
+    if (e.kind === 'entree') b[e.compte] += e.montant;
+    else if (e.kind === 'sortie') b[e.compte] -= e.montant;
+    else if (e.compteDest) {
+      b[e.compte] -= e.montant;
+      b[e.compteDest] += e.montant;
+    }
+  }
+  return b;
+}
+
 const fmtTime12 = (d: Date) =>
   d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
@@ -477,6 +534,7 @@ export default function GestionMateriaux() {
   const [recherche, setRecherche] = useState<string>('');
   const [ventes, setVentes] = useState<SaleRecord[]>(() => buildMockSales());
   const [cashEntries, setCashEntries] = useState<CashEntry[]>([]);
+  const [coffreEntries, setCoffreEntries] = useState<CoffreEntry[]>([]);
   const ventesValides = useMemo(() => ventes.filter((v) => v.statut !== 'annulee'), [ventes]);
   const clientsConnus = useMemo(
     () => Array.from(new Set(ventes.map((v) => v.client?.trim()).filter((c): c is string => !!c))).sort(),
@@ -732,6 +790,8 @@ export default function GestionMateriaux() {
         setVentes={setVentes}
         cashEntries={cashEntries}
         setCashEntries={setCashEntries}
+        coffreEntries={coffreEntries}
+        setCoffreEntries={setCoffreEntries}
         products={products}
         selectedBranchId={selectedBranchId}
       />
@@ -1026,13 +1086,14 @@ function ReceiptModal({ sale, onClose }: { sale: SaleRecord; onClose: () => void
    own section menu (Tableau de Bord / Produits / Rapports / Utilisateurs).
    ========================================================================= */
 
-type OwnerSection = 'dashboard' | 'products' | 'sales' | 'credits' | 'reports' | 'users';
+type OwnerSection = 'dashboard' | 'products' | 'sales' | 'credits' | 'coffre' | 'reports' | 'users';
 
 const OWNER_SECTIONS: Array<{ id: OwnerSection; label: string; icon: typeof Gauge }> = [
   { id: 'dashboard', label: 'Tableau de Bord', icon: Gauge },
   { id: 'products', label: 'Produits', icon: Boxes },
   { id: 'sales', label: 'Ventes', icon: ShoppingCart },
   { id: 'credits', label: 'Crédits', icon: FileClock },
+  { id: 'coffre', label: 'Coffre', icon: Vault },
   { id: 'reports', label: 'Rapports', icon: BarChart3 },
   { id: 'users', label: 'Utilisateurs', icon: Users },
 ];
@@ -1229,6 +1290,8 @@ function OwnerBoard({
   setVentes,
   cashEntries,
   setCashEntries,
+  coffreEntries,
+  setCoffreEntries,
   products,
   selectedBranchId,
 }: {
@@ -1241,6 +1304,8 @@ function OwnerBoard({
   setVentes: Dispatch<SetStateAction<SaleRecord[]>>;
   cashEntries: CashEntry[];
   setCashEntries: Dispatch<SetStateAction<CashEntry[]>>;
+  coffreEntries: CoffreEntry[];
+  setCoffreEntries: Dispatch<SetStateAction<CoffreEntry[]>>;
   products: Product[];
   selectedBranchId: string | null;
 }) {
@@ -1621,6 +1686,20 @@ function OwnerBoard({
 
             {activeSection === 'credits' && (
               <BranchCreditsSection sales={branchVentes} onPay={handleCreditPayment} />
+            )}
+
+            {activeSection === 'coffre' && (
+              <BranchCoffreSection
+                branch={activeBranch}
+                selectedDate={selectedDate}
+                ventes={branchVentesAll}
+                cashEntries={cashEntries.filter((e) => e.branchId === activeBranchId)}
+                entries={coffreEntries.filter((e) => e.branchId === activeBranchId)}
+                onAdd={(entry) =>
+                  setCoffreEntries((prev) => [{ ...entry, id: `F${Date.now()}`, branchId: activeBranchId }, ...prev])
+                }
+                onDelete={(id) => setCoffreEntries((prev) => prev.filter((e) => e.id !== id))}
+              />
             )}
 
             {activeSection === 'reports' && (
@@ -3703,6 +3782,500 @@ function BranchReportsSection({
       {period === 'annual' && (
         <PeriodReport mode="annual" ventes={ventes} entries={entries} selectedDate={selectedDate} />
       )}
+    </div>
+  );
+}
+
+/* =========================================================================
+   COFFRE — every entry / exit of money, per account (Espèces, MonCash, NatCash)
+   ========================================================================= */
+
+function CoffreForm({
+  balances,
+  date,
+  cashEnMainDuJour,
+  onAdd,
+}: {
+  balances: Record<CoffreAccountId, number>;
+  date: Date;
+  cashEnMainDuJour: number;
+  onAdd: (entry: Omit<CoffreEntry, 'id' | 'branchId'>) => void;
+}) {
+  const [kind, setKind] = useState<CoffreKind>('entree');
+  const [categorie, setCategorie] = useState<string>(COFFRE_CATEGORIES.entree[0]);
+  const [compte, setCompte] = useState<CoffreAccountId>('especes');
+  const [compteDest, setCompteDest] = useState<CoffreAccountId>('moncash');
+  const [montant, setMontant] = useState('');
+  const [note, setNote] = useState('');
+
+  const value = Number(montant);
+  const valid = Number.isFinite(value) && value > 0 && (kind !== 'transfert' || compte !== compteDest);
+  const debits = kind === 'sortie' || kind === 'transfert';
+  const insufficient = debits && valid && balances[compte] - value < 0;
+
+  const pickKind = (k: CoffreKind) => {
+    setKind(k);
+    if (k !== 'transfert') setCategorie(COFFRE_CATEGORIES[k][0]);
+  };
+
+  const pickSource = (id: CoffreAccountId) => {
+    setCompte(id);
+    if (id === compteDest) setCompteDest(COFFRE_ACCOUNTS.find((a) => a.id !== id)!.id);
+  };
+
+  const submit = () => {
+    if (!valid) return;
+    const when = new Date(date);
+    const now = new Date();
+    when.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0);
+    onAdd({
+      date: when,
+      kind,
+      categorie: kind === 'transfert' ? 'Transfert entre comptes' : categorie,
+      compte,
+      compteDest: kind === 'transfert' ? compteDest : undefined,
+      montant: value,
+      note: note.trim() || undefined,
+    });
+    setMontant('');
+    setNote('');
+  };
+
+  const fillDailyDeposit = () => {
+    setKind('entree');
+    setCategorie('Versement caisse');
+    setCompte('especes');
+    setMontant(String(Math.round(cashEnMainDuJour)));
+  };
+
+  const accountButtons = (current: CoffreAccountId, onPick: (id: CoffreAccountId) => void, exclude?: CoffreAccountId) => (
+    <div className="grid grid-cols-3 gap-1.5">
+      {COFFRE_ACCOUNTS.filter((a) => a.id !== exclude).map((a) => (
+        <button
+          key={a.id}
+          onClick={() => onPick(a.id)}
+          className={
+            'border-2 px-2 py-2 text-[10px] uppercase tracking-[0.12em] ' +
+            (current === a.id
+              ? 'border-[#16181A] bg-[#16181A] text-white'
+              : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
+          }
+        >
+          {a.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const labelCls = 'mb-1.5 text-[10px] uppercase tracking-[0.16em] text-[#4B5560]';
+  const fieldCls = 'w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]';
+
+  return (
+    <div className="border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#C1440E]">
+      <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
+        Nouveau mouvement
+      </div>
+      <div className="space-y-3.5 p-4">
+        <div className="grid grid-cols-3 gap-1.5">
+          {(Object.keys(COFFRE_KIND_META) as CoffreKind[]).map((k) => {
+            const Icon = COFFRE_KIND_META[k].icon;
+            return (
+              <button
+                key={k}
+                onClick={() => pickKind(k)}
+                className={
+                  'flex items-center justify-center gap-1.5 border-2 px-2 py-2.5 text-[10px] uppercase tracking-[0.12em] ' +
+                  (kind === k
+                    ? k === 'entree'
+                      ? 'border-[#2F6B4F] bg-[#2F6B4F] text-white'
+                      : k === 'sortie'
+                        ? 'border-[#C1440E] bg-[#C1440E] text-white'
+                        : 'border-[#16181A] bg-[#16181A] text-white'
+                    : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
+                }
+              >
+                <Icon size={13} /> {COFFRE_KIND_META[k].label}
+              </button>
+            );
+          })}
+        </div>
+
+        {kind === 'entree' && cashEnMainDuJour > 0 && (
+          <button
+            onClick={fillDailyDeposit}
+            className="w-full border-2 border-dashed border-[#2F6B4F] bg-[#E9F5EF] px-3 py-2 text-left text-[10px] uppercase tracking-[0.12em] text-[#2F6B4F] hover:bg-[#dcefe5]"
+          >
+            Verser le cash en main du jour · {fmtHTG(cashEnMainDuJour)}
+          </button>
+        )}
+
+        {kind !== 'transfert' && (
+          <div>
+            <div className={labelCls}>Catégorie</div>
+            <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className={fieldCls}>
+              {COFFRE_CATEGORIES[kind].map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div>
+          <div className={labelCls}>{kind === 'transfert' ? 'De' : 'Compte'}</div>
+          {accountButtons(compte, pickSource)}
+        </div>
+
+        {kind === 'transfert' && (
+          <div>
+            <div className={labelCls}>Vers</div>
+            {accountButtons(compteDest, setCompteDest, compte)}
+          </div>
+        )}
+
+        <div>
+          <div className={labelCls}>Montant (HTG)</div>
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={montant}
+            onChange={(e) => setMontant(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            placeholder="0"
+            className={fieldCls}
+          />
+          {insufficient && (
+            <div className="mt-1.5 border-2 border-[#F2B705] bg-[#FFF6D6] px-2.5 py-1.5 text-[10px] uppercase tracking-[0.08em]">
+              Solde {coffreAccountLabel(compte)} insuffisant : {fmtHTG(balances[compte])} disponible
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className={labelCls}>Note (optionnel)</div>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            placeholder="Ex : facture fournisseur, transport…"
+            className={fieldCls}
+          />
+        </div>
+
+        <div className="text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
+          Date : {date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+        </div>
+
+        <button
+          onClick={submit}
+          disabled={!valid}
+          className={
+            'flex w-full items-center justify-center gap-2 border-2 px-4 py-2.5 text-[11px] uppercase tracking-[0.18em] ' +
+            (valid
+              ? 'border-[#C1440E] bg-[#C1440E] text-white hover:bg-[#a53a0b]'
+              : 'cursor-not-allowed border-[#9CA3AF] bg-[#E5E7EB] text-[#6B7280]')
+          }
+        >
+          <Plus size={14} /> Enregistrer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BranchCoffreSection({
+  branch,
+  selectedDate,
+  ventes,
+  cashEntries,
+  entries,
+  onAdd,
+  onDelete,
+}: {
+  branch: Branch;
+  selectedDate: Date;
+  ventes: SaleRecord[];
+  cashEntries: CashEntry[];
+  entries: CoffreEntry[];
+  onAdd: (entry: Omit<CoffreEntry, 'id' | 'branchId'>) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [period, setPeriod] = useState<CoffrePeriod>('mois');
+  const [kindFilter, setKindFilter] = useState<'all' | CoffreKind>('all');
+  const [accountFilter, setAccountFilter] = useState<'all' | CoffreAccountId>('all');
+  const [query, setQuery] = useState('');
+
+  const year = selectedDate.getFullYear();
+  const month = selectedDate.getMonth();
+
+  const balances = useMemo(() => coffreBalances(entries), [entries]);
+  const totalBalance = balances.especes + balances.moncash + balances.natcash;
+
+  const cashEnMainDuJour = useMemo(
+    () => summarizeCash(ventes, cashEntries, (d) => isSameDay(d, selectedDate)).cashEnMain,
+    [ventes, cashEntries, selectedDate]
+  );
+
+  const inPeriod = (d: Date) =>
+    period === 'tout'
+      ? true
+      : period === 'jour'
+        ? isSameDay(d, selectedDate)
+        : period === 'mois'
+          ? d.getFullYear() === year && d.getMonth() === month
+          : d.getFullYear() === year;
+
+  const periodEntries = useMemo(
+    () => entries.filter((e) => inPeriod(e.date)), // eslint-disable-line react-hooks/exhaustive-deps
+    [entries, period, year, month, selectedDate] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return periodEntries
+      .filter((e) => kindFilter === 'all' || e.kind === kindFilter)
+      .filter((e) => accountFilter === 'all' || e.compte === accountFilter || e.compteDest === accountFilter)
+      .filter((e) => !q || e.categorie.toLowerCase().includes(q) || (e.note ?? '').toLowerCase().includes(q))
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [periodEntries, kindFilter, accountFilter, query]);
+
+  const totalIn = rows.filter((e) => e.kind === 'entree').reduce((sum, e) => sum + e.montant, 0);
+  const totalOut = rows.filter((e) => e.kind === 'sortie').reduce((sum, e) => sum + e.montant, 0);
+
+  const periodLabel =
+    period === 'jour'
+      ? selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      : period === 'mois'
+        ? `${MONTHS_FR[month]} ${year}`
+        : period === 'annee'
+          ? String(year)
+          : 'Depuis le début';
+
+  const breakdown = (kind: 'entree' | 'sortie') => {
+    const map = new Map<string, number>();
+    periodEntries
+      .filter((e) => e.kind === kind)
+      .forEach((e) => map.set(e.categorie, (map.get(e.categorie) ?? 0) + e.montant));
+    return Array.from(map.entries())
+      .map(([label, total]) => ({ label, total }))
+      .sort((a, b) => b.total - a.total);
+  };
+  const inBreakdown = breakdown('entree');
+  const outBreakdown = breakdown('sortie');
+
+  const chip = (active: boolean) =>
+    'border-2 px-3 py-1.5 text-[10px] uppercase tracking-[0.14em] ' +
+    (active ? 'border-[#16181A] bg-[#16181A] text-white' : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]');
+
+  const breakdownBlock = (title: string, list: Array<{ label: string; total: number }>, tone: string, bar: string) => {
+    const max = Math.max(...list.map((l) => l.total), 1);
+    return (
+      <div>
+        <div className={'mb-2 text-[10px] font-bold uppercase tracking-[0.2em] ' + tone}>{title}</div>
+        {list.length === 0 ? (
+          <div className="text-[11px] text-[#4B5560]">Aucun mouvement.</div>
+        ) : (
+          <div className="space-y-2.5">
+            {list.map((l) => (
+              <div key={l.label}>
+                <div className="mb-1 flex items-baseline justify-between gap-2 text-[11px] uppercase tracking-[0.08em]">
+                  <span className="truncate">{l.label}</span>
+                  <span className="shrink-0 font-mono tabular-nums">{fmtHTG(l.total)}</span>
+                </div>
+                <div className="h-2.5 border-2 border-[#16181A] bg-[#FBFAF6]">
+                  <div className={'h-full ' + bar} style={{ width: `${(l.total / max) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Title bar */}
+      <div className="flex flex-wrap items-end justify-between gap-2 border-b-2 border-[#16181A] pb-3">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.22em] text-[#4B5560]">Coffre · {branch.nom}</div>
+          <h2 className="font-serif text-2xl">Entrées et sorties d'argent</h2>
+        </div>
+        <div className="text-[11px] uppercase tracking-[0.14em] text-[#4B5560]">{entries.length} mouvement(s) au total</div>
+      </div>
+
+      {/* Balances */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div
+          className={
+            'col-span-2 border-2 p-4 shadow-[4px_4px_0_#2F6B4F] lg:col-span-1 ' +
+            (totalBalance < 0 ? 'border-[#C1440E] bg-[#FDECE4]' : 'border-[#2F6B4F] bg-[#E9F5EF]')
+          }
+        >
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-[#2F6B4F]">
+            <Vault size={13} /> Solde du coffre
+          </div>
+          <div className={'mt-1.5 font-serif text-2xl tabular-nums ' + (totalBalance < 0 ? 'text-[#C1440E]' : 'text-[#2F6B4F]')}>
+            {fmtHTG(totalBalance)}
+          </div>
+        </div>
+        {COFFRE_ACCOUNTS.map((a) => {
+          const Icon = a.icon;
+          return (
+            <div key={a.id} className="border-2 border-[#16181A] bg-white p-4 shadow-[4px_4px_0_#16181A]">
+              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">
+                <Icon size={13} /> {a.label}
+              </div>
+              <div className={'mt-1.5 font-serif text-xl tabular-nums xl:text-2xl ' + (balances[a.id] < 0 ? 'text-[#C1440E]' : '')}>
+                {fmtHTG(balances[a.id])}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-3">
+        {/* Ledger */}
+        <div className="border-2 border-[#16181A] bg-white xl:col-span-2">
+          <div className="space-y-3 border-b-2 border-[#16181A] bg-[#ECE7DC] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-[11px] uppercase tracking-[0.18em]">Journal · {periodLabel}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {COFFRE_PERIODS.map((p) => (
+                  <button key={p.id} onClick={() => setPeriod(p.id)} className={chip(period === p.id)}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap gap-1.5">
+                <button onClick={() => setKindFilter('all')} className={chip(kindFilter === 'all')}>Tous</button>
+                {(Object.keys(COFFRE_KIND_META) as CoffreKind[]).map((k) => (
+                  <button key={k} onClick={() => setKindFilter(k)} className={chip(kindFilter === k)}>
+                    {COFFRE_KIND_META[k].plural}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={accountFilter}
+                onChange={(e) => setAccountFilter(e.target.value as 'all' | CoffreAccountId)}
+                className="border-2 border-[#16181A] bg-white px-2 py-1.5 text-[10px] uppercase tracking-[0.12em] outline-none"
+              >
+                <option value="all">Tous les comptes</option>
+                {COFFRE_ACCOUNTS.map((a) => (
+                  <option key={a.id} value={a.id}>{a.label}</option>
+                ))}
+              </select>
+              <div className="relative min-w-[140px] flex-1">
+                <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#4B5560]" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Rechercher…"
+                  className="w-full border-2 border-[#16181A] bg-white py-1.5 pl-8 pr-2 text-[12px] outline-none focus:border-[#C1440E]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Period totals */}
+          <div className="grid grid-cols-3 divide-x-2 divide-[#16181A] border-b-2 border-[#16181A]">
+            <div className="p-3">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-[#4B5560]">Entrées</div>
+              <div className="font-mono text-sm tabular-nums text-[#2F6B4F] md:text-base">+ {fmtHTG(totalIn)}</div>
+            </div>
+            <div className="p-3">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-[#4B5560]">Sorties</div>
+              <div className="font-mono text-sm tabular-nums text-[#C1440E] md:text-base">− {fmtHTG(totalOut)}</div>
+            </div>
+            <div className="p-3">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-[#4B5560]">Net</div>
+              <div className={'font-mono text-sm tabular-nums md:text-base ' + (totalIn - totalOut < 0 ? 'text-[#C1440E]' : '')}>
+                {fmtHTG(totalIn - totalOut)}
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-[12px]">
+              <thead>
+                <tr className="border-b-2 border-[#16181A] text-left text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
+                  <th className="px-3 py-2.5">Date</th>
+                  <th className="px-3 py-2.5">Type</th>
+                  <th className="px-3 py-2.5">Catégorie</th>
+                  <th className="px-3 py-2.5">Compte</th>
+                  <th className="px-3 py-2.5">Note</th>
+                  <th className="px-3 py-2.5 text-right">Montant</th>
+                  <th className="w-10 px-3 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-12 text-center text-sm text-[#4B5560]">
+                      Aucun mouvement sur cette période.
+                    </td>
+                  </tr>
+                )}
+                {rows.map((e) => {
+                  const Icon = COFFRE_KIND_META[e.kind].icon;
+                  const tone =
+                    e.kind === 'entree' ? 'text-[#2F6B4F]' : e.kind === 'sortie' ? 'text-[#C1440E]' : 'text-[#16181A]';
+                  const sign = e.kind === 'entree' ? '+' : e.kind === 'sortie' ? '−' : '⇄';
+                  return (
+                    <tr key={e.id} className="border-b border-[#16181A]/15 hover:bg-[#FBFAF6]">
+                      <td className="whitespace-nowrap px-3 py-2.5">
+                        <div className="font-mono text-[11px]">{e.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</div>
+                        <div className="font-mono text-[10px] text-[#4B5560]">{fmtTime12(e.date)}</div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className={'inline-flex items-center gap-1.5 uppercase tracking-[0.08em] ' + tone}>
+                          <Icon size={13} /> {COFFRE_KIND_META[e.kind].label}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">{e.categorie}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 uppercase tracking-[0.06em]">
+                        {coffreAccountLabel(e.compte)}
+                        {e.compteDest && <span className="text-[#4B5560]"> → {coffreAccountLabel(e.compteDest)}</span>}
+                      </td>
+                      <td className="max-w-[160px] truncate px-3 py-2.5 text-[#4B5560]">{e.note ?? '—'}</td>
+                      <td className={'whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums ' + tone}>
+                        {sign} {fmtHTG(e.montant)}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <button
+                          onClick={() => onDelete(e.id)}
+                          aria-label="Supprimer"
+                          className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right column: form + breakdown */}
+        <div className="space-y-5">
+          <CoffreForm balances={balances} date={selectedDate} cashEnMainDuJour={cashEnMainDuJour} onAdd={onAdd} />
+
+          <div className="border-2 border-[#16181A] bg-white">
+            <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
+              Par catégorie · {periodLabel}
+            </div>
+            <div className="space-y-5 p-4">
+              {breakdownBlock('Entrées', inBreakdown, 'text-[#2F6B4F]', 'bg-[#2F6B4F]')}
+              {breakdownBlock('Sorties', outBreakdown, 'text-[#C1440E]', 'bg-[#C1440E]')}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
