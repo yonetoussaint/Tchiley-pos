@@ -6109,7 +6109,7 @@ function VenteView({
           ))}
         </div>
 
-        <div className="grid flex-1 auto-rows-max grid-cols-2 gap-2 overflow-y-auto p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+        <div className="grid flex-1 auto-rows-max grid-cols-2 gap-2 overflow-y-auto p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
           {produits.map((p) => {
             const stockBas = p.stockFermeture <= p.seuil;
             const epuise = p.stockFermeture <= 0;
