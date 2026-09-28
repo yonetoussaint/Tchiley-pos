@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
+import { QRCodeSVG } from 'qrcode.react';
+import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import './App.css';
 import {
   ShoppingCart, Boxes, History, Gauge, AlertTriangle,
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
   Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown,
-  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt
+  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt, ExternalLink, Copy
 } from 'lucide-react';
 
 /* =========================================================================
@@ -76,6 +78,7 @@ type SaleRecord = {
   client?: string;
   paiementsCredit?: CreditPayment[];
   statut?: 'valide' | 'annulee';
+  reference?: string; // ID de transaction MonCash
 };
 
 /* Onglets de gestion (mêmes sections que le panneau propriétaire, limitées à la succursale du vendeur). */
@@ -130,7 +133,7 @@ type CheckoutModalProps = {
   lignesPanier: CartLine[];
   totalPanier: number;
   fermer: () => void;
-  finaliserVente: (paiement: string, montantRecu: number, remise: number, client?: string) => void;
+  finaliserVente: (paiement: string, montantRecu: number, remise: number, client?: string, reference?: string) => void;
   clientsConnus?: string[];
 };
 
@@ -885,7 +888,7 @@ const INITIAL_USERS: User[] = [
   },
 ];
 
-export default function GestionMateriaux() {
+function GestionMateriaux() {
   const [view, setView] = useState<View>('vente');
   const [menuOpen, setMenuOpen] = useState<boolean>(true);
   const [appRoute, setAppRoute] = useState<'admin' | 'user' | 'sellerBoard'>('admin');
@@ -1013,7 +1016,7 @@ export default function GestionMateriaux() {
     setCart([]);
   }
 
-  function finaliserVente(paiement: string, montantRecu: number, remiseMontant = 0, client?: string) {
+  function finaliserVente(paiement: string, montantRecu: number, remiseMontant = 0, client?: string, reference?: string) {
     if (lignesPanier.length === 0) return;
     if (!selectedBranchId) return;
 
@@ -1038,6 +1041,7 @@ export default function GestionMateriaux() {
       monnaie: paiement === 'especes' ? Math.max(recu - totalNet, 0) : 0,
       client: paiement === 'credit' ? client?.trim() || undefined : undefined,
       paiementsCredit: paiement === 'credit' ? [] : undefined,
+      reference: reference || undefined,
     };
     setVentes((prev) => [vente, ...prev]);
     setProducts((prev) =>
@@ -6566,12 +6570,386 @@ function VenteView({
   );
 }
 
+/* Passerelle MonCash : le serveur (VITE_API_URL) crée le paiement et renvoie le lien de la passerelle.
+   Le client le règle sur son téléphone (QR / WhatsApp) ou sur ce terminal. */
+const API_URL: string = String((import.meta as any).env?.VITE_API_URL ?? '').replace(/\/$/, '');
+
+/* Liaison téléphone (Supabase Realtime) : le téléphone garde la page /terminal ouverte.
+   Le POS lui envoie le lien MonCash par un canal Broadcast privé (nom = code de jumelage),
+   et la page /terminal redirige le navigateur du téléphone vers MonCash.
+   Aucune table SQL : uniquement Realtime Broadcast + Presence. */
+const SB_URL: string = String((import.meta as any).env?.VITE_SUPABASE_URL ?? '');
+const SB_KEY: string = String((import.meta as any).env?.VITE_SUPABASE_ANON_KEY ?? '');
+const PHONE_ENABLED = SB_URL !== '' && SB_KEY !== '';
+// Optionnel : domaines autorisés pour la redirection (ex. "moncashbutton.digicelgroup.com"). Vide = tout https.
+const PHONE_ALLOWED_HOSTS: string[] = String((import.meta as any).env?.VITE_PHONE_ALLOWED_HOSTS ?? '')
+  .split(',')
+  .map((h) => h.trim().toLowerCase())
+  .filter(Boolean);
+
+let sbClient: SupabaseClient | null = null;
+function getSb(): SupabaseClient | null {
+  if (!PHONE_ENABLED) return null;
+  if (!sbClient) sbClient = createClient(SB_URL, SB_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  return sbClient;
+}
+
+const PAIR_KEY = 'phonePairCode';
+const PAIR_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // sans I, L, O, 0, 1
+const codeValide = (c: string) => /^[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{10}$/.test(c);
+function nouveauCode(): string {
+  const b = new Uint32Array(10);
+  crypto.getRandomValues(b);
+  return Array.from(b, (n) => PAIR_ALPHABET[n % PAIR_ALPHABET.length]).join('');
+}
+function lireCode(): string {
+  try {
+    const c = localStorage.getItem(PAIR_KEY) ?? '';
+    return codeValide(c) ? c : '';
+  } catch {
+    return '';
+  }
+}
+function ecrireCode(c: string) {
+  try {
+    if (c) localStorage.setItem(PAIR_KEY, c);
+    else localStorage.removeItem(PAIR_KEY);
+  } catch {
+    /* stockage indisponible */
+  }
+}
+const canalPour = (code: string) => `moncash-pos:${code}`;
+const hoteAutorise = (h: string) =>
+  PHONE_ALLOWED_HOSTS.length === 0 || PHONE_ALLOWED_HOSTS.some((a) => h === a || h.endsWith('.' + a));
+
+type TelEtat = 'unknown' | 'ready' | 'nodevice' | 'offline' | 'nopair';
+
+/* Côté POS : rejoint le canal du code, suit la présence du téléphone et envoie les liens. */
+function usePhoneLink(code: string) {
+  const [tel, setTel] = useState<TelEtat>(code ? 'unknown' : 'nopair');
+  const chRef = useRef<RealtimeChannel | null>(null);
+  const attente = useRef(new Map<string, () => void>());
+
+  useEffect(() => {
+    const sb = getSb();
+    if (!code) {
+      setTel('nopair');
+      return;
+    }
+    if (!sb) {
+      setTel('offline');
+      return;
+    }
+    let dead = false;
+    setTel('unknown');
+    const ch = sb.channel(canalPour(code), { config: { broadcast: { self: false } } });
+    const refresh = () => {
+      const tous = Object.values(ch.presenceState() as Record<string, any[]>).flat();
+      setTel(tous.some((p) => p?.role === 'phone') ? 'ready' : 'nodevice');
+    };
+    ch.on('presence', { event: 'sync' }, refresh)
+      .on('broadcast', { event: 'ack' }, ({ payload }) => attente.current.get(String(payload?.id))?.())
+      .subscribe(async (status) => {
+        if (dead) return;
+        if (status === 'SUBSCRIBED') {
+          await ch.track({ role: 'pos' });
+          refresh();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setTel('offline');
+        }
+      });
+    chRef.current = ch;
+    return () => {
+      dead = true;
+      chRef.current = null;
+      void sb.removeChannel(ch);
+    };
+  }, [code]);
+
+  // Envoie le lien et attend l'accusé de réception du téléphone (5 s max).
+  async function ouvrir(url: string): Promise<void> {
+    const ch = chRef.current;
+    if (!ch) throw new Error('Aucun téléphone jumelé.');
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    let timer = 0;
+    const recu = new Promise<void>((resolve, reject) => {
+      timer = window.setTimeout(
+        () => reject(new Error("Le téléphone n'a pas répondu. La page /terminal est-elle ouverte et l'écran allumé ?")),
+        5000
+      );
+      attente.current.set(id, resolve);
+    });
+    try {
+      const r = await ch.send({ type: 'broadcast', event: 'open', payload: { id, url } });
+      if (r !== 'ok') throw new Error('Envoi impossible (réseau).');
+      await recu;
+    } finally {
+      window.clearTimeout(timer);
+      attente.current.delete(id);
+    }
+  }
+
+  return { tel, ouvrir };
+}
+
+type MonCashEtat = 'idle' | 'creating' | 'waiting' | 'failed' | 'expired';
+
+function MonCashPanel({
+  montant,
+  onPaid,
+  onLock,
+}: {
+  montant: number;
+  onPaid: (transactionId: string) => void;
+  onLock: (locked: boolean) => void;
+}) {
+  const [etat, setEtat] = useState<MonCashEtat>('idle');
+  const [lien, setLien] = useState('');
+  const [orderId, setOrderId] = useState('');
+  const [erreur, setErreur] = useState('');
+  const [copie, setCopie] = useState(false);
+  const onPaidRef = useRef(onPaid);
+  onPaidRef.current = onPaid;
+
+  const [code, setCode] = useState<string>(lireCode);
+  const [showPair, setShowPair] = useState(false);
+  const { tel, ouvrir } = usePhoneLink(code);
+  const [telMsg, setTelMsg] = useState('');
+  const [autoTel, setAutoTel] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('mcAutoPhone') !== '0';
+    } catch {
+      return true;
+    }
+  });
+
+  function genererCode() {
+    const c = nouveauCode();
+    ecrireCode(c);
+    setCode(c);
+    setShowPair(true);
+  }
+
+  async function ouvrirSurTelephone(u: string) {
+    setTelMsg('');
+    try {
+      await ouvrir(u);
+      setTelMsg('Lien ouvert sur le téléphone.');
+    } catch (e) {
+      setTelMsg(e instanceof Error ? e.message : "Impossible d'ouvrir le lien sur le téléphone.");
+    }
+  }
+
+  function basculerAutoTel(v: boolean) {
+    setAutoTel(v);
+    try {
+      localStorage.setItem('mcAutoPhone', v ? '1' : '0');
+    } catch {
+      /* stockage indisponible */
+    }
+  }
+
+  async function creer() {
+    setEtat('creating');
+    setErreur('');
+    try {
+      const id = 'TCH-' + Date.now();
+      const r = await fetch(`${API_URL}/api/moncash/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Math.round(montant), orderId: id }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.url) throw new Error(d.error || 'Impossible de créer le paiement MonCash.');
+      setOrderId(id);
+      setLien(d.url);
+      setEtat('waiting');
+      onLock(true);
+      if (autoTel && tel === 'ready') void ouvrirSurTelephone(d.url);
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Erreur réseau.');
+      setEtat('failed');
+    }
+  }
+
+  function annuler() {
+    onLock(false);
+    setLien('');
+    setOrderId('');
+    setEtat('idle');
+  }
+
+  // Vérifie le statut toutes les 3 s tant que le client n'a pas payé.
+  useEffect(() => {
+    if (etat !== 'waiting' || !orderId) return;
+    let stop = false;
+    const tick = async () => {
+      try {
+        const r = await fetch(`${API_URL}/api/moncash/status/${encodeURIComponent(orderId)}`);
+        const d = await r.json();
+        if (stop) return;
+        if (d.status === 'paid') {
+          stop = true;
+          onLock(false);
+          onPaidRef.current(String(d.transactionId ?? ''));
+        } else if (d.status === 'expired' || d.status === 'failed') {
+          stop = true;
+          onLock(false);
+          setErreur(d.status === 'expired' ? 'Le lien a expiré.' : 'Le paiement a échoué.');
+          setEtat(d.status);
+        }
+      } catch {
+        /* réseau instable : on réessaie au prochain cycle */
+      }
+    };
+    const t = window.setInterval(tick, 3000);
+    return () => {
+      stop = true;
+      window.clearInterval(t);
+    };
+  }, [etat, orderId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const message = `Paiement MonCash de ${fmtHTG(montant)} — Tchiley Construction : ${lien}`;
+
+  return (
+    <div className="px-5 pb-4">
+      {(etat === 'idle' || etat === 'failed' || etat === 'expired') && (
+        <>
+          <div className="mb-2 text-[12px] text-[#4B5560]">
+            Un lien de paiement MonCash sera généré. Le client le règle sur son téléphone ou sur ce terminal.
+          </div>
+          <div className="mb-2 flex items-center justify-between gap-2 border-2 border-[#16181A] bg-white px-3 py-2 text-[12px]">
+            <span className={tel === 'ready' ? 'text-[#16181A]' : 'text-[#4B5560]'}>
+              {tel === 'ready' && 'Téléphone connecté'}
+              {tel === 'nodevice' && 'Téléphone absent (ouvrez /terminal dessus)'}
+              {tel === 'offline' && (PHONE_ENABLED ? 'Liaison téléphone injoignable' : 'Supabase non configuré')}
+              {tel === 'nopair' && 'Aucun téléphone jumelé'}
+              {tel === 'unknown' && 'Recherche du téléphone…'}
+            </span>
+            {PHONE_ENABLED && (
+              <button type="button" onClick={() => setShowPair((v) => !v)} className="underline hover:text-[#C1440E]">
+                Jumeler
+              </button>
+            )}
+          </div>
+          {PHONE_ENABLED && (showPair || !code) && (
+            <div className="mb-2 border-2 border-[#16181A] bg-white p-3 text-[12px] text-[#4B5560]">
+              {code ? (
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 border-2 border-[#16181A] bg-white p-1.5">
+                    <QRCodeSVG value={`${window.location.origin}/terminal?code=${code}`} size={96} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    Sur le téléphone, scannez ce code : il ouvre la page terminal et se jumelle tout seul.
+                    <div className="mt-1 font-mono text-[13px] font-medium text-[#16181A]">{code}</div>
+                    <button type="button" onClick={genererCode} className="mt-1 underline hover:text-[#C1440E]">
+                      Nouveau code
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={genererCode}
+                  className="w-full border-2 border-[#16181A] bg-white py-2 text-[12px] text-[#16181A] hover:bg-[#ECE7DC]"
+                >
+                  Générer un code de jumelage
+                </button>
+              )}
+            </div>
+          )}
+          <label className="mb-2 flex items-center gap-2 text-[12px] text-[#4B5560]">
+            <input type="checkbox" checked={autoTel} onChange={(e) => basculerAutoTel(e.target.checked)} />
+            Ouvrir automatiquement sur le téléphone
+          </label>
+          {erreur && <div className="mb-2 border-2 border-[#C1440E] px-3 py-2 text-[12px] text-[#C1440E]">{erreur}</div>}
+          <button
+            type="button"
+            onClick={creer}
+            className="flex w-full items-center justify-center gap-2 border-2 border-[#16181A] bg-[#16181A] py-2.5 text-[13px] font-medium text-white hover:bg-[#2b2f33]"
+          >
+            <Smartphone size={15} />
+            {etat === 'idle' ? 'Générer le lien MonCash' : 'Générer un nouveau lien'}
+          </button>
+        </>
+      )}
+
+      {etat === 'creating' && (
+        <div className="flex items-center justify-center gap-2 py-4 text-[13px] text-[#4B5560]">
+          <Loader2 size={15} className="animate-spin" /> Création du paiement…
+        </div>
+      )}
+
+      {etat === 'waiting' && (
+        <div className="border-2 border-[#16181A] bg-white p-3">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 border-2 border-[#16181A] bg-white p-1.5">
+              <QRCodeSVG value={lien} size={112} />
+            </div>
+            <div className="min-w-0 flex-1 text-[12px] text-[#4B5560]">
+              Le client scanne le code avec son téléphone, ou ouvrez le lien sur ce terminal.
+              <div className="mt-2 flex items-center gap-1.5 text-[12px] font-medium text-[#16181A]">
+                <Loader2 size={13} className="animate-spin" /> En attente du paiement…
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => window.open(lien, '_blank', 'noopener')}
+              className="flex items-center justify-center gap-1 border-2 border-[#16181A] bg-white py-2 text-[11px] hover:bg-[#ECE7DC]"
+            >
+              <ExternalLink size={13} /> Ce terminal
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(lien).then(() => {
+                  setCopie(true);
+                  window.setTimeout(() => setCopie(false), 1500);
+                });
+              }}
+              className="flex items-center justify-center gap-1 border-2 border-[#16181A] bg-white py-2 text-[11px] hover:bg-[#ECE7DC]"
+            >
+              {copie ? <Check size={13} /> : <Copy size={13} />} {copie ? 'Copié' : 'Copier'}
+            </button>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(message)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1 border-2 border-[#16181A] bg-white py-2 text-[11px] hover:bg-[#ECE7DC]"
+            >
+              WhatsApp
+            </a>
+          </div>
+          <button
+            type="button"
+            onClick={() => ouvrirSurTelephone(lien)}
+            className="mt-2 flex w-full items-center justify-center gap-1 border-2 border-[#16181A] bg-white py-2 text-[11px] hover:bg-[#ECE7DC]"
+          >
+            <Smartphone size={13} /> Ouvrir sur le téléphone
+          </button>
+          {telMsg && <div className="mt-1 text-[11px] text-[#4B5560]">{telMsg}</div>}
+          <button
+            type="button"
+            onClick={annuler}
+            className="mt-2 w-full py-1 text-[11px] text-[#4B5560] underline hover:text-[#C1440E]"
+          >
+            Annuler ce paiement
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente, clientsConnus = [] }: CheckoutModalProps) {
   const [paiement, setPaiement] = useState<PaymentMethodId>('especes');
   const [montantRecu, setMontantRecu] = useState<string>('');
   const [client, setClient] = useState<string>('');
   const [remiseInput, setRemiseInput] = useState<string>('');
   const [remiseMode, setRemiseMode] = useState<'htg' | 'pct'>('htg');
+  const [mcLocked, setMcLocked] = useState(false);
 
   const remiseSaisie = parseFloat(remiseInput) || 0;
   const remiseBrute = remiseMode === 'pct' ? (totalPanier * Math.min(remiseSaisie, 100)) / 100 : remiseSaisie;
@@ -6582,7 +6960,9 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente, clie
   const monnaie = paiement === 'especes' ? Math.max(recu - totalAPayer, 0) : 0;
   const insuffisant = paiement === 'especes' && recu < totalAPayer;
   const clientManquant = paiement === 'credit' && client.trim() === '';
-  const bloque = insuffisant || clientManquant;
+  // Avec la passerelle configurée, la vente se confirme toute seule dès que MonCash valide le paiement.
+  const mcAuto = paiement === 'moncash' && API_URL !== '';
+  const bloque = insuffisant || clientManquant || mcAuto;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -6612,8 +6992,9 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente, clie
                   key={mode}
                   type="button"
                   onClick={() => setRemiseMode(mode)}
+                  disabled={mcLocked}
                   className={
-                    'border-2 border-[#16181A] px-2.5 py-0.5 text-[11px] font-medium ' +
+                    'border-2 border-[#16181A] px-2.5 py-0.5 text-[11px] font-medium disabled:opacity-50 ' +
                     (mode === 'pct' ? '-ml-0.5 ' : '') +
                     (remiseMode === mode ? 'bg-[#16181A] text-white' : 'bg-white hover:bg-[#ECE7DC]')
                   }
@@ -6628,6 +7009,7 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente, clie
             min="0"
             value={remiseInput}
             onChange={(e) => setRemiseInput(e.target.value)}
+            disabled={mcLocked}
             placeholder={remiseMode === 'pct' ? '0 %' : '0 HTG'}
             className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
           />
@@ -6660,8 +7042,9 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente, clie
                 <button
                   key={m.id}
                   onClick={() => setPaiement(m.id)}
+                  disabled={mcLocked}
                   className={
-                    'flex items-center gap-2 border-2 px-3 py-2 text-[13px] ' +
+                    'flex items-center gap-2 border-2 px-3 py-2 text-[13px] disabled:opacity-50 ' +
                     (actif
                       ? 'border-[#16181A] bg-[#16181A] text-white'
                       : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
@@ -6692,6 +7075,15 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente, clie
               </span>
             </div>
           </div>
+        )}
+
+        {mcAuto && (
+          <MonCashPanel
+            key={totalAPayer}
+            montant={totalAPayer}
+            onLock={setMcLocked}
+            onPaid={(transactionId) => finaliserVente('moncash', totalAPayer, remise, client, transactionId)}
+          />
         )}
 
         {paiement === 'credit' && (
@@ -6741,7 +7133,7 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente, clie
             }
           >
             <Printer size={15} />
-            Confirmer &amp; Imprimer
+            {mcAuto ? 'Confirmation automatique' : 'Confirmer & Imprimer'}
           </button>
         </div>
       </div>
@@ -6817,4 +7209,199 @@ function DashboardView({
       </div>
     </div>
   );
+}
+
+/* =========================================================================
+   /terminal — page à laisser ouverte sur le téléphone du comptoir.
+   Reçoit le lien MonCash du POS (Supabase Realtime) et y redirige le navigateur.
+   ========================================================================= */
+function TerminalPage() {
+  const [code, setCode] = useState<string>(() => {
+    try {
+      const p = (new URLSearchParams(window.location.search).get('code') ?? '').trim().toUpperCase();
+      if (codeValide(p)) {
+        ecrireCode(p);
+        window.history.replaceState({}, '', '/terminal');
+        return p;
+      }
+    } catch {
+      /* URL illisible */
+    }
+    return lireCode();
+  });
+  const [saisie, setSaisie] = useState('');
+  const [conn, setConn] = useState<'connecting' | 'online' | 'offline'>('connecting');
+  const [caisse, setCaisse] = useState(false);
+  const [recu, setRecu] = useState<{ host: string; href: string } | null>(null);
+  const timerRef = useRef<number | undefined>(undefined);
+  const connRef = useRef(conn);
+  connRef.current = conn;
+
+  // Manifest PWA + titre.
+  useEffect(() => {
+    const l = document.createElement('link');
+    l.rel = 'manifest';
+    l.href = '/terminal.webmanifest';
+    document.head.appendChild(l);
+    const t = document.title;
+    document.title = 'Terminal MonCash';
+    return () => {
+      l.remove();
+      document.title = t;
+    };
+  }, []);
+
+  // Garde l'écran allumé (sinon le navigateur suspend la connexion).
+  useEffect(() => {
+    let lock: any = null;
+    const prendre = async () => {
+      try {
+        lock = await (navigator as any).wakeLock?.request('screen');
+      } catch {
+        /* non supporté ou refusé */
+      }
+    };
+    void prendre();
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return;
+      void prendre();
+      if (connRef.current === 'offline') window.location.reload();
+    };
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) window.location.reload(); // retour depuis MonCash (cache avant/arrière)
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('pageshow', onShow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pageshow', onShow);
+      void lock?.release?.();
+    };
+  }, []);
+
+  // Canal du code de jumelage.
+  useEffect(() => {
+    const sb = getSb();
+    if (!sb || !code) return;
+    let dead = false;
+    setConn('connecting');
+    const ch = sb.channel(canalPour(code), { config: { broadcast: { self: false } } });
+    ch.on('presence', { event: 'sync' }, () => {
+      const tous = Object.values(ch.presenceState() as Record<string, any[]>).flat();
+      setCaisse(tous.some((p) => p?.role === 'pos'));
+    })
+      .on('broadcast', { event: 'open' }, ({ payload }) => {
+        let u: URL;
+        try {
+          u = new URL(String(payload?.url));
+        } catch {
+          return;
+        }
+        if (u.protocol !== 'https:' || u.username || u.password || !hoteAutorise(u.hostname.toLowerCase())) return;
+        void ch.send({ type: 'broadcast', event: 'ack', payload: { id: payload?.id } });
+        setRecu({ host: u.hostname, href: u.href });
+        window.clearTimeout(timerRef.current);
+        timerRef.current = window.setTimeout(() => window.location.assign(u.href), 1500);
+      })
+      .subscribe(async (status) => {
+        if (dead) return;
+        if (status === 'SUBSCRIBED') {
+          setConn('online');
+          await ch.track({ role: 'phone' });
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setConn('offline');
+        }
+      });
+    return () => {
+      dead = true;
+      window.clearTimeout(timerRef.current);
+      void sb.removeChannel(ch);
+    };
+  }, [code]);
+
+  function annulerOuverture() {
+    window.clearTimeout(timerRef.current);
+    setRecu(null);
+  }
+
+  function saisirCode() {
+    const c = saisie.trim().toUpperCase();
+    if (!codeValide(c)) return;
+    ecrireCode(c);
+    setSaisie('');
+    setCode(c);
+  }
+
+  function oublierCode() {
+    ecrireCode('');
+    setCode('');
+    setCaisse(false);
+  }
+
+  const bouton = 'border-2 border-[#FBFAF6] px-4 py-2 text-[13px] hover:bg-[#FBFAF6] hover:text-[#16181A]';
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#16181A] p-6 text-center text-[#FBFAF6]">
+      <Smartphone size={40} />
+      <div className="text-[18px] font-medium">Terminal MonCash</div>
+
+      {!PHONE_ENABLED && (
+        <div className="max-w-xs text-[13px] text-[#F2B705]">
+          Supabase n'est pas configuré (VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY).
+        </div>
+      )}
+
+      {PHONE_ENABLED && !code && (
+        <div className="w-full max-w-xs space-y-3">
+          <div className="text-[13px] text-[#ECE7DC]">
+            Scannez le code affiché sur le POS (Paiement MonCash → Jumeler), ou saisissez-le ici.
+          </div>
+          <input
+            value={saisie}
+            onChange={(e) => setSaisie(e.target.value.toUpperCase())}
+            maxLength={10}
+            autoCapitalize="characters"
+            autoComplete="off"
+            placeholder="CODE À 10 CARACTÈRES"
+            className="w-full border-2 border-[#FBFAF6] bg-transparent px-3 py-2 text-center font-mono text-[14px] tracking-widest outline-none"
+          />
+          <button type="button" onClick={saisirCode} disabled={!codeValide(saisie.trim())} className={bouton + ' w-full disabled:opacity-40'}>
+            Jumeler
+          </button>
+        </div>
+      )}
+
+      {PHONE_ENABLED && code && !recu && (
+        <div className="space-y-1 text-[13px]">
+          <div className={conn === 'online' ? 'text-[#7FC8A0]' : 'text-[#F2B705]'}>
+            {conn === 'online' && 'Prêt — gardez cette page ouverte'}
+            {conn === 'connecting' && 'Connexion…'}
+            {conn === 'offline' && 'Connexion perdue — nouvelle tentative…'}
+          </div>
+          <div className="text-[#ECE7DC]">{caisse ? 'Caisse connectée' : 'Caisse non connectée'}</div>
+        </div>
+      )}
+
+      {recu && (
+        <div className="space-y-3">
+          <div className="text-[15px]">Ouverture de MonCash…</div>
+          <div className="font-mono text-[12px] text-[#ECE7DC]">{recu.host}</div>
+          <button type="button" onClick={annulerOuverture} className={bouton}>
+            Annuler
+          </button>
+        </div>
+      )}
+
+      {PHONE_ENABLED && code && !recu && (
+        <button type="button" onClick={oublierCode} className="text-[11px] text-[#ECE7DC] underline">
+          Changer de jumelage
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  if (window.location.pathname.toLowerCase().replace(/\/+$/, '') === '/terminal') return <TerminalPage />;
+  return <GestionMateriaux />;
 }
