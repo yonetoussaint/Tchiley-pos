@@ -63,6 +63,7 @@ type SaleRecord = {
   paiement: PaymentMethodId | string;
   recu: number;
   monnaie: number;
+  remise?: number;
   statut?: 'valide' | 'annulee';
 };
 
@@ -111,7 +112,7 @@ type CheckoutModalProps = {
   lignesPanier: CartLine[];
   totalPanier: number;
   fermer: () => void;
-  finaliserVente: (paiement: string, montantRecu: number) => void;
+  finaliserVente: (paiement: string, montantRecu: number, remise: number) => void;
 };
 
 type InventaireViewProps = {
@@ -209,7 +210,11 @@ function buildMockSales(): SaleRecord[] {
           const qte = produit.prix < 150 ? randInt(10, 60) : randInt(1, 5);
           return { produitId: produit.id, nom: produit.nom, qte, prix: produit.prix, sousTotal: qte * produit.prix };
         });
-        const total = lignes.reduce((sum, l) => sum + l.sousTotal, 0);
+        const subtotal = lignes.reduce((sum, l) => sum + l.sousTotal, 0);
+        // About 1 sale in 4 gets a 5 / 10 / 15 % discount, rounded to 5 HTG
+        const discountPct = rand() < 0.25 ? [5, 10, 15][randInt(0, 2)] : 0;
+        const remise = discountPct ? Math.round((subtotal * discountPct) / 100 / 5) * 5 : 0;
+        const total = subtotal - remise;
         const paiement = paymentPool[randInt(0, paymentPool.length - 1)];
         const recu = paiement === 'especes' ? Math.ceil(total / 500) * 500 : total;
 
@@ -219,6 +224,7 @@ function buildMockSales(): SaleRecord[] {
           branchId,
           lignes,
           total,
+          remise,
           paiement,
           recu,
           monnaie: paiement === 'especes' ? recu - total : 0,
@@ -411,11 +417,13 @@ export default function GestionMateriaux() {
     setCart([]);
   }
 
-  function finaliserVente(paiement: string, montantRecu: number) {
+  function finaliserVente(paiement: string, montantRecu: number, remiseMontant = 0) {
     if (lignesPanier.length === 0) return;
     if (!selectedBranchId) return;
 
-    const recu = montantRecu != null ? montantRecu : totalPanier;
+    const remise = Math.min(Math.max(remiseMontant, 0), totalPanier);
+    const totalNet = totalPanier - remise;
+    const recu = montantRecu != null ? montantRecu : totalNet;
     const vente: SaleRecord = {
       id: 'V' + Date.now(),
       date: new Date(),
@@ -427,10 +435,11 @@ export default function GestionMateriaux() {
         prix: l.produit.prix,
         sousTotal: l.sousTotal,
       })),
-      total: totalPanier,
+      total: totalNet,
+      remise,
       paiement,
       recu,
-      monnaie: paiement === 'especes' ? Math.max(recu - totalPanier, 0) : 0,
+      monnaie: paiement === 'especes' ? Math.max(recu - totalNet, 0) : 0,
     };
     setVentes((prev) => [vente, ...prev]);
     setProducts((prev) =>
@@ -823,8 +832,14 @@ function ReceiptModal({ sale, onClose }: { sale: SaleRecord; onClose: () => void
         <div className="mt-4 space-y-2 text-[13px]">
           <div className="flex justify-between">
             <span className="text-[#4B5560]">Sous-total</span>
-            <span>{fmtHTG(sale.total)}</span>
+            <span>{fmtHTG(sale.total + (sale.remise ?? 0))}</span>
           </div>
+          {(sale.remise ?? 0) > 0 && (
+            <div className="flex justify-between text-[#C1440E]">
+              <span>Remise</span>
+              <span>- {fmtHTG(sale.remise ?? 0)}</span>
+            </div>
+          )}
           <div className="flex justify-between border-t border-[#c7c2b4] pt-2">
             <span className="text-[#4B5560]">Reçu</span>
             <span>{fmtHTG(sale.recu)}</span>
@@ -2124,6 +2139,7 @@ function BranchSalesSection({
       paymentLabel(sale.paiement),
       sale.statut === 'annulee' ? 'annulée annulee' : 'validée validee',
       String(sale.total),
+      (sale.remise ?? 0) > 0 ? `remise ${sale.remise}` : '',
       ...sale.lignes.map((l) => l.nom),
     ]
       .join(' ')
@@ -2134,6 +2150,7 @@ function BranchSalesSection({
   const countedRows = rows.filter(({ sale }) => sale.statut !== 'annulee');
   const totalQty = countedRows.reduce((sum, { sale }) => sum + qtyOf(sale), 0);
   const totalAmount = countedRows.reduce((sum, { sale }) => sum + sale.total, 0);
+  const totalDiscount = countedRows.reduce((sum, { sale }) => sum + (sale.remise ?? 0), 0);
   const isFiltering = query !== '' || paymentFilter !== 'all';
 
   const printSale = (sale: SaleRecord) => {
@@ -2187,7 +2204,7 @@ function BranchSalesSection({
 
       <div className="overflow-hidden border-2 border-[#16181A] bg-white">
         <div className="max-h-[65vh] overflow-auto">
-          <table className="w-full min-w-[980px] border-collapse text-left" role="grid">
+          <table className="w-full min-w-[1080px] border-collapse text-left" role="grid">
             <thead className="sticky top-0 z-10 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
               <tr className="divide-x divide-[#d3cbb6]">
                 <th className="px-3 py-3 text-center" title="Numéro de la vente dans la journée">N°</th>
@@ -2195,7 +2212,8 @@ function BranchSalesSection({
                 <th className="px-3 py-3 text-center" title="Articles vendus">Articles</th>
                 <th className="px-3 py-3 text-center" title="Nombre total d'unités vendues">Qté</th>
                 <th className="px-3 py-3 text-center" title="Mode de paiement">Paiement</th>
-                <th className="px-3 py-3 text-center" title="Montant total de la vente">Total</th>
+                <th className="px-3 py-3 text-center" title="Remise accordée au client">Remise</th>
+                <th className="px-3 py-3 text-center" title="Montant total de la vente, après remise">Total</th>
                 <th className="px-3 py-3 text-center" title="Montant reçu du client">Reçu</th>
                 <th className="px-3 py-3 text-center" title="Monnaie rendue au client">Monnaie</th>
                 <th className="px-3 py-3 text-center" title="Statut de la vente">Statut</th>
@@ -2232,6 +2250,18 @@ function BranchSalesSection({
                       <span className="inline-block border-2 border-[#16181A] px-2 py-0.5 text-[10px] uppercase tracking-wide">
                         {paymentLabel(sale.paiement)}
                       </span>
+                    </td>
+                    <td className={cellBase + ' tabular-nums'}>
+                      {(sale.remise ?? 0) > 0 ? (
+                        <div className={cancelled ? 'line-through' : 'text-[#C1440E]'}>
+                          <div className="font-medium">- {fmtHTG(sale.remise ?? 0)}</div>
+                          <div className="text-[11px]">
+                            {Math.round(((sale.remise ?? 0) / (sale.total + (sale.remise ?? 0))) * 1000) / 10} %
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-[#b5b9be]">—</span>
+                      )}
                     </td>
                     <td
                       className={
@@ -2285,7 +2315,7 @@ function BranchSalesSection({
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="py-14 text-center text-[#4B5560]">
+                  <td colSpan={11} className="py-14 text-center text-[#4B5560]">
                     <ShoppingCart size={32} className="mx-auto mb-3 opacity-40" />
                     <div className="text-sm">
                       {isFiltering ? 'Aucune vente ne correspond à votre recherche.' : 'Aucune vente pour cette date.'}
@@ -2302,6 +2332,9 @@ function BranchSalesSection({
                   </td>
                   <td className="px-3 py-3 text-center tabular-nums">{totalQty}</td>
                   <td className="px-3 py-3" />
+                  <td className="px-3 py-3 text-center tabular-nums text-[#C1440E]">
+                    {totalDiscount > 0 ? `- ${fmtHTG(totalDiscount)}` : '—'}
+                  </td>
                   <td className="px-3 py-3 text-center font-serif text-[15px] tabular-nums text-[#2F6B4F]">{fmtHTG(totalAmount)}</td>
                   <td colSpan={4} className="px-3 py-3" />
                 </tr>
@@ -2362,7 +2395,7 @@ function BranchReportsSection({
       const cost = p ? p.prixAchat * l.qte : 0;
       return acc + (l.sousTotal - cost);
     }, 0);
-    return s + saleProfit;
+    return s + saleProfit - (v.remise ?? 0);
   }, 0);
 
   const productPerformance = products.map((p) => {
@@ -2897,10 +2930,17 @@ function VenteView({
 function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente }: CheckoutModalProps) {
   const [paiement, setPaiement] = useState<PaymentMethodId>('especes');
   const [montantRecu, setMontantRecu] = useState<string>('');
+  const [remiseInput, setRemiseInput] = useState<string>('');
+  const [remiseMode, setRemiseMode] = useState<'htg' | 'pct'>('htg');
 
-  const recu = montantRecu === '' ? totalPanier : parseFloat(montantRecu) || 0;
-  const monnaie = paiement === 'especes' ? Math.max(recu - totalPanier, 0) : 0;
-  const insuffisant = paiement === 'especes' && recu < totalPanier;
+  const remiseSaisie = parseFloat(remiseInput) || 0;
+  const remiseBrute = remiseMode === 'pct' ? (totalPanier * Math.min(remiseSaisie, 100)) / 100 : remiseSaisie;
+  const remise = Math.round(Math.min(Math.max(remiseBrute, 0), totalPanier));
+  const totalAPayer = totalPanier - remise;
+
+  const recu = montantRecu === '' ? totalAPayer : parseFloat(montantRecu) || 0;
+  const monnaie = paiement === 'especes' ? Math.max(recu - totalAPayer, 0) : 0;
+  const insuffisant = paiement === 'especes' && recu < totalAPayer;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -2921,9 +2961,51 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente }: Ch
           ))}
         </div>
 
+        <div className="border-b-2 border-[#16181A] px-5 py-3">
+          <div className="mb-1 flex items-center justify-between">
+            <label className="text-[12px] text-[#4B5560]">Remise (optionnel)</label>
+            <div className="flex">
+              {(['htg', 'pct'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setRemiseMode(mode)}
+                  className={
+                    'border-2 border-[#16181A] px-2.5 py-0.5 text-[11px] font-medium ' +
+                    (mode === 'pct' ? '-ml-0.5 ' : '') +
+                    (remiseMode === mode ? 'bg-[#16181A] text-white' : 'bg-white hover:bg-[#ECE7DC]')
+                  }
+                >
+                  {mode === 'htg' ? 'HTG' : '%'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <input
+            type="number"
+            min="0"
+            value={remiseInput}
+            onChange={(e) => setRemiseInput(e.target.value)}
+            placeholder={remiseMode === 'pct' ? '0 %' : '0 HTG'}
+            className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+          />
+          {remise > 0 && (
+            <div className="mt-2 space-y-0.5 text-[13px]">
+              <div className="flex justify-between">
+                <span className="text-[#4B5560]">Sous-total</span>
+                <span>{fmtHTG(totalPanier)}</span>
+              </div>
+              <div className="flex justify-between text-[#C1440E]">
+                <span>Remise</span>
+                <span>- {fmtHTG(remise)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-baseline justify-between px-5 py-4">
           <span className="text-[13px] text-[#4B5560]">Total à payer</span>
-          <span className="font-serif text-2xl">{fmtHTG(totalPanier)}</span>
+          <span className="font-serif text-2xl">{fmtHTG(totalAPayer)}</span>
         </div>
 
         <div className="px-5 pb-4">
@@ -2958,7 +3040,7 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente }: Ch
               type="number"
               value={montantRecu}
               onChange={(e) => setMontantRecu(e.target.value)}
-              placeholder={String(Math.round(totalPanier))}
+              placeholder={String(Math.round(totalAPayer))}
               className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
             />
             <div className="mt-2 flex justify-between text-[13px]">
@@ -2979,7 +3061,7 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente }: Ch
           </button>
           <button
             disabled={insuffisant}
-            onClick={() => finaliserVente(paiement, paiement === 'especes' ? recu : totalPanier)}
+            onClick={() => finaliserVente(paiement, paiement === 'especes' ? recu : totalAPayer, remise)}
             className={
               'flex flex-1 items-center justify-center gap-2 border-2 border-[#16181A] py-2.5 text-[14px] font-medium ' +
               (insuffisant
