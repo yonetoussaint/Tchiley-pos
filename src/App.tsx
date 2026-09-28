@@ -6074,20 +6074,22 @@ function VenteView({
                 disabled={epuise || isReadOnly}
                 onClick={() => ajouterAuPanier(p)}
                 className={
-                  'flex flex-col items-start border-2 border-[#16181A] bg-[#FBFAF6] p-3 text-left transition-colors ' +
+                  'flex aspect-square flex-col border-2 border-[#16181A] bg-[#FBFAF6] p-3 text-left transition-colors ' +
                   (epuise || isReadOnly
                     ? 'cursor-not-allowed opacity-40'
                     : 'hover:border-[#C1440E] hover:bg-white active:bg-[#ECE7DC]')
                 }
               >
-                {p.image && (
-                  <div className="mb-2 flex h-20 w-full items-center justify-center border border-[#c7c2b4] bg-white">
-                    <img src={p.image} alt={p.nom} className="h-16 w-auto object-contain" />
-                  </div>
-                )}
+                <div className="min-h-0 flex-1">
+                  {p.image && (
+                    <div className="flex h-full w-full items-center justify-center border border-[#c7c2b4] bg-white">
+                      <img src={p.image} alt={p.nom} className="max-h-full max-w-full object-contain p-2" />
+                    </div>
+                  )}
+                </div>
                 <div className="text-[10px] uppercase tracking-wide text-[#4B5560]">{p.categorie}</div>
-                <div className="mt-1 text-[14px] font-medium leading-snug">{p.nom}</div>
-                <div className="mt-2 font-serif text-[17px]">{fmtHTG(p.prix)}</div>
+                <div className="mt-1 line-clamp-2 text-[13px] font-medium leading-snug">{p.nom}</div>
+                <div className="mt-1 font-serif text-[16px]">{fmtHTG(p.prix)}</div>
                 <div className="mt-1 flex items-center gap-1 text-[11px]">
                   <span className={stockBas ? 'text-[#C1440E]' : 'text-[#4B5560]'}>
                     {p.stockFermeture} {p.unite}{p.stockFermeture !== 1 ? 's' : ''} en stock
