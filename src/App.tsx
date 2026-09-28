@@ -6109,7 +6109,7 @@ function VenteView({
           ))}
         </div>
 
-        <div className="grid flex-1 auto-rows-max grid-cols-2 gap-3 overflow-y-auto p-6 sm:grid-cols-3 xl:grid-cols-4">
+        <div className="grid flex-1 auto-rows-max grid-cols-2 gap-2 overflow-y-auto p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
           {produits.map((p) => {
             const stockBas = p.stockFermeture <= p.seuil;
             const epuise = p.stockFermeture <= 0;
@@ -6121,7 +6121,7 @@ function VenteView({
                 onClick={() => basculerProduit(p)}
                 aria-pressed={selectionne}
                 className={
-                  'relative flex aspect-square flex-col border-2 p-3 text-left transition-colors ' +
+                  'relative flex aspect-square min-w-0 flex-col border-2 p-2 text-left transition-colors ' +
                   (epuise || isReadOnly
                     ? 'cursor-not-allowed opacity-40 border-[#16181A] bg-[#FBFAF6]'
                     : selectionne
@@ -6130,21 +6130,21 @@ function VenteView({
                 }
               >
                 {selectionne && (
-                  <span className="absolute right-0 top-0 z-10 flex h-6 w-6 items-center justify-center bg-[#C1440E] text-white">
-                    <Check size={15} strokeWidth={3} />
+                  <span className="absolute right-0 top-0 z-10 flex h-5 w-5 items-center justify-center bg-[#C1440E] text-white">
+                    <Check size={13} strokeWidth={3} />
                   </span>
                 )}
                 <div className="min-h-0 flex-1">
                   {p.image && (
                     <div className="flex h-full w-full items-center justify-center border border-[#c7c2b4] bg-white">
-                      <img src={p.image} alt={p.nom} className="max-h-full max-w-full object-contain p-2" />
+                      <img src={p.image} alt={p.nom} className="max-h-full max-w-full object-contain p-1" />
                     </div>
                   )}
                 </div>
-                <div className="text-[10px] uppercase tracking-wide text-[#4B5560]">{p.categorie}</div>
-                <div className="mt-1 line-clamp-2 text-[13px] font-medium leading-snug">{p.nom}</div>
-                <div className="mt-1 font-serif text-[16px]">{fmtHTG(p.prix)}</div>
-                <div className="mt-1 flex items-center gap-1 text-[11px]">
+                <div className="mt-1 truncate text-[9px] uppercase tracking-wide text-[#4B5560]">{p.categorie}</div>
+                <div className="line-clamp-2 text-[12px] font-medium leading-tight">{p.nom}</div>
+                <div className="mt-0.5 font-serif text-[14px] leading-tight">{fmtHTG(p.prix)}</div>
+                <div className="mt-0.5 flex items-center gap-1 text-[10px] leading-tight">
                   <span className={stockBas ? 'text-[#C1440E]' : 'text-[#4B5560]'}>
                     {p.stockFermeture} {p.unite}{p.stockFermeture !== 1 ? 's' : ''} en stock
                   </span>
