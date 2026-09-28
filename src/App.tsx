@@ -6,7 +6,7 @@ import {
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
   Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown,
-  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight
+  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins
 } from 'lucide-react';
 
 /* =========================================================================
@@ -396,7 +396,7 @@ const COFFRE_ACCOUNTS: Array<{ id: CoffreAccountId; label: string; icon: typeof 
 
 const COFFRE_CATEGORIES: Record<'entree' | 'sortie', string[]> = {
   entree: ['Versement caisse', 'Renflouement', 'Remboursement client', 'Apport propriétaire', 'Solde initial', 'Autre entrée'],
-  sortie: ['Achat marchandises', 'Dépense courante', 'Salaire', 'Retrait propriétaire', 'Autre sortie'],
+  sortie: ['Achat marchandises', 'Dépense courante', 'Salaire', 'Retrait propriétaire', 'Réappro. petite caisse', 'Autre sortie'],
 };
 
 const COFFRE_KIND_META: Record<CoffreKind, { label: string; plural: string; icon: typeof Plus }> = {
@@ -548,6 +548,138 @@ function buildMockCoffreEntries(): CoffreEntry[] {
   return out;
 }
 
+/* ---------- Petite caisse (petty cash: fixed float for small daily expenses) ---------- */
+type PettyKind = 'depense' | 'reappro';
+
+type PettyEntry = {
+  id: string;
+  branchId: string;
+  date: Date;
+  kind: PettyKind;
+  categorie: string;
+  montant: number;
+  note?: string;
+  recu?: string; // receipt / voucher number (pièce justificative)
+  coffreId?: string; // linked Coffre withdrawal, for replenishments taken from the safe
+};
+
+type PettyCount = {
+  id: string;
+  branchId: string;
+  date: Date;
+  theorique: number;
+  compte: number;
+  ecart: number; // compte − theorique
+  note?: string;
+};
+
+const DEFAULT_PETTY_FLOAT = 10000;
+const PETTY_REAPPRO_CATEGORY = 'Réappro. petite caisse';
+
+const PETTY_CATEGORIES = [
+  'Transport',
+  'Eau et café',
+  'Carburant',
+  'Fournitures bureau',
+  'Nettoyage',
+  'Petites réparations',
+  'Recharge / communication',
+  'Autre dépense',
+];
+
+const pettyBalance = (entries: PettyEntry[]) =>
+  entries.reduce((sum, e) => sum + (e.kind === 'reappro' ? e.montant : -e.montant), 0);
+
+function buildMockPetty(): { petty: PettyEntry[]; coffre: CoffreEntry[]; counts: PettyCount[] } {
+  const result = { petty: [] as PettyEntry[], coffre: [] as CoffreEntry[], counts: [] as PettyCount[] };
+  if (!USE_MOCK_SALES) return result;
+  const { rand, randInt, roundTo } = makeMockRand(20260930);
+  const notesByCategory: Record<string, string[]> = {
+    Transport: ['Moto-taxi livraison', 'Tap-tap fournisseur', 'Course urgente'],
+    'Eau et café': ['Bidon eau 5 gal', 'Café équipe', 'Sachets eau'],
+    Carburant: ['Essence génératrice', 'Gazoline moto'],
+    'Fournitures bureau': ['Cahier et stylos', 'Papier facture', 'Encre tampon'],
+    Nettoyage: ['Savon et Clorox', 'Balai et seau'],
+    'Petites réparations': ['Cadenas et clous', 'Ampoule', 'Réparation brouette'],
+    'Recharge / communication': ['Recharge Digicel', 'Recharge Natcom'],
+    'Autre dépense': ['Divers', 'Dépannage'],
+  };
+
+  Object.keys(BRANCH_INVENTORY_SEED).forEach((branchId) => {
+    let balance = 0;
+    const addPetty = (daysAgo: number, hour: number, entry: Omit<PettyEntry, 'id' | 'branchId' | 'date'>) => {
+      result.petty.push({ id: `PM${result.petty.length}`, branchId, date: mockDateAt(daysAgo, hour, randInt(0, 59)), ...entry });
+    };
+    const replenish = (daysAgo: number, note: string) => {
+      const montant = roundTo(DEFAULT_PETTY_FLOAT - balance, 50);
+      if (montant <= 0) return;
+      const coffreId = `FP${result.coffre.length}`;
+      const date = mockDateAt(daysAgo, 8, randInt(0, 30));
+      result.coffre.push({
+        id: coffreId,
+        branchId,
+        date,
+        kind: 'sortie',
+        categorie: PETTY_REAPPRO_CATEGORY,
+        compte: 'especes',
+        montant,
+        note: 'Réapprovisionnement petite caisse',
+      });
+      result.petty.push({
+        id: `PM${result.petty.length}`,
+        branchId,
+        date,
+        kind: 'reappro',
+        categorie: PETTY_REAPPRO_CATEGORY,
+        montant,
+        note,
+        coffreId,
+      });
+      balance += montant;
+    };
+
+    const first = MOCK_HISTORY_DAYS - 1;
+    replenish(first, 'Fonds initial');
+
+    for (let daysAgo = first; daysAgo >= 0; daysAgo--) {
+      const dow = new Date(Date.now() - daysAgo * 86400000).getDay();
+      if (dow !== 0 && rand() < 0.75) {
+        const n = randInt(1, 2);
+        for (let i = 0; i < n; i++) {
+          const categorie = PETTY_CATEGORIES[randInt(0, PETTY_CATEGORIES.length - 1)];
+          const notes = notesByCategory[categorie];
+          const montant = roundTo(randInt(100, 650), 25);
+          if (montant > balance) replenish(daysAgo, 'Fonds insuffisant, complément');
+          balance -= montant;
+          addPetty(daysAgo, randInt(9, 17), {
+            kind: 'depense',
+            categorie,
+            montant,
+            note: notes[randInt(0, notes.length - 1)],
+            recu: rand() < 0.8 ? `R-${randInt(1000, 9999)}` : undefined,
+          });
+        }
+      }
+      if (balance < 2000 && dow !== 0) replenish(daysAgo, 'Réapprovisionnement');
+
+      if (daysAgo % 7 === 0 && daysAgo < first) {
+        const deltas = [0, 0, 0, 0, -50, -100, 25];
+        const delta = deltas[randInt(0, deltas.length - 1)];
+        result.counts.push({
+          id: `PC${result.counts.length}`,
+          branchId,
+          date: mockDateAt(daysAgo, 18, randInt(0, 30)),
+          theorique: balance,
+          compte: balance + delta,
+          ecart: delta,
+          note: delta === 0 ? undefined : delta < 0 ? 'Reçu manquant' : 'Monnaie non rendue',
+        });
+      }
+    }
+  });
+  return result;
+}
+
 const fmtTime12 = (d: Date) =>
   d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
@@ -656,7 +788,11 @@ export default function GestionMateriaux() {
   const [recherche, setRecherche] = useState<string>('');
   const [ventes, setVentes] = useState<SaleRecord[]>(() => buildMockSales());
   const [cashEntries, setCashEntries] = useState<CashEntry[]>(() => buildMockCashEntries());
-  const [coffreEntries, setCoffreEntries] = useState<CoffreEntry[]>(() => buildMockCoffreEntries());
+  const [pettySeed] = useState(() => buildMockPetty());
+  const [coffreEntries, setCoffreEntries] = useState<CoffreEntry[]>(() => [...buildMockCoffreEntries(), ...pettySeed.coffre]);
+  const [pettyEntries, setPettyEntries] = useState<PettyEntry[]>(() => pettySeed.petty);
+  const [pettyCounts, setPettyCounts] = useState<PettyCount[]>(() => pettySeed.counts);
+  const [pettyFloats, setPettyFloats] = useState<Record<string, number>>({});
   const ventesValides = useMemo(() => ventes.filter((v) => v.statut !== 'annulee'), [ventes]);
   const clientsConnus = useMemo(
     () => Array.from(new Set(ventes.map((v) => v.client?.trim()).filter((c): c is string => !!c))).sort(),
@@ -914,6 +1050,12 @@ export default function GestionMateriaux() {
         setCashEntries={setCashEntries}
         coffreEntries={coffreEntries}
         setCoffreEntries={setCoffreEntries}
+        pettyEntries={pettyEntries}
+        setPettyEntries={setPettyEntries}
+        pettyCounts={pettyCounts}
+        setPettyCounts={setPettyCounts}
+        pettyFloats={pettyFloats}
+        setPettyFloats={setPettyFloats}
         products={products}
         selectedBranchId={selectedBranchId}
       />
@@ -1208,7 +1350,7 @@ function ReceiptModal({ sale, onClose }: { sale: SaleRecord; onClose: () => void
    own section menu (Tableau de Bord / Produits / Rapports / Utilisateurs).
    ========================================================================= */
 
-type OwnerSection = 'dashboard' | 'products' | 'sales' | 'credits' | 'coffre' | 'reports' | 'users';
+type OwnerSection = 'dashboard' | 'products' | 'sales' | 'credits' | 'coffre' | 'petitecaisse' | 'reports' | 'users';
 
 const OWNER_SECTIONS: Array<{ id: OwnerSection; label: string; icon: typeof Gauge }> = [
   { id: 'dashboard', label: 'Tableau de Bord', icon: Gauge },
@@ -1216,6 +1358,7 @@ const OWNER_SECTIONS: Array<{ id: OwnerSection; label: string; icon: typeof Gaug
   { id: 'sales', label: 'Ventes', icon: ShoppingCart },
   { id: 'credits', label: 'Crédits', icon: FileClock },
   { id: 'coffre', label: 'Coffre', icon: Vault },
+  { id: 'petitecaisse', label: 'Petite caisse', icon: Coins },
   { id: 'reports', label: 'Rapports', icon: BarChart3 },
   { id: 'users', label: 'Utilisateurs', icon: Users },
 ];
@@ -1414,6 +1557,12 @@ function OwnerBoard({
   setCashEntries,
   coffreEntries,
   setCoffreEntries,
+  pettyEntries,
+  setPettyEntries,
+  pettyCounts,
+  setPettyCounts,
+  pettyFloats,
+  setPettyFloats,
   products,
   selectedBranchId,
 }: {
@@ -1428,6 +1577,12 @@ function OwnerBoard({
   setCashEntries: Dispatch<SetStateAction<CashEntry[]>>;
   coffreEntries: CoffreEntry[];
   setCoffreEntries: Dispatch<SetStateAction<CoffreEntry[]>>;
+  pettyEntries: PettyEntry[];
+  setPettyEntries: Dispatch<SetStateAction<PettyEntry[]>>;
+  pettyCounts: PettyCount[];
+  setPettyCounts: Dispatch<SetStateAction<PettyCount[]>>;
+  pettyFloats: Record<string, number>;
+  setPettyFloats: Dispatch<SetStateAction<Record<string, number>>>;
   products: Product[];
   selectedBranchId: string | null;
 }) {
@@ -1821,6 +1976,48 @@ function OwnerBoard({
                   setCoffreEntries((prev) => [{ ...entry, id: `F${Date.now()}`, branchId: activeBranchId }, ...prev])
                 }
                 onDelete={(id) => setCoffreEntries((prev) => prev.filter((e) => e.id !== id))}
+              />
+            )}
+
+            {activeSection === 'petitecaisse' && (
+              <BranchPetiteCaisseSection
+                branch={activeBranch}
+                selectedDate={selectedDate}
+                entries={pettyEntries.filter((e) => e.branchId === activeBranchId)}
+                counts={pettyCounts.filter((c) => c.branchId === activeBranchId)}
+                fixedFloat={pettyFloats[activeBranchId] ?? DEFAULT_PETTY_FLOAT}
+                setFixedFloat={(value) => setPettyFloats((prev) => ({ ...prev, [activeBranchId]: value }))}
+                coffreEspeces={coffreBalances(coffreEntries.filter((e) => e.branchId === activeBranchId)).especes}
+                onAdd={(entry, fromCoffre) => {
+                  const stamp = Date.now();
+                  let coffreId: string | undefined;
+                  if (entry.kind === 'reappro' && fromCoffre) {
+                    coffreId = `F${stamp}`;
+                    setCoffreEntries((prev) => [
+                      {
+                        id: coffreId as string,
+                        branchId: activeBranchId,
+                        date: entry.date,
+                        kind: 'sortie',
+                        categorie: PETTY_REAPPRO_CATEGORY,
+                        compte: 'especes',
+                        montant: entry.montant,
+                        note: 'Réapprovisionnement petite caisse',
+                      },
+                      ...prev,
+                    ]);
+                  }
+                  setPettyEntries((prev) => [{ ...entry, id: `PC${stamp}`, branchId: activeBranchId, coffreId }, ...prev]);
+                }}
+                onDelete={(id) => {
+                  const target = pettyEntries.find((e) => e.id === id);
+                  if (target?.coffreId) setCoffreEntries((prev) => prev.filter((e) => e.id !== target.coffreId));
+                  setPettyEntries((prev) => prev.filter((e) => e.id !== id));
+                }}
+                onAddCount={(count) =>
+                  setPettyCounts((prev) => [{ ...count, id: `PK${Date.now()}`, branchId: activeBranchId }, ...prev])
+                }
+                onDeleteCount={(id) => setPettyCounts((prev) => prev.filter((c) => c.id !== id))}
               />
             )}
 
@@ -4394,6 +4591,709 @@ function BranchCoffreSection({
             <div className="space-y-5 p-4">
               {breakdownBlock('Entrées', inBreakdown, 'text-[#2F6B4F]', 'bg-[#2F6B4F]')}
               {breakdownBlock('Sorties', outBreakdown, 'text-[#C1440E]', 'bg-[#C1440E]')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   PETITE CAISSE — fixed float for small daily expenses, replenished from the Coffre
+   Solde théorique = réapprovisionnements − dépenses ; écart = comptage physique − théorique
+   ========================================================================= */
+
+function PettyForm({
+  balance,
+  fixedFloat,
+  coffreEspeces,
+  date,
+  onAdd,
+}: {
+  balance: number;
+  fixedFloat: number;
+  coffreEspeces: number;
+  date: Date;
+  onAdd: (entry: Omit<PettyEntry, 'id' | 'branchId' | 'coffreId'>, fromCoffre: boolean) => void;
+}) {
+  const [kind, setKind] = useState<PettyKind>('depense');
+  const [categorie, setCategorie] = useState<string>(PETTY_CATEGORIES[0]);
+  const [montant, setMontant] = useState('');
+  const [recu, setRecu] = useState('');
+  const [note, setNote] = useState('');
+  const [fromCoffre, setFromCoffre] = useState(true);
+
+  const value = Number(montant);
+  const valid = Number.isFinite(value) && value > 0;
+  const missing = Math.max(fixedFloat - balance, 0);
+  const overBalance = kind === 'depense' && valid && value > balance;
+  const overCoffre = kind === 'reappro' && fromCoffre && valid && value > coffreEspeces;
+
+  const submit = () => {
+    if (!valid) return;
+    const when = new Date(date);
+    const now = new Date();
+    when.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0);
+    onAdd(
+      {
+        date: when,
+        kind,
+        categorie: kind === 'reappro' ? PETTY_REAPPRO_CATEGORY : categorie,
+        montant: value,
+        note: note.trim() || undefined,
+        recu: kind === 'depense' ? recu.trim() || undefined : undefined,
+      },
+      fromCoffre
+    );
+    setMontant('');
+    setNote('');
+    setRecu('');
+  };
+
+  const labelCls = 'mb-1.5 text-[10px] uppercase tracking-[0.16em] text-[#4B5560]';
+  const fieldCls = 'w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]';
+  const warnCls = 'mt-1.5 border-2 border-[#F2B705] bg-[#FFF6D6] px-2.5 py-1.5 text-[10px] uppercase tracking-[0.08em]';
+
+  return (
+    <div className="border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#C1440E]">
+      <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
+        Nouveau mouvement
+      </div>
+      <div className="space-y-3.5 p-4">
+        <div className="grid grid-cols-2 gap-1.5">
+          {(
+            [
+              { id: 'depense', label: 'Dépense', icon: ArrowUpRight, on: 'border-[#C1440E] bg-[#C1440E] text-white' },
+              { id: 'reappro', label: 'Réapprovisionnement', icon: ArrowDownLeft, on: 'border-[#2F6B4F] bg-[#2F6B4F] text-white' },
+            ] as const
+          ).map((k) => {
+            const Icon = k.icon;
+            return (
+              <button
+                key={k.id}
+                onClick={() => setKind(k.id)}
+                className={
+                  'flex items-center justify-center gap-1.5 border-2 px-2 py-2.5 text-[10px] uppercase tracking-[0.1em] ' +
+                  (kind === k.id ? k.on : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
+                }
+              >
+                <Icon size={13} /> {k.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {kind === 'depense' ? (
+          <div>
+            <div className={labelCls}>Catégorie</div>
+            <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className={fieldCls}>
+              {PETTY_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          missing > 0 && (
+            <button
+              onClick={() => setMontant(String(Math.round(missing)))}
+              className="w-full border-2 border-dashed border-[#2F6B4F] bg-[#E9F5EF] px-3 py-2 text-left text-[10px] uppercase tracking-[0.12em] text-[#2F6B4F] hover:bg-[#dcefe5]"
+            >
+              Compléter jusqu'au fonds fixe · {fmtHTG(missing)}
+            </button>
+          )
+        )}
+
+        <div>
+          <div className={labelCls}>Montant (HTG)</div>
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={montant}
+            onChange={(e) => setMontant(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            placeholder="0"
+            className={fieldCls}
+          />
+          {overBalance && (
+            <div className={warnCls}>Dépasse le solde de la petite caisse ({fmtHTG(balance)} disponible)</div>
+          )}
+        </div>
+
+        {kind === 'depense' && (
+          <div>
+            <div className={labelCls}>N° de reçu (optionnel)</div>
+            <input
+              type="text"
+              value={recu}
+              onChange={(e) => setRecu(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              placeholder="Ex : R-1042"
+              className={fieldCls}
+            />
+          </div>
+        )}
+
+        <div>
+          <div className={labelCls}>{kind === 'depense' ? 'Motif / bénéficiaire' : 'Note'} (optionnel)</div>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            placeholder={kind === 'depense' ? 'Ex : moto-taxi livraison' : 'Ex : complément de fin de semaine'}
+            className={fieldCls}
+          />
+        </div>
+
+        {kind === 'reappro' && (
+          <label className="flex cursor-pointer items-start gap-2 border-2 border-[#16181A] bg-[#FBFAF6] px-3 py-2.5 text-[11px]">
+            <input
+              type="checkbox"
+              checked={fromCoffre}
+              onChange={(e) => setFromCoffre(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#C1440E]"
+            />
+            <span className="uppercase tracking-[0.08em]">
+              Prélever sur le Coffre (Espèces)
+              <span className="block normal-case tracking-normal text-[#4B5560]">
+                Crée une sortie dans le Coffre · {fmtHTG(coffreEspeces)} disponible
+              </span>
+            </span>
+          </label>
+        )}
+        {overCoffre && <div className={warnCls}>Espèces du Coffre insuffisantes pour ce montant</div>}
+
+        <div className="text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
+          Date : {date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+        </div>
+
+        <button
+          onClick={submit}
+          disabled={!valid}
+          className={
+            'flex w-full items-center justify-center gap-2 border-2 px-4 py-2.5 text-[11px] uppercase tracking-[0.18em] ' +
+            (valid
+              ? 'border-[#C1440E] bg-[#C1440E] text-white hover:bg-[#a53a0b]'
+              : 'cursor-not-allowed border-[#9CA3AF] bg-[#E5E7EB] text-[#6B7280]')
+          }
+        >
+          <Plus size={14} /> Enregistrer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PettyCountPanel({
+  theorique,
+  onSave,
+}: {
+  theorique: number;
+  onSave: (compte: number, note?: string) => void;
+}) {
+  const [compte, setCompte] = useState('');
+  const [note, setNote] = useState('');
+  const value = Number(compte);
+  const valid = compte.trim() !== '' && Number.isFinite(value) && value >= 0;
+  const ecart = valid ? value - theorique : 0;
+
+  const save = () => {
+    if (!valid) return;
+    onSave(value, note.trim() || undefined);
+    setCompte('');
+    setNote('');
+  };
+
+  return (
+    <div className="border-2 border-[#16181A] bg-white">
+      <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
+        Comptage de la caisse
+      </div>
+      <div className="space-y-3 p-4">
+        <div className="flex items-baseline justify-between text-[11px] uppercase tracking-[0.1em]">
+          <span className="text-[#4B5560]">Solde théorique</span>
+          <span className="font-mono text-sm tabular-nums">{fmtHTG(theorique)}</span>
+        </div>
+        <div>
+          <div className="mb-1.5 text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">Montant compté (HTG)</div>
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={compte}
+            onChange={(e) => setCompte(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && save()}
+            placeholder="Argent réellement en caisse"
+            className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+          />
+        </div>
+        {valid && (
+          <div
+            className={
+              'border-2 px-3 py-2 text-[11px] uppercase tracking-[0.1em] ' +
+              (ecart === 0
+                ? 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]'
+                : ecart < 0
+                  ? 'border-[#C1440E] bg-[#FDECE4] text-[#C1440E]'
+                  : 'border-[#F2B705] bg-[#FFF6D6]')
+            }
+          >
+            {ecart === 0
+              ? 'Caisse juste'
+              : ecart < 0
+                ? `Manque ${fmtHTG(Math.abs(ecart))}`
+                : `Excédent ${fmtHTG(ecart)}`}
+          </div>
+        )}
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && save()}
+          placeholder="Note sur l'écart (optionnel)"
+          className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+        />
+        <button
+          onClick={save}
+          disabled={!valid}
+          className={
+            'flex w-full items-center justify-center gap-2 border-2 px-4 py-2.5 text-[11px] uppercase tracking-[0.18em] ' +
+            (valid
+              ? 'border-[#16181A] bg-[#16181A] text-white hover:bg-[#2a2e31]'
+              : 'cursor-not-allowed border-[#9CA3AF] bg-[#E5E7EB] text-[#6B7280]')
+          }
+        >
+          <Check size={14} /> Enregistrer le comptage
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BranchPetiteCaisseSection({
+  branch,
+  selectedDate,
+  entries,
+  counts,
+  fixedFloat,
+  setFixedFloat,
+  coffreEspeces,
+  onAdd,
+  onDelete,
+  onAddCount,
+  onDeleteCount,
+}: {
+  branch: Branch;
+  selectedDate: Date;
+  entries: PettyEntry[];
+  counts: PettyCount[];
+  fixedFloat: number;
+  setFixedFloat: (value: number) => void;
+  coffreEspeces: number;
+  onAdd: (entry: Omit<PettyEntry, 'id' | 'branchId' | 'coffreId'>, fromCoffre: boolean) => void;
+  onDelete: (id: string) => void;
+  onAddCount: (count: Omit<PettyCount, 'id' | 'branchId'>) => void;
+  onDeleteCount: (id: string) => void;
+}) {
+  const [period, setPeriod] = useState<CoffrePeriod>('mois');
+  const [kindFilter, setKindFilter] = useState<'all' | PettyKind>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [query, setQuery] = useState('');
+
+  const year = selectedDate.getFullYear();
+  const month = selectedDate.getMonth();
+
+  const balance = useMemo(() => pettyBalance(entries), [entries]);
+  const missing = Math.max(fixedFloat - balance, 0);
+  const ratio = fixedFloat > 0 ? Math.min(Math.max(balance / fixedFloat, 0), 1) : 0;
+
+  const lastCount = useMemo(
+    () => [...counts].sort((a, b) => b.date.getTime() - a.date.getTime())[0] ?? null,
+    [counts]
+  );
+
+  const spentThisMonth = useMemo(
+    () =>
+      entries
+        .filter((e) => e.kind === 'depense' && e.date.getFullYear() === year && e.date.getMonth() === month)
+        .reduce((sum, e) => sum + e.montant, 0),
+    [entries, year, month]
+  );
+
+  const inPeriod = (d: Date) =>
+    period === 'tout'
+      ? true
+      : period === 'jour'
+        ? isSameDay(d, selectedDate)
+        : period === 'mois'
+          ? d.getFullYear() === year && d.getMonth() === month
+          : d.getFullYear() === year;
+
+  const periodEntries = useMemo(
+    () => entries.filter((e) => inPeriod(e.date)), // eslint-disable-line react-hooks/exhaustive-deps
+    [entries, period, year, month, selectedDate] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return periodEntries
+      .filter((e) => kindFilter === 'all' || e.kind === kindFilter)
+      .filter((e) => categoryFilter === 'all' || e.categorie === categoryFilter)
+      .filter(
+        (e) =>
+          !q ||
+          e.categorie.toLowerCase().includes(q) ||
+          (e.note ?? '').toLowerCase().includes(q) ||
+          (e.recu ?? '').toLowerCase().includes(q)
+      )
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [periodEntries, kindFilter, categoryFilter, query]);
+
+  const totalReappro = rows.filter((e) => e.kind === 'reappro').reduce((sum, e) => sum + e.montant, 0);
+  const totalDepenses = rows.filter((e) => e.kind === 'depense').reduce((sum, e) => sum + e.montant, 0);
+  const sansRecu = rows.filter((e) => e.kind === 'depense' && !e.recu).length;
+
+  const periodLabel =
+    period === 'jour'
+      ? selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      : period === 'mois'
+        ? `${MONTHS_FR[month]} ${year}`
+        : period === 'annee'
+          ? String(year)
+          : 'Depuis le début';
+
+  const breakdown = useMemo(() => {
+    const map = new Map<string, number>();
+    periodEntries
+      .filter((e) => e.kind === 'depense')
+      .forEach((e) => map.set(e.categorie, (map.get(e.categorie) ?? 0) + e.montant));
+    return Array.from(map.entries())
+      .map(([label, total]) => ({ label, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [periodEntries]);
+  const maxBreak = Math.max(...breakdown.map((b) => b.total), 1);
+
+  const chip = (active: boolean) =>
+    'border-2 px-3 py-1.5 text-[10px] uppercase tracking-[0.14em] ' +
+    (active ? 'border-[#16181A] bg-[#16181A] text-white' : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]');
+
+  const sortedCounts = useMemo(() => [...counts].sort((a, b) => b.date.getTime() - a.date.getTime()), [counts]);
+
+  return (
+    <div className="space-y-5">
+      {/* Title bar */}
+      <div className="flex flex-wrap items-end justify-between gap-2 border-b-2 border-[#16181A] pb-3">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.22em] text-[#4B5560]">Petite caisse · {branch.nom}</div>
+          <h2 className="font-serif text-2xl">Petites dépenses du quotidien</h2>
+        </div>
+        <div className="text-[11px] uppercase tracking-[0.14em] text-[#4B5560]">{entries.length} mouvement(s) au total</div>
+      </div>
+
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div
+          className={
+            'col-span-2 border-2 p-4 shadow-[4px_4px_0_#2F6B4F] lg:col-span-1 ' +
+            (balance < 0 ? 'border-[#C1440E] bg-[#FDECE4]' : 'border-[#2F6B4F] bg-[#E9F5EF]')
+          }
+        >
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-[#2F6B4F]">
+            <Coins size={13} /> Solde théorique
+          </div>
+          <div className={'mt-1.5 font-serif text-2xl tabular-nums ' + (balance < 0 ? 'text-[#C1440E]' : 'text-[#2F6B4F]')}>
+            {fmtHTG(balance)}
+          </div>
+          <div className="mt-2 h-2 border-2 border-[#16181A] bg-white">
+            <div
+              className={'h-full ' + (ratio < 0.2 ? 'bg-[#C1440E]' : ratio < 0.5 ? 'bg-[#F2B705]' : 'bg-[#2F6B4F]')}
+              style={{ width: `${ratio * 100}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[4px_4px_0_#16181A]">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">Fonds fixe</div>
+          <div className="mt-1.5 flex items-baseline gap-1.5">
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={fixedFloat}
+              onChange={(e) => setFixedFloat(Math.max(Number(e.target.value) || 0, 0))}
+              aria-label="Fonds fixe"
+              className="w-full min-w-0 border-b-2 border-[#16181A] bg-transparent font-serif text-xl tabular-nums outline-none focus:border-[#C1440E] xl:text-2xl"
+            />
+            <span className="text-[10px] uppercase text-[#4B5560]">HTG</span>
+          </div>
+        </div>
+
+        <div
+          className={
+            'border-2 p-4 shadow-[4px_4px_0_#16181A] ' +
+            (missing > 0 ? 'border-[#C1440E] bg-white' : 'border-[#16181A] bg-white')
+          }
+        >
+          <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">À réapprovisionner</div>
+          <div className={'mt-1.5 font-serif text-xl tabular-nums xl:text-2xl ' + (missing > 0 ? 'text-[#C1440E]' : 'text-[#2F6B4F]')}>
+            {missing > 0 ? fmtHTG(missing) : 'Fonds complet'}
+          </div>
+        </div>
+
+        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[4px_4px_0_#16181A]">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">Dépenses · {MONTHS_FR[month]}</div>
+          <div className="mt-1.5 font-serif text-xl tabular-nums xl:text-2xl">{fmtHTG(spentThisMonth)}</div>
+        </div>
+
+        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[4px_4px_0_#16181A]">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">Dernier écart</div>
+          {lastCount ? (
+            <>
+              <div
+                className={
+                  'mt-1.5 font-serif text-xl tabular-nums xl:text-2xl ' +
+                  (lastCount.ecart === 0 ? 'text-[#2F6B4F]' : lastCount.ecart < 0 ? 'text-[#C1440E]' : '')
+                }
+              >
+                {lastCount.ecart === 0 ? 'Aucun' : (lastCount.ecart > 0 ? '+ ' : '− ') + fmtHTG(Math.abs(lastCount.ecart))}
+              </div>
+              <div className="text-[10px] text-[#4B5560]">
+                Comptage du {lastCount.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+              </div>
+            </>
+          ) : (
+            <div className="mt-1.5 font-serif text-xl text-[#4B5560]">—</div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-3">
+        {/* Left: journal + counts history */}
+        <div className="space-y-5 xl:col-span-2">
+          <div className="border-2 border-[#16181A] bg-white">
+            <div className="space-y-3 border-b-2 border-[#16181A] bg-[#ECE7DC] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-[11px] uppercase tracking-[0.18em]">Journal · {periodLabel}</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {COFFRE_PERIODS.map((p) => (
+                    <button key={p.id} onClick={() => setPeriod(p.id)} className={chip(period === p.id)}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap gap-1.5">
+                  <button onClick={() => setKindFilter('all')} className={chip(kindFilter === 'all')}>Tous</button>
+                  <button onClick={() => setKindFilter('depense')} className={chip(kindFilter === 'depense')}>Dépenses</button>
+                  <button onClick={() => setKindFilter('reappro')} className={chip(kindFilter === 'reappro')}>Réappros</button>
+                </div>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="border-2 border-[#16181A] bg-white px-2 py-1.5 text-[10px] uppercase tracking-[0.12em] outline-none"
+                >
+                  <option value="all">Toutes catégories</option>
+                  {PETTY_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <div className="relative min-w-[140px] flex-1">
+                  <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#4B5560]" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Rechercher (motif, reçu)…"
+                    className="w-full border-2 border-[#16181A] bg-white py-1.5 pl-8 pr-2 text-[12px] outline-none focus:border-[#C1440E]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 divide-x-2 divide-[#16181A] border-b-2 border-[#16181A]">
+              <div className="p-3">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-[#4B5560]">Réapprovisionnements</div>
+                <div className="font-mono text-sm tabular-nums text-[#2F6B4F] md:text-base">+ {fmtHTG(totalReappro)}</div>
+              </div>
+              <div className="p-3">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-[#4B5560]">Dépenses</div>
+                <div className="font-mono text-sm tabular-nums text-[#C1440E] md:text-base">− {fmtHTG(totalDepenses)}</div>
+              </div>
+              <div className="p-3">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-[#4B5560]">Sans reçu</div>
+                <div className={'font-mono text-sm tabular-nums md:text-base ' + (sansRecu > 0 ? 'text-[#C1440E]' : '')}>
+                  {sansRecu} dépense(s)
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px] text-[12px]">
+                <thead>
+                  <tr className="border-b-2 border-[#16181A] text-left text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
+                    <th className="px-3 py-2.5">Date</th>
+                    <th className="px-3 py-2.5">Type</th>
+                    <th className="px-3 py-2.5">Catégorie</th>
+                    <th className="px-3 py-2.5">Motif</th>
+                    <th className="px-3 py-2.5">Reçu</th>
+                    <th className="px-3 py-2.5 text-right">Montant</th>
+                    <th className="w-10 px-3 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-3 py-12 text-center text-sm text-[#4B5560]">
+                        Aucun mouvement sur cette période.
+                      </td>
+                    </tr>
+                  )}
+                  {rows.map((e) => {
+                    const isIn = e.kind === 'reappro';
+                    const Icon = isIn ? ArrowDownLeft : ArrowUpRight;
+                    const tone = isIn ? 'text-[#2F6B4F]' : 'text-[#C1440E]';
+                    return (
+                      <tr key={e.id} className="border-b border-[#16181A]/15 hover:bg-[#FBFAF6]">
+                        <td className="whitespace-nowrap px-3 py-2.5">
+                          <div className="font-mono text-[11px]">{e.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</div>
+                          <div className="font-mono text-[10px] text-[#4B5560]">{fmtTime12(e.date)}</div>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span className={'inline-flex items-center gap-1.5 uppercase tracking-[0.08em] ' + tone}>
+                            <Icon size={13} /> {isIn ? 'Réappro' : 'Dépense'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {e.categorie}
+                          {e.coffreId && (
+                            <span className="ml-1.5 border border-[#16181A] px-1 py-px text-[9px] uppercase tracking-[0.08em]">Coffre</span>
+                          )}
+                        </td>
+                        <td className="max-w-[170px] truncate px-3 py-2.5 text-[#4B5560]">{e.note ?? '—'}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">
+                          {e.kind === 'depense' ? (
+                            e.recu ?? (
+                              <span className="border border-[#F2B705] bg-[#FFF6D6] px-1.5 py-0.5 font-sans text-[9px] uppercase tracking-[0.08em]">
+                                Sans reçu
+                              </span>
+                            )
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className={'whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums ' + tone}>
+                          {isIn ? '+' : '−'} {fmtHTG(e.montant)}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <button
+                            onClick={() => onDelete(e.id)}
+                            aria-label="Supprimer"
+                            className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="border-2 border-[#16181A] bg-white">
+            <div className="flex items-center justify-between border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
+              <span>Historique des comptages</span>
+              <span className="text-[#4B5560]">{sortedCounts.length}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-[12px]">
+                <thead>
+                  <tr className="border-b-2 border-[#16181A] text-left text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
+                    <th className="px-3 py-2.5">Date</th>
+                    <th className="px-3 py-2.5 text-right">Théorique</th>
+                    <th className="px-3 py-2.5 text-right">Compté</th>
+                    <th className="px-3 py-2.5 text-right">Écart</th>
+                    <th className="px-3 py-2.5">Note</th>
+                    <th className="w-10 px-3 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedCounts.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-8 text-center text-sm text-[#4B5560]">
+                        Aucun comptage enregistré.
+                      </td>
+                    </tr>
+                  )}
+                  {sortedCounts.slice(0, 12).map((c) => (
+                    <tr key={c.id} className="border-b border-[#16181A]/15 hover:bg-[#FBFAF6]">
+                      <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">
+                        {c.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} · {fmtTime12(c.date)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtHTG(c.theorique)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtHTG(c.compte)}</td>
+                      <td
+                        className={
+                          'px-3 py-2.5 text-right font-mono tabular-nums ' +
+                          (c.ecart === 0 ? 'text-[#2F6B4F]' : c.ecart < 0 ? 'text-[#C1440E]' : '')
+                        }
+                      >
+                        {c.ecart === 0 ? '0' : (c.ecart > 0 ? '+ ' : '− ') + fmtHTG(Math.abs(c.ecart))}
+                      </td>
+                      <td className="max-w-[160px] truncate px-3 py-2.5 text-[#4B5560]">{c.note ?? '—'}</td>
+                      <td className="px-3 py-2.5">
+                        <button
+                          onClick={() => onDeleteCount(c.id)}
+                          aria-label="Supprimer"
+                          className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: form + count + breakdown */}
+        <div className="space-y-5">
+          <PettyForm balance={balance} fixedFloat={fixedFloat} coffreEspeces={coffreEspeces} date={selectedDate} onAdd={onAdd} />
+
+          <PettyCountPanel
+            theorique={balance}
+            onSave={(compte, note) =>
+              onAddCount({ date: new Date(), theorique: balance, compte, ecart: compte - balance, note })
+            }
+          />
+
+          <div className="border-2 border-[#16181A] bg-white">
+            <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
+              Dépenses par catégorie · {periodLabel}
+            </div>
+            <div className="p-4">
+              {breakdown.length === 0 ? (
+                <div className="text-[11px] text-[#4B5560]">Aucune dépense.</div>
+              ) : (
+                <div className="space-y-2.5">
+                  {breakdown.map((b) => (
+                    <div key={b.label}>
+                      <div className="mb-1 flex items-baseline justify-between gap-2 text-[11px] uppercase tracking-[0.08em]">
+                        <span className="truncate">{b.label}</span>
+                        <span className="shrink-0 font-mono tabular-nums">{fmtHTG(b.total)}</span>
+                      </div>
+                      <div className="h-2.5 border-2 border-[#16181A] bg-[#FBFAF6]">
+                        <div className="h-full bg-[#C1440E]" style={{ width: `${(b.total / maxBreak) * 100}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
