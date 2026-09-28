@@ -192,6 +192,8 @@ const MOCK_CLIENTS: Record<string, string[]> = {
 };
 
 /* Generates ~2 weeks of realistic sales for every branch, relative to today. */
+const MOCK_HISTORY_DAYS = 120;
+
 function buildMockSales(): SaleRecord[] {
   if (!USE_MOCK_SALES) return [];
 
@@ -212,7 +214,7 @@ function buildMockSales(): SaleRecord[] {
   Object.entries(BRANCH_INVENTORY_SEED).forEach(([branchId, productIds]) => {
     const branchProducts = INITIAL_PRODUCTS.filter((p) => productIds.includes(p.id));
 
-    for (let daysAgo = 0; daysAgo < 14; daysAgo++) {
+    for (let daysAgo = 0; daysAgo < MOCK_HISTORY_DAYS; daysAgo++) {
       // A few quiet days without any sale (never today)
       if (daysAgo > 0 && rand() < 0.12) continue;
 
@@ -426,6 +428,126 @@ function coffreBalances(entries: CoffreEntry[]): Record<CoffreAccountId, number>
   return b;
 }
 
+/* ---------- Mock data for Rapports (cash entries) and Coffre ---------- */
+function makeMockRand(seedStart: number) {
+  let seed = seedStart;
+  const rand = () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const randInt = (min: number, max: number) => min + Math.floor(rand() * (max - min + 1));
+  const roundTo = (n: number, step: number) => Math.round(n / step) * step;
+  return { rand, randInt, roundTo };
+}
+
+/** Date `daysAgo` days back at a given hour, never later than "now" for today. */
+function mockDateAt(daysAgo: number, hour: number, minute: number): Date {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, hour, minute);
+  return d.getTime() > now.getTime() ? new Date(now.getTime() - 60000) : d;
+}
+
+function buildMockCashEntries(): CashEntry[] {
+  if (!USE_MOCK_SALES) return [];
+  const { rand, randInt, roundTo } = makeMockRand(20260928);
+  const out: CashEntry[] = [];
+  const push = (branchId: string, daysAgo: number, type: CashEntryType, montant: number, note: string) =>
+    out.push({
+      id: `CM${out.length}`,
+      branchId,
+      date: mockDateAt(daysAgo, randInt(8, 17), randInt(0, 59)),
+      type,
+      montant,
+      note,
+    });
+
+  Object.keys(BRANCH_INVENTORY_SEED).forEach((branchId) => {
+    for (let daysAgo = 0; daysAgo < MOCK_HISTORY_DAYS; daysAgo++) {
+      const today = daysAgo === 0;
+      if (today || rand() < 0.55) {
+        const label = ['Déjeuner équipe', 'Eau et café', 'Carburant génératrice', 'Petit matériel'][randInt(0, 3)];
+        push(branchId, daysAgo, 'consommation', roundTo(randInt(150, 700), 50), label);
+      }
+      if (today || rand() < 0.4) {
+        const label = ['Transport marchandises', 'Sacs et emballages', 'Réparation outil', 'Fournitures bureau'][randInt(0, 3)];
+        push(branchId, daysAgo, 'achat', roundTo(randInt(500, 3500), 50), label);
+      }
+      if (rand() < 0.12) push(branchId, daysAgo, 'renflouement', roundTo(randInt(1000, 5000), 500), 'Fonds de caisse ajouté');
+      if (rand() < 0.15) push(branchId, daysAgo, 'remboursement', roundTo(randInt(200, 1500), 50), 'Retour marchandise client');
+    }
+  });
+  return out;
+}
+
+function buildMockCoffreEntries(): CoffreEntry[] {
+  if (!USE_MOCK_SALES) return [];
+  const { rand, randInt, roundTo } = makeMockRand(20260929);
+  const out: CoffreEntry[] = [];
+  const add = (
+    branchId: string,
+    daysAgo: number,
+    kind: CoffreKind,
+    categorie: string,
+    compte: CoffreAccountId,
+    montant: number,
+    note?: string,
+    compteDest?: CoffreAccountId
+  ) =>
+    out.push({
+      id: `FM${out.length}`,
+      branchId,
+      date: mockDateAt(daysAgo, randInt(8, 18), randInt(0, 59)),
+      kind,
+      categorie,
+      compte,
+      compteDest,
+      montant,
+      note,
+    });
+
+  Object.keys(BRANCH_INVENTORY_SEED).forEach((branchId) => {
+    const first = MOCK_HISTORY_DAYS - 1;
+    add(branchId, first, 'entree', 'Solde initial', 'especes', 60000, 'Ouverture du coffre');
+    add(branchId, first, 'entree', 'Solde initial', 'moncash', 15000, 'Solde MonCash de départ');
+    add(branchId, first, 'entree', 'Solde initial', 'natcash', 8000, 'Solde NatCash de départ');
+    add(branchId, first - 0, 'entree', 'Apport propriétaire', 'especes', 100000, 'Capital de démarrage');
+
+    for (let daysAgo = first - 1; daysAgo >= 0; daysAgo--) {
+      const dow = new Date(Date.now() - daysAgo * 86400000).getDay();
+      if (dow !== 0) {
+        add(branchId, daysAgo, 'entree', 'Versement caisse', 'especes', roundTo(randInt(3000, 11000), 250), 'Versement de fin de journée');
+        if (rand() < 0.5) add(branchId, daysAgo, 'entree', 'Versement caisse', 'moncash', roundTo(randInt(1500, 6000), 250), 'Paiements MonCash du jour');
+        if (rand() < 0.3) add(branchId, daysAgo, 'entree', 'Versement caisse', 'natcash', roundTo(randInt(1000, 4000), 250), 'Paiements NatCash du jour');
+      }
+      if (rand() < 0.5) {
+        const label = ['Transport', 'Électricité', 'Eau', 'Internet', 'Entretien local'][randInt(0, 4)];
+        add(branchId, daysAgo, 'sortie', 'Dépense courante', 'especes', roundTo(randInt(300, 2500), 50), label);
+      }
+      if (daysAgo % 7 === 2) {
+        add(branchId, daysAgo, 'sortie', 'Achat marchandises', 'especes', roundTo(randInt(15000, 40000), 500), 'Réapprovisionnement fournisseur');
+      }
+      if (daysAgo % 14 === 5) {
+        add(branchId, daysAgo, 'sortie', 'Salaire', 'especes', roundTo(randInt(12000, 18000), 500), 'Paie du personnel');
+      }
+      if (daysAgo % 30 === 9) {
+        add(branchId, daysAgo, 'sortie', 'Retrait propriétaire', 'especes', roundTo(randInt(15000, 30000), 1000), 'Retrait personnel');
+      }
+      if (daysAgo % 10 === 4) {
+        add(branchId, daysAgo, 'transfert', 'Transfert entre comptes', 'moncash', roundTo(randInt(2000, 5000), 250), 'Retrait MonCash en espèces', 'especes');
+      }
+      if (daysAgo % 21 === 11) {
+        add(branchId, daysAgo, 'transfert', 'Transfert entre comptes', 'natcash', roundTo(randInt(1500, 3500), 250), 'Retrait NatCash en espèces', 'especes');
+      }
+      if (daysAgo % 45 === 20) {
+        add(branchId, daysAgo, 'sortie', 'Dépense courante', 'moncash', roundTo(randInt(800, 2000), 50), 'Recharge et frais mobile');
+      }
+    }
+  });
+  return out;
+}
+
 const fmtTime12 = (d: Date) =>
   d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
@@ -533,8 +655,8 @@ export default function GestionMateriaux() {
   const [categorie, setCategorie] = useState<string>('Tout');
   const [recherche, setRecherche] = useState<string>('');
   const [ventes, setVentes] = useState<SaleRecord[]>(() => buildMockSales());
-  const [cashEntries, setCashEntries] = useState<CashEntry[]>([]);
-  const [coffreEntries, setCoffreEntries] = useState<CoffreEntry[]>([]);
+  const [cashEntries, setCashEntries] = useState<CashEntry[]>(() => buildMockCashEntries());
+  const [coffreEntries, setCoffreEntries] = useState<CoffreEntry[]>(() => buildMockCoffreEntries());
   const ventesValides = useMemo(() => ventes.filter((v) => v.statut !== 'annulee'), [ventes]);
   const clientsConnus = useMemo(
     () => Array.from(new Set(ventes.map((v) => v.client?.trim()).filter((c): c is string => !!c))).sort(),
