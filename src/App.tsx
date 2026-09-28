@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import './App.css';
 import {
   ShoppingCart, Boxes, History, Gauge, AlertTriangle,
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
-  Users, Loader2
+  Users, Loader2, CalendarDays
 } from 'lucide-react';
 
 /* =========================================================================
@@ -799,6 +799,180 @@ function isSameDay(a: Date, b: Date) {
   );
 }
 
+function dayKey(d: Date) {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+const WEEKDAY_INITIALS_FR = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+function DatePicker({
+  selectedDate,
+  onSelect,
+  salesDays,
+}: {
+  selectedDate: Date;
+  onSelect: (date: Date) => void;
+  salesDays: Set<string>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [viewMonth, setViewMonth] = useState(
+    () => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
+  );
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+  const leadingBlanks = (new Date(year, month, 1).getDay() + 6) % 7; // week starts on Monday
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: (Date | null)[] = [
+    ...Array.from({ length: leadingBlanks }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1)),
+  ];
+  const canGoNextMonth = new Date(year, month + 1, 1) <= today;
+
+  const toggleOpen = () => {
+    if (!open) setViewMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+    setOpen((prev) => !prev);
+  };
+
+  const pickDate = (date: Date) => {
+    onSelect(date);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={toggleOpen}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title={selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+        className={
+          'flex h-8 items-center gap-1.5 border-2 border-[#16181A] px-2 text-[11px] uppercase tracking-wide whitespace-nowrap transition-colors ' +
+          (open ? 'bg-[#E3DCCC]' : 'bg-[#ECE7DC] hover:bg-[#E3DCCC]')
+        }
+      >
+        <CalendarDays size={13} />
+        {selectedDate.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Choisir une date"
+          className="absolute right-0 top-full z-50 mt-2 w-72 border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[6px_6px_0_#2F6B4F]"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setViewMonth(new Date(year, month - 1, 1))}
+              className="flex h-8 w-8 items-center justify-center border-2 border-[#16181A] bg-white text-sm hover:bg-[#ECE7DC]"
+              aria-label="Mois précédent"
+            >
+              ‹
+            </button>
+            <div className="font-serif text-base capitalize">
+              {viewMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setViewMonth(new Date(year, month + 1, 1))}
+              disabled={!canGoNextMonth}
+              className={
+                'flex h-8 w-8 items-center justify-center border-2 border-[#16181A] text-sm ' +
+                (canGoNextMonth ? 'bg-white hover:bg-[#ECE7DC]' : 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]')
+              }
+              aria-label="Mois suivant"
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="mb-1 grid grid-cols-7 text-center text-[10px] font-medium uppercase tracking-wide text-[#4B5560]">
+            {WEEKDAY_INITIALS_FR.map((label, index) => (
+              <div key={index} className="py-1">{label}</div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-0.5">
+            {cells.map((date, index) => {
+              if (!date) return <div key={`blank-${index}`} />;
+              const isFuture = date > today;
+              const isSelected = isSameDay(date, selectedDate);
+              const isToday = isSameDay(date, today);
+              const hasSales = salesDays.has(dayKey(date));
+              return (
+                <button
+                  key={dayKey(date)}
+                  type="button"
+                  disabled={isFuture}
+                  onClick={() => pickDate(date)}
+                  aria-label={date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  aria-pressed={isSelected}
+                  className={
+                    'relative flex h-9 items-center justify-center border-2 text-[12px] tabular-nums transition-colors ' +
+                    (isFuture
+                      ? 'cursor-not-allowed border-transparent text-[#B8BDC3]'
+                      : isSelected
+                      ? 'border-[#C1440E] bg-[#C1440E] font-medium text-white'
+                      : isToday
+                      ? 'border-[#16181A] bg-white font-medium hover:bg-[#ECE7DC]'
+                      : 'border-transparent hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                  }
+                >
+                  {date.getDate()}
+                  {hasSales && (
+                    <span
+                      className={
+                        'absolute bottom-1 h-1.5 w-1.5 rounded-full ' +
+                        (isSelected ? 'bg-white' : isFuture ? 'bg-[#B8BDC3]' : 'bg-[#2F6B4F]')
+                      }
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex items-center justify-between border-t-2 border-[#e4ded0] pt-2 text-[10px] uppercase tracking-wide text-[#4B5560]">
+            <span className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#2F6B4F]" />
+              Jour avec ventes
+            </span>
+            <button
+              type="button"
+              onClick={() => pickDate(new Date())}
+              className="border-2 border-[#16181A] bg-white px-2 py-1 text-[#16181A] hover:bg-[#ECE7DC]"
+            >
+              Aujourd'hui
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OwnerBoard({
   users,
   setUsers,
@@ -853,6 +1027,7 @@ function OwnerBoard({
     () => ventes.filter((v) => v.branchId === activeBranchId),
     [ventes, activeBranchId]
   );
+  const salesDays = useMemo(() => new Set(branchVentes.map((v) => dayKey(v.date))), [branchVentes]);
   const branchUsers = users.filter((u) => u.branchId === activeBranchId);
 
   const salesToday = branchVentes.filter((v) => isSameDay(v.date, selectedDate));
@@ -1029,12 +1204,7 @@ function OwnerBoard({
             >
               ‹
             </button>
-            <div
-              className="border-2 border-[#16181A] bg-[#ECE7DC] px-2 py-1.5 text-[11px] uppercase tracking-wide whitespace-nowrap"
-              title={selectedDate.toLocaleDateString('fr-HT', { day: '2-digit', month: 'long', year: 'numeric' })}
-            >
-              {selectedDate.toLocaleDateString('fr-HT', { day: '2-digit', month: 'short' })}
-            </div>
+            <DatePicker selectedDate={selectedDate} onSelect={setSelectedDate} salesDays={salesDays} />
             <button
               onClick={() => shiftSelectedDate(1)}
               disabled={isCurrentDateSelected}
