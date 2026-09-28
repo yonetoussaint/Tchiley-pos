@@ -6753,19 +6753,20 @@ function MonCashPanel({
     setEtat('creating');
     setErreur('');
     try {
-      const id = 'TCH-' + Date.now();
-      const r = await fetch(`${API_URL}/api/moncash/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: Math.round(montant), orderId: id }),
+      const sb = getSb();
+      if (!sb) throw new Error('Supabase non configuré (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).');
+
+      const { data, error } = await sb.functions.invoke('moncash-create-deposit', {
+        body: { amount: Math.round(montant) },
       });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok || !d.url) throw new Error(d.error || 'Impossible de créer le paiement MonCash.');
+      if (error || !data?.paymentUrl) throw error || new Error('Impossible de créer le paiement MonCash.');
+
+      const id = String(data.referenceId ?? 'TCH-' + Date.now());
       setOrderId(id);
-      setLien(d.url);
+      setLien(data.paymentUrl);
       setEtat('waiting');
       onLock(true);
-      if (autoTel && tel === 'ready') void ouvrirSurTelephone(d.url);
+      if (autoTel && tel === 'ready') void ouvrirSurTelephone(data.paymentUrl);
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'Erreur réseau.');
       setEtat('failed');
