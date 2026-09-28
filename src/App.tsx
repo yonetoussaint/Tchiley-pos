@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { createPortal } from 'react-dom';
 import './App.css';
 import {
   ShoppingCart, Boxes, History, Gauge, AlertTriangle,
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
-  Users, Loader2, CalendarDays
+  Users, Loader2, CalendarDays, Eye, Undo2
 } from 'lucide-react';
 
 /* =========================================================================
@@ -44,6 +45,7 @@ type CartLine = CartItem & {
 };
 
 type SaleLine = {
+  produitId?: string;
   nom: string;
   qte: number;
   prix: number;
@@ -61,6 +63,7 @@ type SaleRecord = {
   paiement: PaymentMethodId | string;
   recu: number;
   monnaie: number;
+  statut?: 'valide' | 'annulee';
 };
 
 type View = 'vente' | 'inventaire' | 'historique' | 'dashboard';
@@ -204,7 +207,7 @@ function buildMockSales(): SaleRecord[] {
         const chosen = [...branchProducts].sort(() => rand() - 0.5).slice(0, randInt(1, 3));
         const lignes: SaleLine[] = chosen.map((produit) => {
           const qte = produit.prix < 150 ? randInt(10, 60) : randInt(1, 5);
-          return { nom: produit.nom, qte, prix: produit.prix, sousTotal: qte * produit.prix };
+          return { produitId: produit.id, nom: produit.nom, qte, prix: produit.prix, sousTotal: qte * produit.prix };
         });
         const total = lignes.reduce((sum, l) => sum + l.sousTotal, 0);
         const paiement = paymentPool[randInt(0, paymentPool.length - 1)];
@@ -233,6 +236,9 @@ const PAYMENT_METHODS: Array<{ id: PaymentMethodId; label: string; icon: typeof 
   { id: 'natcash', label: 'NatCash', icon: Smartphone },
   { id: 'credit', label: 'Crédit Client', icon: FileClock },
 ];
+
+const fmtTime12 = (d: Date) =>
+  d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
 const fmtHTG = (n: number) =>
   new Intl.NumberFormat('fr-HT', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' HTG';
@@ -338,6 +344,7 @@ export default function GestionMateriaux() {
   const [categorie, setCategorie] = useState<string>('Tout');
   const [recherche, setRecherche] = useState<string>('');
   const [ventes, setVentes] = useState<SaleRecord[]>(() => buildMockSales());
+  const ventesValides = useMemo(() => ventes.filter((v) => v.statut !== 'annulee'), [ventes]);
   const [checkoutOuvert, setCheckoutOuvert] = useState<boolean>(false);
   const [lastReceipt, setLastReceipt] = useState<SaleRecord | null>(null);
   const [invRecherche, setInvRecherche] = useState<string>('');
@@ -414,6 +421,7 @@ export default function GestionMateriaux() {
       date: new Date(),
       branchId: selectedBranchId,
       lignes: lignesPanier.map((l) => ({
+        produitId: l.produit.id,
         nom: l.produit.nom,
         qte: l.qte,
         prix: l.produit.prix,
@@ -454,7 +462,7 @@ export default function GestionMateriaux() {
     p.nom.toLowerCase().includes(invRecherche.toLowerCase())
   );
 
-  const venteAujourdhui = ventes.filter((v) => {
+  const venteAujourdhui = ventesValides.filter((v) => {
     const auj = new Date();
     return (
       v.date.getDate() === auj.getDate() &&
@@ -466,7 +474,7 @@ export default function GestionMateriaux() {
 
   const meilleuresVentes = useMemo(() => {
     const compte: Record<string, number> = {};
-    ventes.forEach((v) =>
+    ventesValides.forEach((v) =>
       v.lignes.forEach((l) => {
         compte[l.nom] = (compte[l.nom] || 0) + l.qte;
       })
@@ -474,7 +482,7 @@ export default function GestionMateriaux() {
     return Object.entries(compte)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
-  }, [ventes]);
+  }, [ventesValides]);
 
   const brancheEnAttente = SUCURSALES.find((branch) => branch.id === pendingBranchId) ?? null;
 
@@ -579,6 +587,7 @@ export default function GestionMateriaux() {
         }}
         branches={SUCURSALES}
         ventes={ventes}
+        setVentes={setVentes}
         products={products}
         selectedBranchId={selectedBranchId}
       />
@@ -732,7 +741,7 @@ export default function GestionMateriaux() {
           />
         )}
 
-        {view === 'historique' && <HistoriqueView ventes={ventes} />}
+        {view === 'historique' && <HistoriqueView ventes={ventesValides} />}
 
         {view === 'dashboard' && (
           <DashboardView
@@ -753,93 +762,97 @@ export default function GestionMateriaux() {
         />
       )}
 
-      {lastReceipt && (
-        <div className="receipt-print fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
-          <div className="w-full max-w-md border-2 border-[#16181A] bg-white p-4 shadow-[8px_8px_0_#16181A]">
-            <div className="flex items-start justify-between border-b-2 border-[#16181A] pb-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.28em] text-[#4B5560]">Ticket de vente</div>
-                <div className="mt-1 font-serif text-[26px] leading-none text-[#16181A]">Tchiley</div>
-              </div>
-              <button
-                onClick={() => setLastReceipt(null)}
-                className="print-close mt-1 text-[#4B5560] hover:text-[#C1440E]"
-              >
-                <X size={18} />
-              </button>
-            </div>
+      {lastReceipt && <ReceiptModal sale={lastReceipt} onClose={() => setLastReceipt(null)} />}
+    </div>
+  );
+}
 
-            <div className="mt-4 space-y-1 text-[12px] text-[#4B5560]">
-              <div className="flex justify-between">
-                <span>Réf.</span>
-                <span className="font-semibold text-[#16181A]">{lastReceipt.id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Date</span>
-                <span>{lastReceipt.date.toLocaleString('fr-HT')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Paiement</span>
-                <span>{PAYMENT_METHODS.find((m) => m.id === lastReceipt.paiement)?.label || lastReceipt.paiement}</span>
-              </div>
-            </div>
+function ReceiptModal({ sale, onClose }: { sale: SaleRecord; onClose: () => void }) {
+  const cancelled = sale.statut === 'annulee';
+  return createPortal(
+    <div className="receipt-print fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
+      <div className="max-h-full w-full max-w-md overflow-y-auto border-2 border-[#16181A] bg-white p-4 shadow-[8px_8px_0_#16181A]">
+        <div className="flex items-start justify-between border-b-2 border-[#16181A] pb-3">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.28em] text-[#4B5560]">Ticket de vente</div>
+            <div className="mt-1 font-serif text-[26px] leading-none text-[#16181A]">Tchiley</div>
+          </div>
+          <button onClick={onClose} className="print-close mt-1 text-[#4B5560] hover:text-[#C1440E]" aria-label="Fermer">
+            <X size={18} />
+          </button>
+        </div>
 
-            <div className="mt-5 border-t-2 border-b-2 border-[#16181A] py-3">
-              <div className="mb-2 flex justify-between text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
-                <span>Article</span>
-                <span>Montant</span>
-              </div>
+        {cancelled && (
+          <div className="mt-3 border-2 border-[#C1440E] bg-[#FDF1EC] px-3 py-1.5 text-center text-[11px] font-medium uppercase tracking-[0.2em] text-[#C1440E]">
+            Vente annulée
+          </div>
+        )}
 
-              {lastReceipt.lignes.map((ligne, index) => (
-                <div key={`${lastReceipt.id}-${index}`} className="mb-2 space-y-1 text-[13px]">
-                  <div className="flex justify-between gap-3">
-                    <span className="pr-2">{ligne.qte} × {ligne.nom}</span>
-                    <span>{fmtHTG(ligne.sousTotal)}</span>
-                  </div>
-                  <div className="text-right text-[11px] text-[#4B5560]">
-                    {fmtHTG(ligne.prix)} / unité
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 space-y-2 text-[13px]">
-              <div className="flex justify-between">
-                <span className="text-[#4B5560]">Sous-total</span>
-                <span>{fmtHTG(lastReceipt.total)}</span>
-              </div>
-              <div className="flex justify-between border-t border-[#c7c2b4] pt-2">
-                <span className="text-[#4B5560]">Reçu</span>
-                <span>{fmtHTG(lastReceipt.recu)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#4B5560]">Monnaie</span>
-                <span className="font-medium text-[#2F6B4F]">{fmtHTG(lastReceipt.monnaie)}</span>
-              </div>
-              <div className="flex justify-between border-t-2 border-[#16181A] pt-3 font-serif text-[22px]">
-                <span>Total</span>
-                <span>{fmtHTG(lastReceipt.total)}</span>
-              </div>
-            </div>
-
-            <div className="print-actions mt-5 flex gap-2">
-              <button
-                onClick={() => setLastReceipt(null)}
-                className="flex-1 border-2 border-[#16181A] bg-white py-2.5 text-[14px] hover:bg-[#ECE7DC]"
-              >
-                Fermer
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="flex-1 border-2 border-[#16181A] bg-[#2F6B4F] py-2.5 text-[14px] font-medium text-white hover:bg-[#255a40]"
-              >
-                Imprimer
-              </button>
-            </div>
+        <div className="mt-4 space-y-1 text-[12px] text-[#4B5560]">
+          <div className="flex justify-between">
+            <span>Réf.</span>
+            <span className="font-semibold text-[#16181A]">{sale.id}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Date</span>
+            <span>{sale.date.toLocaleString('fr-HT')}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Paiement</span>
+            <span>{PAYMENT_METHODS.find((m) => m.id === sale.paiement)?.label || sale.paiement}</span>
           </div>
         </div>
-      )}
-    </div>
+
+        <div className="mt-5 border-t-2 border-b-2 border-[#16181A] py-3">
+          <div className="mb-2 flex justify-between text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
+            <span>Article</span>
+            <span>Montant</span>
+          </div>
+
+          {sale.lignes.map((ligne, index) => (
+            <div key={`${sale.id}-${index}`} className="mb-2 space-y-1 text-[13px]">
+              <div className="flex justify-between gap-3">
+                <span className="pr-2">{ligne.qte} × {ligne.nom}</span>
+                <span>{fmtHTG(ligne.sousTotal)}</span>
+              </div>
+              <div className="text-right text-[11px] text-[#4B5560]">{fmtHTG(ligne.prix)} / unité</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 space-y-2 text-[13px]">
+          <div className="flex justify-between">
+            <span className="text-[#4B5560]">Sous-total</span>
+            <span>{fmtHTG(sale.total)}</span>
+          </div>
+          <div className="flex justify-between border-t border-[#c7c2b4] pt-2">
+            <span className="text-[#4B5560]">Reçu</span>
+            <span>{fmtHTG(sale.recu)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[#4B5560]">Monnaie</span>
+            <span className="font-medium text-[#2F6B4F]">{fmtHTG(sale.monnaie)}</span>
+          </div>
+          <div className="flex justify-between border-t-2 border-[#16181A] pt-3 font-serif text-[22px]">
+            <span>Total</span>
+            <span className={cancelled ? 'line-through' : ''}>{fmtHTG(sale.total)}</span>
+          </div>
+        </div>
+
+        <div className="print-actions mt-5 flex gap-2">
+          <button onClick={onClose} className="flex-1 border-2 border-[#16181A] bg-white py-2.5 text-[14px] hover:bg-[#ECE7DC]">
+            Fermer
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="flex-1 border-2 border-[#16181A] bg-[#2F6B4F] py-2.5 text-[14px] font-medium text-white hover:bg-[#255a40]"
+          >
+            Imprimer
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -1049,6 +1062,7 @@ function OwnerBoard({
   onBackToBranches,
   branches,
   ventes,
+  setVentes,
   products,
   selectedBranchId,
 }: {
@@ -1058,6 +1072,7 @@ function OwnerBoard({
   onBackToBranches: () => void;
   branches: Branch[];
   ventes: SaleRecord[];
+  setVentes: Dispatch<SetStateAction<SaleRecord[]>>;
   products: Product[];
   selectedBranchId: string | null;
 }) {
@@ -1087,14 +1102,19 @@ function OwnerBoard({
         .filter((p): p is Product => Boolean(p)),
     [branchProductIds, products]
   );
-  const branchVentes = useMemo(
+  const branchVentesAll = useMemo(
     () => ventes.filter((v) => v.branchId === activeBranchId),
     [ventes, activeBranchId]
   );
-  const salesDays = useMemo(() => new Set(branchVentes.map((v) => dayKey(v.date))), [branchVentes]);
+  const branchVentes = useMemo(
+    () => branchVentesAll.filter((v) => v.statut !== 'annulee'),
+    [branchVentesAll]
+  );
+  const salesDays = useMemo(() => new Set(branchVentesAll.map((v) => dayKey(v.date))), [branchVentesAll]);
   const branchUsers = users.filter((u) => u.branchId === activeBranchId);
 
   const salesToday = branchVentes.filter((v) => isSameDay(v.date, selectedDate));
+  const salesOfSelectedDate = branchVentesAll.filter((v) => isSameDay(v.date, selectedDate));
   const stockAlertCount = branchProducts.filter((p) => p.stockFermeture <= p.seuil).length;
   const totalRevenueBranch = branchVentes.reduce((sum, v) => sum + v.total, 0);
   const lowStockProducts = branchProducts.filter((p) => p.stockFermeture <= p.seuil).slice(0, 5);
@@ -1162,6 +1182,19 @@ function OwnerBoard({
       delete next[product.id];
       return next;
     });
+  };
+
+  const handleCancelSale = (sale: SaleRecord) => {
+    if (sale.statut === 'annulee') return;
+    setVentes((prev) => prev.map((v) => (v.id === sale.id ? { ...v, statut: 'annulee' } : v)));
+    setProducts((prev) =>
+      prev.map((product) => {
+        const qty = sale.lignes
+          .filter((l) => (l.produitId ? l.produitId === product.id : l.nom === product.nom))
+          .reduce((sum, l) => sum + l.qte, 0);
+        return qty > 0 ? { ...product, stockFermeture: product.stockFermeture + qty } : product;
+      })
+    );
   };
 
   const handleViewHistory = (product: Product) => {
@@ -1349,7 +1382,7 @@ function OwnerBoard({
             )}
 
             {activeSection === 'sales' && (
-              <BranchSalesSection salesToday={salesToday} selectedDate={selectedDate} />
+              <BranchSalesSection sales={salesOfSelectedDate} selectedDate={selectedDate} onCancelSale={handleCancelSale} />
             )}
 
             {activeSection === 'reports' && (
@@ -2054,11 +2087,63 @@ function BranchProductsSection({
   );
 }
 
-function BranchSalesSection({ salesToday, selectedDate }: { salesToday: SaleRecord[]; selectedDate: Date }) {
-  const sortedSales = [...salesToday].sort((a, b) => b.date.getTime() - a.date.getTime());
-  const totalQty = sortedSales.reduce((sum, sale) => sum + sale.lignes.reduce((n, l) => n + l.qte, 0), 0);
-  const totalAmount = sortedSales.reduce((sum, sale) => sum + sale.total, 0);
+function BranchSalesSection({
+  sales,
+  selectedDate,
+  onCancelSale,
+}: {
+  sales: SaleRecord[];
+  selectedDate: Date;
+  onCancelSale: (sale: SaleRecord) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  const [receiptSale, setReceiptSale] = useState<SaleRecord | null>(null);
+  const [saleToCancel, setSaleToCancel] = useState<{ sale: SaleRecord; number: number } | null>(null);
+
+  const paymentLabel = (id: string) => PAYMENT_METHODS.find((m) => m.id === id)?.label || id;
+  const qtyOf = (sale: SaleRecord) => sale.lignes.reduce((n, l) => n + l.qte, 0);
+
+  // Number sales chronologically (1 = first sale of the day), then show newest first.
+  const numbered = useMemo(
+    () =>
+      [...sales]
+        .sort((a, b) => a.date.getTime() - b.date.getTime())
+        .map((sale, index) => ({ sale, number: index + 1 }))
+        .reverse(),
+    [sales]
+  );
+
+  const query = search.trim().toLowerCase();
+  const rows = numbered.filter(({ sale, number }) => {
+    if (paymentFilter !== 'all' && sale.paiement !== paymentFilter) return false;
+    if (!query) return true;
+    const haystack = [
+      String(number),
+      fmtTime12(sale.date),
+      paymentLabel(sale.paiement),
+      sale.statut === 'annulee' ? 'annulée annulee' : 'validée validee',
+      String(sale.total),
+      ...sale.lignes.map((l) => l.nom),
+    ]
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(query);
+  });
+
+  const countedRows = rows.filter(({ sale }) => sale.statut !== 'annulee');
+  const totalQty = countedRows.reduce((sum, { sale }) => sum + qtyOf(sale), 0);
+  const totalAmount = countedRows.reduce((sum, { sale }) => sum + sale.total, 0);
+  const isFiltering = query !== '' || paymentFilter !== 'all';
+
+  const printSale = (sale: SaleRecord) => {
+    setReceiptSale(sale);
+    window.setTimeout(() => window.print(), 150);
+  };
+
   const cellBase = 'px-3 py-2.5 text-center';
+  const iconButton =
+    'flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#4B5560] transition-all duration-150 hover:border-[#16181A] hover:bg-[#ECE7DC] hover:text-[#16181A]';
 
   return (
     <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
@@ -2070,13 +2155,39 @@ function BranchSalesSection({ salesToday, selectedDate }: { salesToday: SaleReco
           </div>
         </div>
         <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em]">
-          {sortedSales.length} vente{sortedSales.length !== 1 ? 's' : ''}
+          {rows.length} vente{rows.length !== 1 ? 's' : ''}
         </span>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-[220px] flex-1 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 transition-shadow focus-within:shadow-[4px_4px_0_#C1440E]">
+          <Search className="h-4 w-4 shrink-0 text-[#4B5560]" />
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Rechercher une vente, un article..."
+            className="w-full border-none bg-transparent text-sm text-[#16181A] outline-none placeholder:text-[#4B5560]"
+          />
+          <select
+            value={paymentFilter}
+            onChange={(event) => setPaymentFilter(event.target.value)}
+            className="shrink-0 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-[#16181A] outline-none"
+            aria-label="Filtrer par mode de paiement"
+          >
+            <option value="all">Tous paiements</option>
+            {PAYMENT_METHODS.map((method) => (
+              <option key={method.id} value={method.id}>
+                {method.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="overflow-hidden border-2 border-[#16181A] bg-white">
         <div className="max-h-[65vh] overflow-auto">
-          <table className="w-full min-w-[820px] border-collapse text-left" role="grid">
+          <table className="w-full min-w-[980px] border-collapse text-left" role="grid">
             <thead className="sticky top-0 z-10 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
               <tr className="divide-x divide-[#d3cbb6]">
                 <th className="px-3 py-3 text-center" title="Numéro de la vente dans la journée">N°</th>
@@ -2087,68 +2198,149 @@ function BranchSalesSection({ salesToday, selectedDate }: { salesToday: SaleReco
                 <th className="px-3 py-3 text-center" title="Montant total de la vente">Total</th>
                 <th className="px-3 py-3 text-center" title="Montant reçu du client">Reçu</th>
                 <th className="px-3 py-3 text-center" title="Monnaie rendue au client">Monnaie</th>
+                <th className="px-3 py-3 text-center" title="Statut de la vente">Statut</th>
+                <th className="px-3 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {sortedSales.map((sale, index) => (
-                <tr
-                  key={sale.id}
-                  className="divide-x divide-[#e4ded0] border-b border-[#e4ded0] align-middle text-[13px] transition-all duration-150 odd:bg-white even:bg-[#FBFAF6] hover:bg-[#F3EFE3]"
-                >
-                  <td className={cellBase + ' font-medium tabular-nums text-[#4B5560]'}>{sortedSales.length - index}</td>
-                  <td className={cellBase + ' tabular-nums'}>
-                    {sale.date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                  <td className="px-3 py-2.5 text-left">
-                    <div className="space-y-0.5">
-                      {sale.lignes.map((ligne, lineIndex) => (
-                        <div key={lineIndex} className="flex justify-between gap-4">
-                          <span>
-                            <span className="tabular-nums text-[#4B5560]">{ligne.qte} ×</span> {ligne.nom}
-                          </span>
-                          <span className="tabular-nums text-[#4B5560]">{fmtHTG(ligne.sousTotal)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                  <td className={cellBase + ' font-medium tabular-nums'}>
-                    {sale.lignes.reduce((n, l) => n + l.qte, 0)}
-                  </td>
-                  <td className={cellBase}>
-                    <span className="inline-block border-2 border-[#16181A] px-2 py-0.5 text-[10px] uppercase tracking-wide">
-                      {PAYMENT_METHODS.find((m) => m.id === sale.paiement)?.label || sale.paiement}
-                    </span>
-                  </td>
-                  <td className={cellBase + ' font-serif text-[15px] tabular-nums text-[#2F6B4F]'}>{fmtHTG(sale.total)}</td>
-                  <td className={cellBase + ' tabular-nums text-[#4B5560]'}>{fmtHTG(sale.recu)}</td>
-                  <td className={cellBase + ' tabular-nums text-[#4B5560]'}>{fmtHTG(sale.monnaie)}</td>
-                </tr>
-              ))}
-              {sortedSales.length === 0 && (
+              {rows.map(({ sale, number }) => {
+                const cancelled = sale.statut === 'annulee';
+                return (
+                  <tr
+                    key={sale.id}
+                    className={
+                      'divide-x divide-[#e4ded0] border-b border-[#e4ded0] align-middle text-[13px] transition-all duration-150 ' +
+                      (cancelled ? 'bg-[#FDF1EC] text-[#8b929a]' : 'odd:bg-white even:bg-[#FBFAF6] hover:bg-[#F3EFE3]')
+                    }
+                  >
+                    <td className={cellBase + ' font-medium tabular-nums text-[#4B5560]'}>{number}</td>
+                    <td className={cellBase + ' whitespace-nowrap tabular-nums'}>{fmtTime12(sale.date)}</td>
+                    <td className="px-3 py-2.5 text-left">
+                      <div className="space-y-0.5">
+                        {sale.lignes.map((ligne, lineIndex) => (
+                          <div key={lineIndex} className="flex justify-between gap-4">
+                            <span className={cancelled ? 'line-through' : ''}>
+                              <span className="tabular-nums text-[#4B5560]">{ligne.qte} ×</span> {ligne.nom}
+                            </span>
+                            <span className="tabular-nums text-[#4B5560]">{fmtHTG(ligne.sousTotal)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td className={cellBase + ' font-medium tabular-nums'}>{qtyOf(sale)}</td>
+                    <td className={cellBase}>
+                      <span className="inline-block border-2 border-[#16181A] px-2 py-0.5 text-[10px] uppercase tracking-wide">
+                        {paymentLabel(sale.paiement)}
+                      </span>
+                    </td>
+                    <td
+                      className={
+                        cellBase +
+                        ' font-serif text-[15px] tabular-nums ' +
+                        (cancelled ? 'text-[#8b929a] line-through' : 'text-[#2F6B4F]')
+                      }
+                    >
+                      {fmtHTG(sale.total)}
+                    </td>
+                    <td className={cellBase + ' tabular-nums text-[#4B5560]'}>{fmtHTG(sale.recu)}</td>
+                    <td className={cellBase + ' tabular-nums text-[#4B5560]'}>{fmtHTG(sale.monnaie)}</td>
+                    <td className={cellBase}>
+                      <span
+                        className={
+                          'inline-block border-2 px-2 py-0.5 text-[10px] uppercase tracking-wide ' +
+                          (cancelled
+                            ? 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E]'
+                            : 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]')
+                        }
+                      >
+                        {cancelled ? 'Annulée' : 'Validée'}
+                      </span>
+                    </td>
+                    <td className={cellBase}>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button onClick={() => setReceiptSale(sale)} className={iconButton} aria-label="Voir le reçu" title="Voir le reçu">
+                          <Eye size={14} />
+                        </button>
+                        <button onClick={() => printSale(sale)} className={iconButton} aria-label="Imprimer le reçu" title="Imprimer le reçu">
+                          <Printer size={14} />
+                        </button>
+                        <button
+                          onClick={() => setSaleToCancel({ sale, number })}
+                          disabled={cancelled}
+                          className={
+                            'flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent transition-all duration-150 ' +
+                            (cancelled
+                              ? 'cursor-not-allowed text-[#c4c8cd]'
+                              : 'text-[#C1440E] hover:border-[#C1440E] hover:bg-[#FDF1EC]')
+                          }
+                          aria-label="Annuler la vente"
+                          title={cancelled ? 'Vente déjà annulée' : 'Annuler / rembourser la vente'}
+                        >
+                          <Undo2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-14 text-center text-[#4B5560]">
+                  <td colSpan={10} className="py-14 text-center text-[#4B5560]">
                     <ShoppingCart size={32} className="mx-auto mb-3 opacity-40" />
-                    <div className="text-sm">Aucune vente pour cette date.</div>
+                    <div className="text-sm">
+                      {isFiltering ? 'Aucune vente ne correspond à votre recherche.' : 'Aucune vente pour cette date.'}
+                    </div>
                   </td>
                 </tr>
               )}
             </tbody>
-            {sortedSales.length > 0 && (
+            {countedRows.length > 0 && (
               <tfoot className="sticky bottom-0 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[13px] font-medium shadow-[0_-2px_0_#16181A]">
                 <tr className="divide-x divide-[#d3cbb6]">
                   <td colSpan={3} className="px-3 py-3 text-right text-[10.5px] uppercase tracking-[0.16em] text-[#4B5560]">
-                    Total du jour
+                    {isFiltering ? 'Total (résultats)' : 'Total du jour'}
                   </td>
                   <td className="px-3 py-3 text-center tabular-nums">{totalQty}</td>
                   <td className="px-3 py-3" />
                   <td className="px-3 py-3 text-center font-serif text-[15px] tabular-nums text-[#2F6B4F]">{fmtHTG(totalAmount)}</td>
-                  <td colSpan={2} className="px-3 py-3" />
+                  <td colSpan={4} className="px-3 py-3" />
                 </tr>
               </tfoot>
             )}
           </table>
         </div>
       </div>
+
+      {receiptSale && <ReceiptModal sale={receiptSale} onClose={() => setReceiptSale(null)} />}
+
+      {saleToCancel && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
+          <div className="w-full max-w-sm border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
+            <div className="font-serif text-xl">Annuler la vente n° {saleToCancel.number} ?</div>
+            <p className="mt-2 text-[13px] text-[#4B5560]">
+              {fmtHTG(saleToCancel.sale.total)} • {qtyOf(saleToCancel.sale)} article{qtyOf(saleToCancel.sale) !== 1 ? 's' : ''}.
+              Le stock sera remis en inventaire et la vente ne comptera plus dans les totaux.
+            </p>
+            <div className="mt-5 flex gap-2">
+              <button
+                onClick={() => setSaleToCancel(null)}
+                className="flex-1 border-2 border-[#16181A] bg-white py-2.5 text-[14px] hover:bg-[#ECE7DC]"
+              >
+                Retour
+              </button>
+              <button
+                onClick={() => {
+                  onCancelSale(saleToCancel.sale);
+                  setSaleToCancel(null);
+                }}
+                className="flex-1 border-2 border-[#16181A] bg-[#C1440E] py-2.5 text-[14px] font-medium text-white hover:bg-[#a53a0b]"
+              >
+                Annuler la vente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
