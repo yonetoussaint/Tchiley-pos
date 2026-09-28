@@ -889,6 +889,7 @@ const INITIAL_USERS: User[] = [
 
 export default function GestionMateriaux() {
   const [view, setView] = useState<View>('vente');
+  const [menuOpen, setMenuOpen] = useState<boolean>(true);
   const [appRoute, setAppRoute] = useState<'admin' | 'user' | 'sellerBoard'>('admin');
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [pendingBranchId, setPendingBranchId] = useState<string | null>(null);
@@ -1248,115 +1249,160 @@ export default function GestionMateriaux() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-[#ECE7DC] text-[#16181A] font-sans overflow-hidden">
-      <aside className="flex w-[220px] shrink-0 flex-col border-r-2 border-[#16181A] bg-[#16181A] text-[#ECE7DC]">
-        <div className="border-b-2 border-[#3a3d40] px-5 py-5">
-          <div className="text-[11px] tracking-wide text-[#8b929a]">Gestion de Magasin</div>
-          <div className="mt-1 font-serif text-lg leading-tight text-[#ECE7DC]">
-            Matériaux<br />de Construction
-          </div>
-          <button
-            onClick={() => setSelectedBranchId(null)}
-            className="mt-3 w-full border-2 border-[#3a3d40] bg-[#1f2225] px-2 py-1.5 text-left text-[11px] uppercase tracking-wide text-[#ECE7DC] hover:border-[#C1440E]"
-          >
-            ← Changer de succursale
-          </button>
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-[#ECE7DC] font-sans text-[#16181A]">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-[#16181A] bg-[#FBFAF6] px-4 py-4 md:px-6">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Espace vendeur</div>
+          <h1 className="mt-1 font-serif text-2xl md:text-3xl">Gestion de Magasin</h1>
         </div>
+        <button
+          onClick={() => setSelectedBranchId(null)}
+          className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+        >
+          Changer de succursale
+        </button>
+      </div>
 
-        <nav className="flex-1 px-2 py-4">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const actif = view === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setView(item.id)}
+      <div className="flex min-h-0 flex-1 flex-col px-4 py-5 md:px-6">
+        {/* Branch header + hamburger menu (same as admin board) */}
+        <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3 border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[6px_6px_0_#16181A]">
+          <button
+            onClick={() => setMenuOpen((prev) => !prev)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31]"
+            aria-label="Menu de la succursale"
+          >
+            <Menu size={18} />
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-serif text-xl leading-tight">{brancheActuelle.nom}</span>
+              <span
                 className={
-                  'mb-1 flex w-full items-center gap-3 border-2 px-3 py-2.5 text-left text-sm transition-colors ' +
-                  (actif
-                    ? 'border-[#C1440E] bg-[#C1440E] text-white'
-                    : 'border-transparent text-[#c7ccd1] hover:border-[#3a3d40] hover:bg-[#1f2225]')
+                  'border-2 px-2 py-0.5 text-[9px] uppercase tracking-wide ' +
+                  (brancheActuelle.statut === 'Ouvert'
+                    ? 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]'
+                    : 'border-[#4B5560] bg-[#F3F4F6] text-[#4B5560]')
                 }
               >
-                <Icon size={17} strokeWidth={2} />
-                <span>{item.label}</span>
-                {item.id === 'vente' && nbArticlesPanier > 0 && (
-                  <span className="ml-auto border-2 border-current px-1.5 text-[11px]">
-                    {nbArticlesPanier}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {produitsStockBas.length > 0 && (
-          <div className="border-t-2 border-[#3a3d40] px-4 py-4">
-            <div className="flex items-center gap-2 text-[#F2B705]">
-              <AlertTriangle size={15} />
-              <span className="text-[12px]">
-                {produitsStockBas.length} article{produitsStockBas.length > 1 ? 's' : ''} en stock bas
+                {brancheActuelle.statut}
               </span>
             </div>
+            <div className="text-[12px] text-[#4B5560]">
+              {brancheActuelle.ville} • {brancheActuelle.adresse} • Responsable: {brancheActuelle.gestionnaire}
+            </div>
           </div>
-        )}
-      </aside>
 
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between border-b-2 border-[#16181A] bg-[#FBFAF6] px-6 py-4">
-          <div>
-            <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Succursale active</div>
-            <div className="font-serif text-xl">{brancheActuelle.nom}</div>
+          <div className="ml-auto flex shrink-0 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-1.5 text-[12px]">
+            <CalendarDays size={14} />
+            {new Date().toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
           </div>
-          <div className="rounded-none border-2 border-[#16181A] bg-[#ECE7DC] px-3 py-1.5 text-sm">
-            {brancheActuelle.ville}
-          </div>
-        </header>
+        </div>
 
-        {view === 'vente' && (
-          <VenteView
-            isReadOnly={isReadOnly}
-            categorie={categorie}
-            setCategorie={setCategorie}
-            categories={categoriesBranche}
-            recherche={recherche}
-            setRecherche={setRecherche}
-            produits={produitsFiltres}
-            basculerProduit={basculerProduit}
-            lignesPanier={lignesPanier}
-            changerQte={changerQte}
-            retirerDuPanier={retirerDuPanier}
-            viderPanier={viderPanier}
-            totalPanier={totalPanier}
-            ouvrirCheckout={() => setCheckoutOuvert(true)}
-          />
-        )}
+        <div className="flex min-h-0 flex-1 items-start gap-4">
+          <nav
+            className={
+              'shrink-0 self-start border-2 border-[#16181A] bg-[#FBFAF6] p-2 transition-[width] duration-150 ' +
+              (menuOpen ? 'w-56' : 'w-14')
+            }
+          >
+            {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
+              const actif = view === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setView(id)}
+                  title={menuOpen ? undefined : label}
+                  aria-label={label}
+                  className={
+                    'relative mb-1 flex w-full items-center border-2 py-2.5 text-left text-[11px] uppercase tracking-[0.18em] last:mb-0 ' +
+                    (menuOpen ? 'gap-3 px-3' : 'justify-center px-0') +
+                    ' ' +
+                    (actif
+                      ? 'border-[#C1440E] bg-[#C1440E] text-white'
+                      : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                  }
+                >
+                  <Icon size={15} className="shrink-0" />
+                  {menuOpen && <span>{label}</span>}
+                  {id === 'vente' && nbArticlesPanier > 0 && (
+                    menuOpen ? (
+                      <span className="ml-auto border-2 border-current px-1.5 text-[10px]">{nbArticlesPanier}</span>
+                    ) : (
+                      <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center bg-[#16181A] px-1 text-[9px] text-white">
+                        {nbArticlesPanier}
+                      </span>
+                    )
+                  )}
+                </button>
+              );
+            })}
 
-        {view === 'inventaire' && (
-          <InventaireView
-            isReadOnly={isReadOnly}
-            produits={inventaireFiltre}
-            recherche={invRecherche}
-            setRecherche={setInvRecherche}
-            editStockId={editStockId}
-            editStockVal={editStockVal}
-            setEditStockVal={setEditStockVal}
-            commencerEditStock={commencerEditStock}
-            validerEditStock={validerEditStock}
-          />
-        )}
+            {produitsStockBas.length > 0 && (
+              <div
+                title={menuOpen ? undefined : `${produitsStockBas.length} article(s) en stock bas`}
+                className={
+                  'mt-2 flex items-center border-t-2 border-[#16181A] pt-2 text-[#C1440E] ' +
+                  (menuOpen ? 'gap-2 px-2' : 'justify-center')
+                }
+              >
+                <AlertTriangle size={15} className="shrink-0" />
+                <span className="text-[11px]">
+                  {menuOpen
+                    ? `${produitsStockBas.length} article${produitsStockBas.length > 1 ? 's' : ''} en stock bas`
+                    : produitsStockBas.length}
+                </span>
+              </div>
+            )}
+          </nav>
 
-        {view === 'historique' && <HistoriqueView ventes={ventesValides} />}
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch overflow-hidden border-2 border-[#16181A] bg-[#FBFAF6] shadow-[6px_6px_0_#16181A]">
+            {view === 'vente' && (
+              <VenteView
+                isReadOnly={isReadOnly}
+                categorie={categorie}
+                setCategorie={setCategorie}
+                categories={categoriesBranche}
+                recherche={recherche}
+                setRecherche={setRecherche}
+                produits={produitsFiltres}
+                basculerProduit={basculerProduit}
+                lignesPanier={lignesPanier}
+                changerQte={changerQte}
+                retirerDuPanier={retirerDuPanier}
+                viderPanier={viderPanier}
+                totalPanier={totalPanier}
+                ouvrirCheckout={() => setCheckoutOuvert(true)}
+              />
+            )}
 
-        {view === 'dashboard' && (
-          <DashboardView
-            totalAujourdhui={totalAujourdhui}
-            nbVentesAujourdhui={venteAujourdhui.length}
-            produitsStockBas={produitsStockBas}
-            meilleuresVentes={meilleuresVentes}
-          />
-        )}
-      </main>
+            {view === 'inventaire' && (
+              <InventaireView
+                isReadOnly={isReadOnly}
+                produits={inventaireFiltre}
+                recherche={invRecherche}
+                setRecherche={setInvRecherche}
+                editStockId={editStockId}
+                editStockVal={editStockVal}
+                setEditStockVal={setEditStockVal}
+                commencerEditStock={commencerEditStock}
+                validerEditStock={validerEditStock}
+              />
+            )}
+
+            {view === 'historique' && <HistoriqueView ventes={ventesValides} />}
+
+            {view === 'dashboard' && (
+              <DashboardView
+                totalAujourdhui={totalAujourdhui}
+                nbVentesAujourdhui={venteAujourdhui.length}
+                produitsStockBas={produitsStockBas}
+                meilleuresVentes={meilleuresVentes}
+              />
+            )}
+          </main>
+        </div>
+      </div>
 
       {checkoutOuvert && (
         <CheckoutModal
