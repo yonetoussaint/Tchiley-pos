@@ -5,7 +5,7 @@ import {
   ShoppingCart, Boxes, History, Gauge, AlertTriangle,
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
-  Users, Loader2, CalendarDays, Eye, Undo2
+  Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown
 } from 'lucide-react';
 
 /* =========================================================================
@@ -283,6 +283,92 @@ const PAYMENT_METHODS: Array<{ id: PaymentMethodId; label: string; icon: typeof 
 const creditPaid = (sale: SaleRecord) => (sale.paiementsCredit ?? []).reduce((sum, p) => sum + p.montant, 0);
 const creditBalance = (sale: SaleRecord) => Math.max(sale.total - creditPaid(sale), 0);
 
+/* ---------- Cash ledger (rapports) ---------- */
+type CashEntryType = 'consommation' | 'achat' | 'renflouement' | 'remboursement';
+
+type CashEntry = {
+  id: string;
+  branchId: string;
+  date: Date;
+  type: CashEntryType;
+  montant: number;
+  note?: string;
+};
+
+const CASH_ENTRY_META: Record<CashEntryType, { label: string; sign: -1 | 1 }> = {
+  consommation: { label: 'Consommation interne', sign: -1 },
+  achat: { label: 'Achat', sign: -1 },
+  renflouement: { label: 'Renflouement', sign: 1 },
+  remboursement: { label: 'Remboursement', sign: 1 },
+};
+
+type ReportPeriod = 'daily' | 'monthly' | 'annual';
+
+const REPORT_TABS: Array<{ id: ReportPeriod; label: string; short: string }> = [
+  { id: 'daily', label: 'Rapport Journalier', short: 'J' },
+  { id: 'monthly', label: 'Rapport Mensuel', short: 'M' },
+  { id: 'annual', label: 'Rapport Annuel', short: 'A' },
+];
+
+type CashSummary = {
+  brut: number;
+  credits: number;
+  consommations: number;
+  achats: number;
+  renflouements: number;
+  remboursements: number; // manual entries + credit repayments received
+  cashNet: number;
+  mobile: number; // MonCash / NatCash received (not physical cash)
+  cashEnMain: number;
+  nbVentes: number;
+};
+
+/** Build the cash summary for the sales / entries that fall inside `inPeriod`. */
+function summarizeCash(
+  ventes: SaleRecord[],
+  entries: CashEntry[],
+  inPeriod: (d: Date) => boolean
+): CashSummary {
+  const sales = ventes.filter((v) => v.statut !== 'annulee' && inPeriod(v.date));
+  const brut = sales.reduce((sum, v) => sum + v.total, 0);
+  const credits = sales.filter((v) => v.paiement === 'credit').reduce((sum, v) => sum + v.total, 0);
+  const mobileSales = sales
+    .filter((v) => v.paiement === 'moncash' || v.paiement === 'natcash')
+    .reduce((sum, v) => sum + v.total, 0);
+
+  // Credit repayments received during the period (any credit sale, cancelled ones excluded)
+  const repayments = ventes
+    .filter((v) => v.statut !== 'annulee')
+    .flatMap((v) => v.paiementsCredit ?? [])
+    .filter((pay) => inPeriod(pay.date));
+  const repaymentsTotal = repayments.reduce((sum, pay) => sum + pay.montant, 0);
+  const repaymentsMobile = repayments
+    .filter((pay) => pay.mode === 'moncash' || pay.mode === 'natcash')
+    .reduce((sum, pay) => sum + pay.montant, 0);
+
+  const inRange = entries.filter((e) => inPeriod(e.date));
+  const sumOf = (type: CashEntryType) => inRange.filter((e) => e.type === type).reduce((sum, e) => sum + e.montant, 0);
+  const consommations = sumOf('consommation');
+  const achats = sumOf('achat');
+  const renflouements = sumOf('renflouement');
+  const remboursements = sumOf('remboursement') + repaymentsTotal;
+
+  const cashNet = brut - credits - consommations - achats + renflouements + remboursements;
+  const mobile = mobileSales + repaymentsMobile;
+  return {
+    brut,
+    credits,
+    consommations,
+    achats,
+    renflouements,
+    remboursements,
+    cashNet,
+    mobile,
+    cashEnMain: cashNet - mobile,
+    nbVentes: sales.length,
+  };
+}
+
 const fmtTime12 = (d: Date) =>
   d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
@@ -390,6 +476,7 @@ export default function GestionMateriaux() {
   const [categorie, setCategorie] = useState<string>('Tout');
   const [recherche, setRecherche] = useState<string>('');
   const [ventes, setVentes] = useState<SaleRecord[]>(() => buildMockSales());
+  const [cashEntries, setCashEntries] = useState<CashEntry[]>([]);
   const ventesValides = useMemo(() => ventes.filter((v) => v.statut !== 'annulee'), [ventes]);
   const clientsConnus = useMemo(
     () => Array.from(new Set(ventes.map((v) => v.client?.trim()).filter((c): c is string => !!c))).sort(),
@@ -643,6 +730,8 @@ export default function GestionMateriaux() {
         branches={SUCURSALES}
         ventes={ventes}
         setVentes={setVentes}
+        cashEntries={cashEntries}
+        setCashEntries={setCashEntries}
         products={products}
         selectedBranchId={selectedBranchId}
       />
@@ -1138,6 +1227,8 @@ function OwnerBoard({
   branches,
   ventes,
   setVentes,
+  cashEntries,
+  setCashEntries,
   products,
   selectedBranchId,
 }: {
@@ -1148,9 +1239,13 @@ function OwnerBoard({
   branches: Branch[];
   ventes: SaleRecord[];
   setVentes: Dispatch<SetStateAction<SaleRecord[]>>;
+  cashEntries: CashEntry[];
+  setCashEntries: Dispatch<SetStateAction<CashEntry[]>>;
   products: Product[];
   selectedBranchId: string | null;
 }) {
+  const [reportPeriod, setReportPeriod] = useState<ReportPeriod>('daily');
+  const [reportsOpen, setReportsOpen] = useState<boolean>(false);
   const [activeBranchId, setActiveBranchId] = useState<string>(selectedBranchId ?? branches[0]?.id ?? '');
   const [menuOpen, setMenuOpen] = useState<boolean>(true);
   const [activeSection, setActiveSection] = useState<OwnerSection>('dashboard');
@@ -1421,24 +1516,67 @@ function OwnerBoard({
           >
             {OWNER_SECTIONS.map(({ id, label, icon: Icon }) => {
               const active = activeSection === id;
+              const isReports = id === 'reports';
               return (
-                <button
-                  key={id}
-                  onClick={() => selectSection(id)}
-                  title={menuOpen ? undefined : label}
-                  aria-label={label}
-                  className={
-                    'mb-1 flex w-full items-center text-left text-[11px] uppercase tracking-[0.18em] last:mb-0 border-2 py-2.5 ' +
-                    (menuOpen ? 'gap-3 px-3' : 'justify-center px-0') +
-                    ' ' +
-                    (active
-                      ? 'border-[#C1440E] bg-[#C1440E] text-white'
-                      : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
-                  }
-                >
-                  <Icon size={15} className="shrink-0" />
-                  {menuOpen && <span>{label}</span>}
-                </button>
+                <div key={id} className="mb-1 last:mb-0">
+                  <button
+                    onClick={() => {
+                      if (isReports) {
+                        if (active) setReportsOpen((prev) => !prev);
+                        else setReportsOpen(true);
+                      } else {
+                        setReportsOpen(false);
+                      }
+                      selectSection(id);
+                    }}
+                    title={menuOpen ? undefined : label}
+                    aria-label={label}
+                    aria-expanded={isReports ? reportsOpen && active : undefined}
+                    className={
+                      'flex w-full items-center text-left text-[11px] uppercase tracking-[0.18em] border-2 py-2.5 ' +
+                      (menuOpen ? 'gap-3 px-3' : 'justify-center px-0') +
+                      ' ' +
+                      (active
+                        ? 'border-[#C1440E] bg-[#C1440E] text-white'
+                        : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                    }
+                  >
+                    <Icon size={15} className="shrink-0" />
+                    {menuOpen && <span>{label}</span>}
+                    {menuOpen && isReports && (
+                      <ChevronDown
+                        size={14}
+                        className={'ml-auto shrink-0 transition-transform ' + (reportsOpen && active ? 'rotate-180' : '')}
+                      />
+                    )}
+                  </button>
+
+                  {isReports && active && reportsOpen && (
+                    <div className={'mt-1 border-l-2 border-[#C1440E] ' + (menuOpen ? 'ml-4 pl-1' : 'ml-0 pl-0')}>
+                      {REPORT_TABS.map((tab) => {
+                        const subActive = reportPeriod === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => setReportPeriod(tab.id)}
+                            title={menuOpen ? undefined : tab.label}
+                            aria-label={tab.label}
+                            className={
+                              'mb-0.5 flex w-full items-center border-2 py-2 text-left text-[10px] uppercase tracking-[0.14em] last:mb-0 ' +
+                              (menuOpen ? 'px-3' : 'justify-center px-0') +
+                              ' ' +
+                              (subActive
+                                ? 'border-[#16181A] bg-[#16181A] text-white'
+                                : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                            }
+                          >
+                            {menuOpen ? tab.label : tab.short}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </nav>
@@ -1486,7 +1624,19 @@ function OwnerBoard({
             )}
 
             {activeSection === 'reports' && (
-              <BranchReportsSection branch={activeBranch} ventes={branchVentes} products={branchProducts} />
+              <BranchReportsSection
+                branch={activeBranch}
+                period={reportPeriod}
+                setPeriod={setReportPeriod}
+                selectedDate={selectedDate}
+                ventes={branchVentesAll}
+                entries={cashEntries.filter((e) => e.branchId === activeBranchId)}
+                products={branchProducts}
+                onAddEntry={(entry) =>
+                  setCashEntries((prev) => [{ ...entry, id: `C${Date.now()}`, branchId: activeBranchId }, ...prev])
+                }
+                onDeleteEntry={(id) => setCashEntries((prev) => prev.filter((e) => e.id !== id))}
+              />
             )}
 
             {activeSection === 'users' && (
@@ -2946,7 +3096,7 @@ function BranchCreditsSection({
   );
 }
 
-function BranchReportsSection({
+function BranchAnalyticsSection({
   branch,
   ventes,
   products,
@@ -3049,6 +3199,422 @@ function BranchReportsSection({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   RAPPORTS — Journalier / Mensuel / Annuel
+   Cash net = Brut − Crédits − Consommations internes − Achats + Renflouements + Remboursements
+   Cash en main = Cash net − paiements mobiles (MonCash / NatCash)
+   ========================================================================= */
+
+const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+function SummaryLine({
+  label,
+  value,
+  sign,
+  hint,
+}: {
+  label: string;
+  value: number;
+  sign?: '-' | '+';
+  hint?: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-[#4B5560]/40 py-2.5">
+      <div>
+        <div className="text-[12px] uppercase tracking-[0.12em]">{label}</div>
+        {hint && <div className="text-[10px] text-[#4B5560]">{hint}</div>}
+      </div>
+      <div
+        className={
+          'font-mono text-sm tabular-nums ' +
+          (sign === '-' ? 'text-[#C1440E]' : sign === '+' ? 'text-[#2F6B4F]' : '')
+        }
+      >
+        {sign ? sign + ' ' : ''}
+        {fmtHTG(value)}
+      </div>
+    </div>
+  );
+}
+
+function CashEntryForm({
+  onAdd,
+  date,
+}: {
+  onAdd: (entry: Omit<CashEntry, 'id' | 'branchId'>) => void;
+  date: Date;
+}) {
+  const [type, setType] = useState<CashEntryType>('consommation');
+  const [montant, setMontant] = useState('');
+  const [note, setNote] = useState('');
+  const value = Number(montant);
+  const valid = Number.isFinite(value) && value > 0;
+
+  const submit = () => {
+    if (!valid) return;
+    const when = new Date(date);
+    const now = new Date();
+    when.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0);
+    onAdd({ date: when, type, montant: value, note: note.trim() || undefined });
+    setMontant('');
+    setNote('');
+  };
+
+  return (
+    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-4">
+      <div className="mb-3 text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">Ajouter un mouvement de caisse</div>
+      <div className="flex flex-wrap gap-1.5">
+        {(Object.keys(CASH_ENTRY_META) as CashEntryType[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setType(t)}
+            className={
+              'border-2 px-3 py-1.5 text-[10px] uppercase tracking-[0.14em] ' +
+              (type === t
+                ? 'border-[#16181A] bg-[#16181A] text-white'
+                : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
+            }
+          >
+            {CASH_ENTRY_META[t].sign === -1 ? '− ' : '+ '}
+            {CASH_ENTRY_META[t].label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <input
+          type="number"
+          min={0}
+          inputMode="numeric"
+          value={montant}
+          onChange={(e) => setMontant(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder="Montant (HTG)"
+          className="w-40 border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+        />
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder="Note (optionnel)"
+          className="min-w-[160px] flex-1 border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+        />
+        <button
+          onClick={submit}
+          disabled={!valid}
+          className={
+            'flex items-center gap-2 border-2 px-4 py-2 text-[11px] uppercase tracking-[0.18em] ' +
+            (valid
+              ? 'border-[#C1440E] bg-[#C1440E] text-white hover:bg-[#a53a0b]'
+              : 'cursor-not-allowed border-[#9CA3AF] bg-[#E5E7EB] text-[#6B7280]')
+          }
+        >
+          <Plus size={14} /> Ajouter
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DailyReport({
+  ventes,
+  entries,
+  selectedDate,
+  onAddEntry,
+  onDeleteEntry,
+}: {
+  ventes: SaleRecord[];
+  entries: CashEntry[];
+  selectedDate: Date;
+  onAddEntry: (entry: Omit<CashEntry, 'id' | 'branchId'>) => void;
+  onDeleteEntry: (id: string) => void;
+}) {
+  const inDay = (d: Date) => isSameDay(d, selectedDate);
+  const sum = useMemo(() => summarizeCash(ventes, entries, inDay), [ventes, entries, selectedDate]); // eslint-disable-line
+  const dayEntries = entries.filter((e) => inDay(e.date)).sort((a, b) => b.date.getTime() - a.date.getTime());
+  const dateLabel = selectedDate.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return (
+    <div className="space-y-5">
+      <div className="border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
+        <div className="text-[11px] uppercase tracking-[0.22em] text-[#4B5560]">Rapport journalier</div>
+        <h2 className="mb-4 font-serif text-2xl capitalize">{dateLabel}</h2>
+
+        <SummaryLine label="Total brut des ventes" value={sum.brut} hint={`${sum.nbVentes} vente(s) validée(s)`} />
+
+        <div className="mt-4 text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Déductions</div>
+        <SummaryLine label="Crédits" value={sum.credits} sign="-" hint="Ventes à crédit du jour (non encaissées)" />
+        <SummaryLine label="Consommations internes" value={sum.consommations} sign="-" />
+        <SummaryLine label="Achats" value={sum.achats} sign="-" />
+
+        <div className="mt-4 text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Additions</div>
+        <SummaryLine label="Renflouement" value={sum.renflouements} sign="+" />
+        <SummaryLine
+          label="Remboursement"
+          value={sum.remboursements}
+          sign="+"
+          hint="Paiements de crédits reçus + remboursements saisis"
+        />
+
+        <div className="mt-4 border-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="text-[12px] font-bold uppercase tracking-[0.16em]">Cash net</div>
+            <div className="font-serif text-2xl tabular-nums">{fmtHTG(sum.cashNet)}</div>
+          </div>
+        </div>
+
+        <SummaryLine
+          label="Paiements mobiles"
+          value={sum.mobile}
+          sign="-"
+          hint="MonCash / NatCash — pas en caisse"
+        />
+
+        <div className="mt-2 border-2 border-[#2F6B4F] bg-[#E9F5EF] px-4 py-4 shadow-[4px_4px_0_#2F6B4F]">
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#2F6B4F]">Cash en main</div>
+            <div className="font-serif text-3xl tabular-nums text-[#2F6B4F]">{fmtHTG(sum.cashEnMain)}</div>
+          </div>
+        </div>
+      </div>
+
+      <CashEntryForm onAdd={onAddEntry} date={selectedDate} />
+
+      <div className="border-2 border-[#16181A] bg-white">
+        <div className="border-b-2 border-[#16181A] px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
+          Mouvements saisis ce jour ({dayEntries.length})
+        </div>
+        {dayEntries.length === 0 ? (
+          <div className="px-4 py-6 text-center text-sm text-[#4B5560]">Aucun mouvement pour cette date.</div>
+        ) : (
+          <ul>
+            {dayEntries.map((e) => {
+              const meta = CASH_ENTRY_META[e.type];
+              return (
+                <li
+                  key={e.id}
+                  className="flex items-center gap-3 border-b border-[#16181A]/15 px-4 py-2.5 last:border-b-0"
+                >
+                  <span className="w-16 shrink-0 font-mono text-[11px] text-[#4B5560]">{fmtTime12(e.date)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] uppercase tracking-[0.1em]">{meta.label}</div>
+                    {e.note && <div className="truncate text-[11px] text-[#4B5560]">{e.note}</div>}
+                  </div>
+                  <span
+                    className={'font-mono text-sm tabular-nums ' + (meta.sign === -1 ? 'text-[#C1440E]' : 'text-[#2F6B4F]')}
+                  >
+                    {meta.sign === -1 ? '−' : '+'} {fmtHTG(e.montant)}
+                  </span>
+                  <button
+                    onClick={() => onDeleteEntry(e.id)}
+                    aria-label="Supprimer"
+                    className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PeriodReport({
+  mode,
+  ventes,
+  entries,
+  selectedDate,
+}: {
+  mode: 'monthly' | 'annual';
+  ventes: SaleRecord[];
+  entries: CashEntry[];
+  selectedDate: Date;
+}) {
+  const year = selectedDate.getFullYear();
+  const month = selectedDate.getMonth();
+
+  const rows = useMemo(() => {
+    if (mode === 'monthly') {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      return Array.from({ length: daysInMonth }, (_, i) => {
+        const day = i + 1;
+        const inPeriod = (d: Date) => d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+        return { label: String(day).padStart(2, '0') + ' ' + MONTHS_FR[month].slice(0, 3), sum: summarizeCash(ventes, entries, inPeriod) };
+      });
+    }
+    return MONTHS_FR.map((name, m) => {
+      const inPeriod = (d: Date) => d.getFullYear() === year && d.getMonth() === m;
+      return { label: name, sum: summarizeCash(ventes, entries, inPeriod) };
+    });
+  }, [mode, ventes, entries, year, month]);
+
+  const total = useMemo(() => {
+    const inPeriod =
+      mode === 'monthly'
+        ? (d: Date) => d.getFullYear() === year && d.getMonth() === month
+        : (d: Date) => d.getFullYear() === year;
+    return summarizeCash(ventes, entries, inPeriod);
+  }, [mode, ventes, entries, year, month]);
+
+  const title = mode === 'monthly' ? `${MONTHS_FR[month]} ${year}` : String(year);
+  const visibleRows = rows.filter((r) => r.sum.nbVentes > 0 || r.sum.achats + r.sum.consommations + r.sum.renflouements + r.sum.remboursements > 0);
+
+  const cols: Array<{ key: string; label: string; get: (s: CashSummary) => number; tone?: string }> = [
+    { key: 'brut', label: 'Total brut', get: (s) => s.brut },
+    { key: 'credits', label: 'Crédits', get: (s) => s.credits, tone: 'text-[#C1440E]' },
+    { key: 'conso', label: 'Conso. internes', get: (s) => s.consommations, tone: 'text-[#C1440E]' },
+    { key: 'achats', label: 'Achats', get: (s) => s.achats, tone: 'text-[#C1440E]' },
+    { key: 'renf', label: 'Renflouement', get: (s) => s.renflouements, tone: 'text-[#2F6B4F]' },
+    { key: 'remb', label: 'Remboursement', get: (s) => s.remboursements, tone: 'text-[#2F6B4F]' },
+    { key: 'net', label: 'Cash net', get: (s) => s.cashNet },
+    { key: 'main', label: 'Cash en main', get: (s) => s.cashEnMain, tone: 'font-bold text-[#2F6B4F]' },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
+          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Total brut — {title}</div>
+          <div className="mt-2 font-serif text-3xl">{fmtHTG(total.brut)}</div>
+        </div>
+        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
+          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Cash net</div>
+          <div className="mt-2 font-serif text-3xl">{fmtHTG(total.cashNet)}</div>
+        </div>
+        <div className="border-2 border-[#2F6B4F] bg-[#E9F5EF] p-5 shadow-[4px_4px_0_#2F6B4F]">
+          <div className="text-[11px] uppercase tracking-wide text-[#2F6B4F]">Cash en main</div>
+          <div className="mt-2 font-serif text-3xl text-[#2F6B4F]">{fmtHTG(total.cashEnMain)}</div>
+        </div>
+      </div>
+
+      <div className="border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#C1440E]">
+        <div className="border-b-2 border-[#16181A] px-4 py-3">
+          <div className="text-[11px] uppercase tracking-[0.22em] text-[#4B5560]">
+            {mode === 'monthly' ? 'Rapport mensuel' : 'Rapport annuel'}
+          </div>
+          <h2 className="font-serif text-2xl">{title}</h2>
+          <div className="text-[11px] text-[#4B5560]">
+            {mode === 'monthly'
+              ? 'Change le mois avec le sélecteur de date en haut.'
+              : "Change l'année avec le sélecteur de date en haut."}
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-right text-[12px] tabular-nums">
+            <thead>
+              <tr className="border-b-2 border-[#16181A] bg-[#ECE7DC] text-[10px] uppercase tracking-[0.12em]">
+                <th className="px-3 py-3 text-left">{mode === 'monthly' ? 'Jour' : 'Mois'}</th>
+                {cols.map((c) => (
+                  <th key={c.key} className="px-3 py-3">{c.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.length === 0 && (
+                <tr>
+                  <td colSpan={cols.length + 1} className="px-3 py-8 text-center text-sm text-[#4B5560]">
+                    Aucune activité sur cette période.
+                  </td>
+                </tr>
+              )}
+              {visibleRows.map((r) => (
+                <tr key={r.label} className="border-b border-[#16181A]/15 hover:bg-[#FBFAF6]">
+                  <td className="px-3 py-2.5 text-left font-medium">{r.label}</td>
+                  {cols.map((c) => (
+                    <td key={c.key} className={'px-3 py-2.5 ' + (c.tone ?? '')}>
+                      {c.get(r.sum) === 0 ? '—' : fmtHTG(c.get(r.sum))}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6]">
+                <td className="px-3 py-3 text-left text-[10px] uppercase tracking-[0.16em]">Total</td>
+                {cols.map((c) => (
+                  <td key={c.key} className="px-3 py-3 font-bold">{fmtHTG(c.get(total))}</td>
+                ))}
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BranchReportsSection({
+  branch,
+  period,
+  setPeriod,
+  selectedDate,
+  ventes,
+  entries,
+  products,
+  onAddEntry,
+  onDeleteEntry,
+}: {
+  branch: Branch;
+  period: ReportPeriod;
+  setPeriod: Dispatch<SetStateAction<ReportPeriod>>;
+  selectedDate: Date;
+  ventes: SaleRecord[];
+  entries: CashEntry[];
+  products: Product[];
+  onAddEntry: (entry: Omit<CashEntry, 'id' | 'branchId'>) => void;
+  onDeleteEntry: (id: string) => void;
+}) {
+  const validSales = useMemo(() => ventes.filter((v) => v.statut !== 'annulee'), [ventes]);
+  return (
+    <div className="space-y-5">
+      {/* Mobile-friendly tab switch (mirrors the drop-down in the side menu) */}
+      <div className="flex flex-wrap gap-1.5">
+        {REPORT_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setPeriod(tab.id)}
+            className={
+              'border-2 px-4 py-2 text-[11px] uppercase tracking-[0.16em] ' +
+              (period === tab.id
+                ? 'border-[#16181A] bg-[#16181A] text-white'
+                : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
+            }
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {period === 'daily' && (
+        <DailyReport
+          ventes={ventes}
+          entries={entries}
+          selectedDate={selectedDate}
+          onAddEntry={onAddEntry}
+          onDeleteEntry={onDeleteEntry}
+        />
+      )}
+      {period === 'monthly' && (
+        <>
+          <PeriodReport mode="monthly" ventes={ventes} entries={entries} selectedDate={selectedDate} />
+          <BranchAnalyticsSection branch={branch} ventes={validSales} products={products} />
+        </>
+      )}
+      {period === 'annual' && (
+        <PeriodReport mode="annual" ventes={ventes} entries={entries} selectedDate={selectedDate} />
+      )}
     </div>
   );
 }
