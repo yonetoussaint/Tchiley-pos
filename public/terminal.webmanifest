@@ -1,0 +1,9 @@
+{
+  "name": "Terminal MonCash",
+  "short_name": "Terminal",
+  "start_url": "/terminal",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#16181A",
+  "theme_color": "#16181A"
+}
