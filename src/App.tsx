@@ -6,7 +6,7 @@ import {
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
   Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown,
-  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText
+  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt
 } from 'lucide-react';
 
 /* =========================================================================
@@ -78,7 +78,13 @@ type SaleRecord = {
   statut?: 'valide' | 'annulee';
 };
 
-type View = 'vente' | 'inventaire' | 'historique' | 'dashboard';
+/* Onglets de gestion (mêmes sections que le panneau propriétaire, limitées à la succursale du vendeur). */
+type ManagementView = 'rapports' | 'produits' | 'ventes' | 'credits' | 'coffre' | 'petitecaisse';
+
+type View = 'vente' | 'inventaire' | 'historique' | 'dashboard' | ManagementView;
+
+const MANAGEMENT_VIEWS: ManagementView[] = ['rapports', 'produits', 'ventes', 'credits', 'coffre', 'petitecaisse'];
+const isManagementView = (v: View): v is ManagementView => (MANAGEMENT_VIEWS as string[]).includes(v);
 
 type Branch = {
   id: string;
@@ -809,6 +815,12 @@ const NAV_ITEMS: Array<{ id: View; label: string; icon: typeof ShoppingCart }> =
   { id: 'inventaire', label: 'Inventaire', icon: Boxes },
   { id: 'historique', label: 'Historique', icon: History },
   { id: 'dashboard', label: 'Tableau de Bord', icon: Gauge },
+  { id: 'rapports', label: 'Rapports', icon: BarChart3 },
+  { id: 'produits', label: 'Produits', icon: Package },
+  { id: 'ventes', label: 'Ventes', icon: Receipt },
+  { id: 'credits', label: 'Crédits', icon: FileClock },
+  { id: 'coffre', label: 'Coffre', icon: Vault },
+  { id: 'petitecaisse', label: 'Petite caisse', icon: Coins },
 ];
 
 const SUCURSALES: Branch[] = [
@@ -922,14 +934,23 @@ export default function GestionMateriaux() {
   const [invRecherche, setInvRecherche] = useState<string>('');
   const [editStockId, setEditStockId] = useState<string | null>(null);
   const [editStockVal, setEditStockVal] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [reportPeriod, setReportPeriod] = useState<ReportPeriod>('daily');
+  const [reportsOpen, setReportsOpen] = useState<boolean>(false);
+  const [branchInventoryIds, setBranchInventoryIds] = useState<Record<string, string[]>>(BRANCH_INVENTORY_SEED);
 
   /* Chaque succursale ne vend que les articles qui lui sont assignés (BRANCH_INVENTORY_SEED). */
   const produitsBranche = useMemo(() => {
     if (!selectedBranchId) return products;
-    const ids = BRANCH_INVENTORY_SEED[selectedBranchId];
+    const ids = branchInventoryIds[selectedBranchId];
     if (!ids) return products;
     return products.filter((p) => ids.includes(p.id));
-  }, [products, selectedBranchId]);
+  }, [products, selectedBranchId, branchInventoryIds]);
+
+  const salesDays = useMemo(
+    () => new Set(ventes.filter((v) => v.branchId === selectedBranchId).map((v) => dayKey(v.date))),
+    [ventes, selectedBranchId]
+  );
 
   /* Catégories réellement en vente dans cette succursale (ex : Majuin ne propose que
      Quincaillerie / Boissons Gazeuse / Produits alimentaires) — pilote les filtres rapides. */
@@ -940,6 +961,7 @@ export default function GestionMateriaux() {
 
   useEffect(() => {
     setCategorie('Tout');
+    setSelectedDate(new Date());
   }, [selectedBranchId]);
 
   const produitsStockBas = useMemo(
@@ -967,6 +989,13 @@ export default function GestionMateriaux() {
   const nbArticlesPanier = cart.reduce((s, i) => s + i.qte, 0);
 
   const brancheActuelle = SUCURSALES.find((s) => s.id === selectedBranchId) ?? SUCURSALES[0];
+
+  const shiftSelectedDate = (offset: number) => {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + offset);
+    setSelectedDate(next);
+  };
+  const isCurrentDateSelected = selectedDate.toDateString() === new Date().toDateString();
 
   /* Clicking a product card selects it (qty 1) or deselects it.
      Quantities are adjusted from the cart panel only. */
@@ -1195,6 +1224,8 @@ export default function GestionMateriaux() {
         setPettyFloats={setPettyFloats}
         products={products}
         selectedBranchId={selectedBranchId}
+        branchInventoryIds={branchInventoryIds}
+        setBranchInventoryIds={setBranchInventoryIds}
       />
     );
   }
@@ -1293,10 +1324,34 @@ export default function GestionMateriaux() {
             </div>
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-1.5 text-[12px]">
-            <CalendarDays size={14} />
-            {new Date().toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
-          </div>
+          {isManagementView(view) ? (
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              <button
+                onClick={() => shiftSelectedDate(-1)}
+                className="flex h-8 w-8 items-center justify-center border-2 border-[#16181A] bg-white text-sm hover:bg-[#ECE7DC]"
+                aria-label="Jour précédent"
+              >
+                ‹
+              </button>
+              <DatePicker selectedDate={selectedDate} onSelect={setSelectedDate} salesDays={salesDays} />
+              <button
+                onClick={() => shiftSelectedDate(1)}
+                disabled={isCurrentDateSelected}
+                className={
+                  'flex h-8 w-8 items-center justify-center border-2 border-[#16181A] text-sm ' +
+                  (isCurrentDateSelected ? 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]' : 'bg-white hover:bg-[#ECE7DC]')
+                }
+                aria-label="Jour suivant"
+              >
+                ›
+              </button>
+            </div>
+          ) : (
+            <div className="ml-auto flex shrink-0 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-1.5 text-[12px]">
+              <CalendarDays size={14} />
+              {new Date().toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </div>
+          )}
         </div>
 
         <div className="flex min-h-0 flex-1 items-start gap-4">
@@ -1308,33 +1363,75 @@ export default function GestionMateriaux() {
           >
             {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
               const actif = view === id;
+              const isReports = id === 'rapports';
               return (
-                <button
+                <div
                   key={id}
-                  onClick={() => setView(id)}
-                  title={menuOpen ? undefined : label}
-                  aria-label={label}
-                  className={
-                    'relative mb-1 flex w-full items-center border-2 py-2.5 text-left text-[11px] uppercase tracking-[0.18em] last:mb-0 ' +
-                    (menuOpen ? 'gap-3 px-3' : 'justify-center px-0') +
-                    ' ' +
-                    (actif
-                      ? 'border-[#C1440E] bg-[#C1440E] text-white'
-                      : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
-                  }
+                  className={'mb-1 last:mb-0 ' + (id === 'rapports' ? 'mt-2 border-t-2 border-[#16181A] pt-2' : '')}
                 >
-                  <Icon size={15} className="shrink-0" />
-                  {menuOpen && <span>{label}</span>}
-                  {id === 'vente' && nbArticlesPanier > 0 && (
-                    menuOpen ? (
-                      <span className="ml-auto border-2 border-current px-1.5 text-[10px]">{nbArticlesPanier}</span>
-                    ) : (
-                      <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center bg-[#16181A] px-1 text-[9px] text-white">
-                        {nbArticlesPanier}
-                      </span>
-                    )
+                  <button
+                    onClick={() => {
+                      if (isReports) setReportsOpen(actif ? !reportsOpen : true);
+                      else setReportsOpen(false);
+                      setView(id);
+                    }}
+                    title={menuOpen ? undefined : label}
+                    aria-label={label}
+                    aria-expanded={isReports ? reportsOpen && actif : undefined}
+                    className={
+                      'relative flex w-full items-center border-2 py-2.5 text-left text-[11px] uppercase tracking-[0.18em] ' +
+                      (menuOpen ? 'gap-3 px-3' : 'justify-center px-0') +
+                      ' ' +
+                      (actif
+                        ? 'border-[#C1440E] bg-[#C1440E] text-white'
+                        : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                    }
+                  >
+                    <Icon size={15} className="shrink-0" />
+                    {menuOpen && <span>{label}</span>}
+                    {menuOpen && isReports && (
+                      <ChevronDown
+                        size={14}
+                        className={'ml-auto shrink-0 transition-transform ' + (reportsOpen && actif ? 'rotate-180' : '')}
+                      />
+                    )}
+                    {id === 'vente' && nbArticlesPanier > 0 && (
+                      menuOpen ? (
+                        <span className="ml-auto border-2 border-current px-1.5 text-[10px]">{nbArticlesPanier}</span>
+                      ) : (
+                        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center bg-[#16181A] px-1 text-[9px] text-white">
+                          {nbArticlesPanier}
+                        </span>
+                      )
+                    )}
+                  </button>
+
+                  {isReports && actif && reportsOpen && (
+                    <div className={'mt-1 border-l-2 border-[#C1440E] ' + (menuOpen ? 'ml-4 pl-1' : 'ml-0 pl-0')}>
+                      {REPORT_TABS.map((tab) => {
+                        const subActive = reportPeriod === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => setReportPeriod(tab.id)}
+                            title={menuOpen ? undefined : tab.label}
+                            aria-label={tab.label}
+                            className={
+                              'mb-0.5 flex w-full items-center border-2 py-2 text-left text-[10px] uppercase tracking-[0.14em] last:mb-0 ' +
+                              (menuOpen ? 'px-3' : 'justify-center px-0') +
+                              ' ' +
+                              (subActive
+                                ? 'border-[#16181A] bg-[#16181A] text-white'
+                                : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                            }
+                          >
+                            {menuOpen ? tab.label : tab.short}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
-                </button>
+                </div>
               );
             })}
 
@@ -1356,6 +1453,33 @@ export default function GestionMateriaux() {
             )}
           </nav>
 
+          {isManagementView(view) ? (
+            <main className="min-h-0 min-w-0 flex-1 self-stretch overflow-y-auto pb-2 pr-2">
+              <BranchManagementSections
+                view={view}
+                branch={brancheActuelle}
+                selectedDate={selectedDate}
+                reportPeriod={reportPeriod}
+                setReportPeriod={setReportPeriod}
+                products={products}
+                setProducts={setProducts}
+                branchProductIds={branchInventoryIds[brancheActuelle.id] ?? []}
+                setBranchInventoryIds={setBranchInventoryIds}
+                ventes={ventes}
+                setVentes={setVentes}
+                cashEntries={cashEntries}
+                setCashEntries={setCashEntries}
+                coffreEntries={coffreEntries}
+                setCoffreEntries={setCoffreEntries}
+                pettyEntries={pettyEntries}
+                setPettyEntries={setPettyEntries}
+                pettyCounts={pettyCounts}
+                setPettyCounts={setPettyCounts}
+                pettyFloats={pettyFloats}
+                setPettyFloats={setPettyFloats}
+              />
+            </main>
+          ) : (
           <main className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch overflow-hidden border-2 border-[#16181A] bg-[#FBFAF6] shadow-[6px_6px_0_#16181A]">
             {view === 'vente' && (
               <VenteView
@@ -1401,6 +1525,7 @@ export default function GestionMateriaux() {
               />
             )}
           </main>
+          )}
         </div>
       </div>
 
@@ -1748,6 +1873,8 @@ function OwnerBoard({
   setPettyFloats,
   products,
   selectedBranchId,
+  branchInventoryIds,
+  setBranchInventoryIds,
 }: {
   users: User[];
   setUsers: Dispatch<SetStateAction<User[]>>;
@@ -1768,6 +1895,8 @@ function OwnerBoard({
   setPettyFloats: Dispatch<SetStateAction<Record<string, number>>>;
   products: Product[];
   selectedBranchId: string | null;
+  branchInventoryIds: Record<string, string[]>;
+  setBranchInventoryIds: Dispatch<SetStateAction<Record<string, string[]>>>;
 }) {
   const [reportPeriod, setReportPeriod] = useState<ReportPeriod>('daily');
   const [reportsOpen, setReportsOpen] = useState<boolean>(false);
@@ -1781,7 +1910,6 @@ function OwnerBoard({
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [historyProductId, setHistoryProductId] = useState<string | null>(null);
   const [restockByProduct, setRestockByProduct] = useState<Record<string, number>>({});
-  const [branchInventoryIds, setBranchInventoryIds] = useState<Record<string, string[]>>(BRANCH_INVENTORY_SEED);
 
   useEffect(() => {
     if (selectedBranchId) setActiveBranchId(selectedBranchId);
@@ -2230,6 +2358,266 @@ function OwnerBoard({
           </main>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   Sections de gestion du panneau vendeur — réutilise les mêmes composants
+   Branch*Section que le panneau propriétaire, limités à une seule succursale.
+   ========================================================================= */
+function BranchManagementSections({
+  view,
+  branch,
+  selectedDate,
+  reportPeriod,
+  setReportPeriod,
+  products,
+  setProducts,
+  branchProductIds,
+  setBranchInventoryIds,
+  ventes,
+  setVentes,
+  cashEntries,
+  setCashEntries,
+  coffreEntries,
+  setCoffreEntries,
+  pettyEntries,
+  setPettyEntries,
+  pettyCounts,
+  setPettyCounts,
+  pettyFloats,
+  setPettyFloats,
+}: {
+  view: ManagementView;
+  branch: Branch;
+  selectedDate: Date;
+  reportPeriod: ReportPeriod;
+  setReportPeriod: Dispatch<SetStateAction<ReportPeriod>>;
+  products: Product[];
+  setProducts: Dispatch<SetStateAction<Product[]>>;
+  branchProductIds: string[];
+  setBranchInventoryIds: Dispatch<SetStateAction<Record<string, string[]>>>;
+  ventes: SaleRecord[];
+  setVentes: Dispatch<SetStateAction<SaleRecord[]>>;
+  cashEntries: CashEntry[];
+  setCashEntries: Dispatch<SetStateAction<CashEntry[]>>;
+  coffreEntries: CoffreEntry[];
+  setCoffreEntries: Dispatch<SetStateAction<CoffreEntry[]>>;
+  pettyEntries: PettyEntry[];
+  setPettyEntries: Dispatch<SetStateAction<PettyEntry[]>>;
+  pettyCounts: PettyCount[];
+  setPettyCounts: Dispatch<SetStateAction<PettyCount[]>>;
+  pettyFloats: Record<string, number>;
+  setPettyFloats: Dispatch<SetStateAction<Record<string, number>>>;
+}) {
+  const branchId = branch.id;
+  const [inventorySearch, setInventorySearch] = useState<string>('');
+  const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<string>('Tout');
+  const [inventoryStatusFilter, setInventoryStatusFilter] = useState<'all' | 'low' | 'normal'>('all');
+  const [historyProductId, setHistoryProductId] = useState<string | null>(null);
+  const [restockByProduct, setRestockByProduct] = useState<Record<string, number>>({});
+
+  const branchProducts = useMemo(
+    () =>
+      branchProductIds
+        .map((id) => products.find((p) => p.id === id))
+        .filter((p): p is Product => Boolean(p)),
+    [branchProductIds, products]
+  );
+  const branchVentesAll = useMemo(() => ventes.filter((v) => v.branchId === branchId), [ventes, branchId]);
+  const branchVentes = useMemo(() => branchVentesAll.filter((v) => v.statut !== 'annulee'), [branchVentesAll]);
+  const salesOfSelectedDate = branchVentesAll.filter((v) => isSameDay(v.date, selectedDate));
+  const selectedHistoryProduct = branchProducts.find((p) => p.id === historyProductId) ?? null;
+
+  const soldByProductToday = useMemo(() => {
+    const totals: Record<string, number> = {};
+    branchVentes.forEach((vente) => {
+      if (!isSameDay(vente.date, selectedDate)) return;
+      vente.lignes.forEach((ligne) => {
+        const product = products.find((item) => item.nom.toLowerCase() === ligne.nom.toLowerCase());
+        const key = product?.id ?? ligne.nom.toLowerCase();
+        totals[key] = (totals[key] ?? 0) + ligne.qte;
+      });
+    });
+    return totals;
+  }, [branchVentes, products, selectedDate]);
+
+  const updateProduct = (productId: string, patch: Partial<Product>) => {
+    setProducts((prev) => prev.map((product) => (product.id === productId ? { ...product, ...patch } : product)));
+  };
+
+  const handleAddProduct = () => {
+    const createdId = `p${Date.now()}`;
+    const newProduct: Product = {
+      id: createdId,
+      nom: `${branch.nom} - Nouveau produit`,
+      categorie: 'Autre',
+      prix: 0,
+      prixAchat: 0,
+      stockOuverture: 0,
+      stockFermeture: 0,
+      seuil: 5,
+      unite: 'unité',
+    };
+    setProducts((prev) => [newProduct, ...prev]);
+    setBranchInventoryIds((prev) => ({ ...prev, [branchId]: [createdId, ...(prev[branchId] ?? [])] }));
+  };
+
+  const handleRestockProduct = (product: Product) => {
+    const qty = restockByProduct[product.id] ?? 0;
+    if (qty <= 0) return;
+    updateProduct(product.id, { stockFermeture: product.stockFermeture + qty });
+    setRestockByProduct((prev) => ({ ...prev, [product.id]: 0 }));
+  };
+
+  const handleDeleteProduct = (product: Product) => {
+    setProducts((prev) => prev.filter((item) => item.id !== product.id));
+    setBranchInventoryIds((prev) => ({
+      ...prev,
+      [branchId]: (prev[branchId] ?? []).filter((id) => id !== product.id),
+    }));
+    setRestockByProduct((prev) => {
+      const next = { ...prev };
+      delete next[product.id];
+      return next;
+    });
+  };
+
+  const handleCancelSale = (sale: SaleRecord) => {
+    if (sale.statut === 'annulee') return;
+    setVentes((prev) => prev.map((v) => (v.id === sale.id ? { ...v, statut: 'annulee' } : v)));
+    setProducts((prev) =>
+      prev.map((product) => {
+        const qty = sale.lignes
+          .filter((l) => (l.produitId ? l.produitId === product.id : l.nom === product.nom))
+          .reduce((sum, l) => sum + l.qte, 0);
+        return qty > 0 ? { ...product, stockFermeture: product.stockFermeture + qty } : product;
+      })
+    );
+  };
+
+  const handleCreditPayment = (targets: SaleRecord[], montant: number, mode: PaymentMethodId) => {
+    const now = new Date();
+    let remaining = montant;
+    const additions: Record<string, CreditPayment> = {};
+    [...targets]
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .forEach((sale) => {
+        if (remaining <= 0) return;
+        const pay = Math.min(creditBalance(sale), remaining);
+        if (pay > 0) {
+          additions[sale.id] = { id: `P${now.getTime()}-${sale.id}`, date: now, montant: pay, mode };
+          remaining -= pay;
+        }
+      });
+    setVentes((prev) =>
+      prev.map((v) =>
+        additions[v.id] ? { ...v, paiementsCredit: [...(v.paiementsCredit ?? []), additions[v.id]] } : v
+      )
+    );
+  };
+
+  return (
+    <div className="space-y-5">
+      {view === 'produits' && (
+        <BranchProductsSection
+          branchProducts={branchProducts}
+          inventorySearch={inventorySearch}
+          setInventorySearch={setInventorySearch}
+          inventoryCategoryFilter={inventoryCategoryFilter}
+          setInventoryCategoryFilter={setInventoryCategoryFilter}
+          inventoryStatusFilter={inventoryStatusFilter}
+          setInventoryStatusFilter={setInventoryStatusFilter}
+          soldByProductToday={soldByProductToday}
+          restockByProduct={restockByProduct}
+          setRestockByProduct={setRestockByProduct}
+          selectedHistoryProduct={selectedHistoryProduct}
+          onAddProduct={handleAddProduct}
+          onUpdateProduct={updateProduct}
+          onRestockProduct={handleRestockProduct}
+          onDeleteProduct={handleDeleteProduct}
+          onViewHistory={(product) => setHistoryProductId((prev) => (prev === product.id ? null : product.id))}
+        />
+      )}
+
+      {view === 'ventes' && (
+        <BranchSalesSection sales={salesOfSelectedDate} selectedDate={selectedDate} onCancelSale={handleCancelSale} />
+      )}
+
+      {view === 'credits' && <BranchCreditsSection sales={branchVentes} onPay={handleCreditPayment} />}
+
+      {view === 'coffre' && (
+        <BranchCoffreSection
+          branch={branch}
+          selectedDate={selectedDate}
+          ventes={branchVentesAll}
+          cashEntries={cashEntries.filter((e) => e.branchId === branchId)}
+          entries={coffreEntries.filter((e) => e.branchId === branchId)}
+          onAdd={(entry) => setCoffreEntries((prev) => [{ ...entry, id: `F${Date.now()}`, branchId }, ...prev])}
+          onDelete={(id) => setCoffreEntries((prev) => prev.filter((e) => e.id !== id))}
+          onSetPiece={(id, piece) =>
+            setCoffreEntries((prev) => prev.map((e) => (e.id === id ? { ...e, piece } : e)))
+          }
+        />
+      )}
+
+      {view === 'petitecaisse' && (
+        <BranchPetiteCaisseSection
+          branch={branch}
+          selectedDate={selectedDate}
+          entries={pettyEntries.filter((e) => e.branchId === branchId)}
+          counts={pettyCounts.filter((c) => c.branchId === branchId)}
+          fixedFloat={pettyFloats[branchId] ?? DEFAULT_PETTY_FLOAT}
+          setFixedFloat={(value) => setPettyFloats((prev) => ({ ...prev, [branchId]: value }))}
+          coffreEspeces={coffreBalances(coffreEntries.filter((e) => e.branchId === branchId)).especes}
+          onAdd={(entry, fromCoffre) => {
+            const stamp = Date.now();
+            let coffreId: string | undefined;
+            if (entry.kind === 'reappro' && fromCoffre) {
+              coffreId = `F${stamp}`;
+              setCoffreEntries((prev) => [
+                {
+                  id: coffreId as string,
+                  branchId,
+                  date: entry.date,
+                  kind: 'sortie',
+                  categorie: PETTY_REAPPRO_CATEGORY,
+                  compte: 'especes',
+                  montant: entry.montant,
+                  note: 'Réapprovisionnement petite caisse',
+                  piece: { ref: `BON-${stamp}`, nom: `bon-reappro-${stamp}.svg`, type: 'image/svg+xml' },
+                },
+                ...prev,
+              ]);
+            }
+            setPettyEntries((prev) => [{ ...entry, id: `PC${stamp}`, branchId, coffreId }, ...prev]);
+          }}
+          onDelete={(id) => {
+            const target = pettyEntries.find((e) => e.id === id);
+            if (target?.coffreId) setCoffreEntries((prev) => prev.filter((e) => e.id !== target.coffreId));
+            setPettyEntries((prev) => prev.filter((e) => e.id !== id));
+          }}
+          onAddCount={(count) =>
+            setPettyCounts((prev) => [{ ...count, id: `PK${Date.now()}`, branchId }, ...prev])
+          }
+          onDeleteCount={(id) => setPettyCounts((prev) => prev.filter((c) => c.id !== id))}
+        />
+      )}
+
+      {view === 'rapports' && (
+        <BranchReportsSection
+          branch={branch}
+          period={reportPeriod}
+          setPeriod={setReportPeriod}
+          selectedDate={selectedDate}
+          ventes={branchVentesAll}
+          entries={cashEntries.filter((e) => e.branchId === branchId)}
+          products={branchProducts}
+          onAddEntry={(entry) => setCashEntries((prev) => [{ ...entry, id: `C${Date.now()}`, branchId }, ...prev])}
+          onDeleteEntry={(id) => setCashEntries((prev) => prev.filter((e) => e.id !== id))}
+        />
+      )}
     </div>
   );
 }
