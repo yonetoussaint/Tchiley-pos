@@ -33,6 +33,7 @@ type Product = {
   stockFermeture: number;
   seuil: number;
   unite: string;
+  image?: string;
 };
 
 type CartItem = {
@@ -154,6 +155,17 @@ const CATEGORIES = [
   'Produits alimentaires',
 ] as const;
 
+/* Generic bottle/can silhouettes (no brand logos) used as lightweight product thumbnails. */
+const bottleIcon = (fill: string, cap = '#2b2e31') =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 90'><path d='M15 0h10v9l4 8v68a5 5 0 0 1-5 5H16a5 5 0 0 1-5-5V17l4-8z' fill='${fill}'/><rect x='15' y='0' width='10' height='7' fill='${cap}'/><rect x='11' y='30' width='18' height='8' fill='rgba(255,255,255,0.25)'/></svg>`
+  )}`;
+
+const canIcon = (fill: string) =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 80'><rect x='8' y='4' width='34' height='72' rx='7' fill='${fill}'/><rect x='8' y='4' width='34' height='11' rx='5' fill='rgba(255,255,255,0.3)'/><ellipse cx='25' cy='76' rx='17' ry='4' fill='rgba(0,0,0,0.15)'/></svg>`
+  )}`;
+
 const INITIAL_PRODUCTS: Product[] = [
   { id: 'p01', nom: 'Ciment Gris 50kg', categorie: 'Ciment & Béton', prix: 650, prixAchat: 500, stockOuverture: 240, stockFermeture: 240, seuil: 50, unite: 'sac' },
   { id: 'p02', nom: 'Ciment Blanc 50kg', categorie: 'Ciment & Béton', prix: 950, prixAchat: 700, stockOuverture: 38, stockFermeture: 38, seuil: 40, unite: 'sac' },
@@ -184,11 +196,11 @@ const INITIAL_PRODUCTS: Product[] = [
   { id: 'p25', nom: 'Marteau de Menuisier', categorie: 'Quincaillerie', prix: 480, prixAchat: 300, stockOuverture: 22, stockFermeture: 22, seuil: 8, unite: 'unité' },
   { id: 'p26', nom: 'Ruban Adhésif Toilé', categorie: 'Quincaillerie', prix: 150, prixAchat: 90, stockOuverture: 70, stockFermeture: 70, seuil: 15, unite: 'rouleau' },
   { id: 'p27', nom: 'Ampoule LED 9W', categorie: 'Quincaillerie', prix: 165, prixAchat: 100, stockOuverture: 90, stockFermeture: 90, seuil: 20, unite: 'unité' },
-  { id: 'p28', nom: 'Coca-Cola 20oz', categorie: 'Boissons Gazeuse', prix: 100, prixAchat: 65, stockOuverture: 240, stockFermeture: 240, seuil: 48, unite: 'bouteille' },
-  { id: 'p29', nom: 'Sprite 20oz', categorie: 'Boissons Gazeuse', prix: 100, prixAchat: 65, stockOuverture: 180, stockFermeture: 180, seuil: 48, unite: 'bouteille' },
-  { id: 'p30', nom: 'Cola Couronne 12oz', categorie: 'Boissons Gazeuse', prix: 60, prixAchat: 35, stockOuverture: 300, stockFermeture: 300, seuil: 60, unite: 'bouteille' },
-  { id: 'p31', nom: 'Eau Culligan 500ml', categorie: 'Boissons Gazeuse', prix: 35, prixAchat: 20, stockOuverture: 400, stockFermeture: 400, seuil: 80, unite: 'bouteille' },
-  { id: 'p32', nom: 'Jus Tampico 1L', categorie: 'Boissons Gazeuse', prix: 150, prixAchat: 95, stockOuverture: 96, stockFermeture: 96, seuil: 20, unite: 'bouteille' },
+  { id: 'p28', nom: 'Coca-Cola 20oz', categorie: 'Boissons Gazeuse', prix: 100, prixAchat: 65, stockOuverture: 240, stockFermeture: 240, seuil: 48, unite: 'bouteille', image: bottleIcon('#C1440E') },
+  { id: 'p29', nom: 'Sprite 20oz', categorie: 'Boissons Gazeuse', prix: 100, prixAchat: 65, stockOuverture: 180, stockFermeture: 180, seuil: 48, unite: 'bouteille', image: bottleIcon('#2F6B4F') },
+  { id: 'p30', nom: 'Cola Couronne 12oz', categorie: 'Boissons Gazeuse', prix: 60, prixAchat: 35, stockOuverture: 300, stockFermeture: 300, seuil: 60, unite: 'bouteille', image: canIcon('#8B1E1E') },
+  { id: 'p31', nom: 'Eau Culligan 500ml', categorie: 'Boissons Gazeuse', prix: 35, prixAchat: 20, stockOuverture: 400, stockFermeture: 400, seuil: 80, unite: 'bouteille', image: bottleIcon('#BFE3F5', '#4B5560') },
+  { id: 'p32', nom: 'Jus Tampico 1L', categorie: 'Boissons Gazeuse', prix: 150, prixAchat: 95, stockOuverture: 96, stockFermeture: 96, seuil: 20, unite: 'bouteille', image: bottleIcon('#F2A93B') },
   { id: 'p33', nom: 'Riz Importé 25lb', categorie: 'Produits alimentaires', prix: 1450, prixAchat: 1150, stockOuverture: 40, stockFermeture: 40, seuil: 10, unite: 'sac' },
   { id: 'p34', nom: 'Farine de Blé 5lb', categorie: 'Produits alimentaires', prix: 280, prixAchat: 200, stockOuverture: 65, stockFermeture: 65, seuil: 15, unite: 'sac' },
   { id: 'p35', nom: 'Huile Végétale 1gal', categorie: 'Produits alimentaires', prix: 950, prixAchat: 700, stockOuverture: 30, stockFermeture: 30, seuil: 8, unite: 'gallon' },
@@ -6068,6 +6080,11 @@ function VenteView({
                     : 'hover:border-[#C1440E] hover:bg-white active:bg-[#ECE7DC]')
                 }
               >
+                {p.image && (
+                  <div className="mb-2 flex h-20 w-full items-center justify-center border border-[#c7c2b4] bg-white">
+                    <img src={p.image} alt={p.nom} className="h-16 w-auto object-contain" />
+                  </div>
+                )}
                 <div className="text-[10px] uppercase tracking-wide text-[#4B5560]">{p.categorie}</div>
                 <div className="mt-1 text-[14px] font-medium leading-snug">{p.nom}</div>
                 <div className="mt-2 font-serif text-[17px]">{fmtHTG(p.prix)}</div>
