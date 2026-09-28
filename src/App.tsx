@@ -782,11 +782,12 @@ export default function GestionMateriaux() {
    own section menu (Tableau de Bord / Produits / Rapports / Utilisateurs).
    ========================================================================= */
 
-type OwnerSection = 'dashboard' | 'products' | 'reports' | 'users';
+type OwnerSection = 'dashboard' | 'products' | 'sales' | 'reports' | 'users';
 
 const OWNER_SECTIONS: Array<{ id: OwnerSection; label: string; icon: typeof Gauge }> = [
   { id: 'dashboard', label: 'Tableau de Bord', icon: Gauge },
   { id: 'products', label: 'Produits', icon: Boxes },
+  { id: 'sales', label: 'Ventes', icon: ShoppingCart },
   { id: 'reports', label: 'Rapports', icon: BarChart3 },
   { id: 'users', label: 'Utilisateurs', icon: Users },
 ];
@@ -1282,6 +1283,10 @@ function OwnerBoard({
                 onDeleteProduct={handleDeleteProduct}
                 onViewHistory={handleViewHistory}
               />
+            )}
+
+            {activeSection === 'sales' && (
+              <BranchSalesSection salesToday={salesToday} selectedDate={selectedDate} />
             )}
 
             {activeSection === 'reports' && (
@@ -1980,6 +1985,105 @@ function BranchProductsSection({
               <p className="text-[11px] uppercase tracking-[0.16em]">Essayez de modifier vos critères de recherche</p>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BranchSalesSection({ salesToday, selectedDate }: { salesToday: SaleRecord[]; selectedDate: Date }) {
+  const sortedSales = [...salesToday].sort((a, b) => b.date.getTime() - a.date.getTime());
+  const totalQty = sortedSales.reduce((sum, sale) => sum + sale.lignes.reduce((n, l) => n + l.qte, 0), 0);
+  const totalAmount = sortedSales.reduce((sum, sale) => sum + sale.total, 0);
+  const cellBase = 'px-3 py-2.5 text-center';
+
+  return (
+    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-2xl">Ventes</h2>
+          <div className="text-[12px] capitalize text-[#4B5560]">
+            {selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+        </div>
+        <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em]">
+          {sortedSales.length} vente{sortedSales.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      <div className="overflow-hidden border-2 border-[#16181A] bg-white">
+        <div className="max-h-[65vh] overflow-auto">
+          <table className="w-full min-w-[820px] border-collapse text-left" role="grid">
+            <thead className="sticky top-0 z-10 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
+              <tr className="divide-x divide-[#d3cbb6]">
+                <th className="px-3 py-3 text-center" title="Numéro de la vente dans la journée">N°</th>
+                <th className="px-3 py-3 text-center" title="Heure de la vente">Heure</th>
+                <th className="px-3 py-3 text-center" title="Articles vendus">Articles</th>
+                <th className="px-3 py-3 text-center" title="Nombre total d'unités vendues">Qté</th>
+                <th className="px-3 py-3 text-center" title="Mode de paiement">Paiement</th>
+                <th className="px-3 py-3 text-center" title="Montant total de la vente">Total</th>
+                <th className="px-3 py-3 text-center" title="Montant reçu du client">Reçu</th>
+                <th className="px-3 py-3 text-center" title="Monnaie rendue au client">Monnaie</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedSales.map((sale, index) => (
+                <tr
+                  key={sale.id}
+                  className="divide-x divide-[#e4ded0] border-b border-[#e4ded0] align-middle text-[13px] transition-all duration-150 odd:bg-white even:bg-[#FBFAF6] hover:bg-[#F3EFE3]"
+                >
+                  <td className={cellBase + ' font-medium tabular-nums text-[#4B5560]'}>{sortedSales.length - index}</td>
+                  <td className={cellBase + ' tabular-nums'}>
+                    {sale.date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </td>
+                  <td className="px-3 py-2.5 text-left">
+                    <div className="space-y-0.5">
+                      {sale.lignes.map((ligne, lineIndex) => (
+                        <div key={lineIndex} className="flex justify-between gap-4">
+                          <span>
+                            <span className="tabular-nums text-[#4B5560]">{ligne.qte} ×</span> {ligne.nom}
+                          </span>
+                          <span className="tabular-nums text-[#4B5560]">{fmtHTG(ligne.sousTotal)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                  <td className={cellBase + ' font-medium tabular-nums'}>
+                    {sale.lignes.reduce((n, l) => n + l.qte, 0)}
+                  </td>
+                  <td className={cellBase}>
+                    <span className="inline-block border-2 border-[#16181A] px-2 py-0.5 text-[10px] uppercase tracking-wide">
+                      {PAYMENT_METHODS.find((m) => m.id === sale.paiement)?.label || sale.paiement}
+                    </span>
+                  </td>
+                  <td className={cellBase + ' font-serif text-[15px] tabular-nums text-[#2F6B4F]'}>{fmtHTG(sale.total)}</td>
+                  <td className={cellBase + ' tabular-nums text-[#4B5560]'}>{fmtHTG(sale.recu)}</td>
+                  <td className={cellBase + ' tabular-nums text-[#4B5560]'}>{fmtHTG(sale.monnaie)}</td>
+                </tr>
+              ))}
+              {sortedSales.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-14 text-center text-[#4B5560]">
+                    <ShoppingCart size={32} className="mx-auto mb-3 opacity-40" />
+                    <div className="text-sm">Aucune vente pour cette date.</div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            {sortedSales.length > 0 && (
+              <tfoot className="sticky bottom-0 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[13px] font-medium shadow-[0_-2px_0_#16181A]">
+                <tr className="divide-x divide-[#d3cbb6]">
+                  <td colSpan={3} className="px-3 py-3 text-right text-[10.5px] uppercase tracking-[0.16em] text-[#4B5560]">
+                    Total du jour
+                  </td>
+                  <td className="px-3 py-3 text-center tabular-nums">{totalQty}</td>
+                  <td className="px-3 py-3" />
+                  <td className="px-3 py-3 text-center font-serif text-[15px] tabular-nums text-[#2F6B4F]">{fmtHTG(totalAmount)}</td>
+                  <td colSpan={2} className="px-3 py-3" />
+                </tr>
+              </tfoot>
+            )}
+          </table>
         </div>
       </div>
     </div>
