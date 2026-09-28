@@ -6,7 +6,7 @@ import {
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
   Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown,
-  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins
+  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText
 } from 'lucide-react';
 
 /* =========================================================================
@@ -376,6 +376,14 @@ function summarizeCash(
 type CoffreAccountId = 'especes' | 'moncash' | 'natcash';
 type CoffreKind = 'entree' | 'sortie' | 'transfert';
 
+/** Supporting document. `dataUrl` is absent for generated (mock / automatic) pieces, which are rendered on demand. */
+type CoffrePiece = {
+  ref: string;
+  nom: string;
+  type: string; // MIME type
+  dataUrl?: string;
+};
+
 type CoffreEntry = {
   id: string;
   branchId: string;
@@ -386,6 +394,7 @@ type CoffreEntry = {
   compteDest?: CoffreAccountId; // transfert only
   montant: number;
   note?: string;
+  piece?: CoffrePiece; // pièce justificative (facture, reçu, bordereau…)
 };
 
 const COFFRE_ACCOUNTS: Array<{ id: CoffreAccountId; label: string; icon: typeof Banknote }> = [
@@ -426,6 +435,70 @@ function coffreBalances(entries: CoffreEntry[]): Record<CoffreAccountId, number>
     }
   }
   return b;
+}
+
+/* ---------- Coffre: pièces justificatives ---------- */
+const COFFRE_PIECE_MAX_BYTES = 5 * 1024 * 1024;
+
+function readPieceFile(file: File): Promise<CoffrePiece> {
+  return new Promise((resolve, reject) => {
+    const okType = file.type.startsWith('image/') || file.type === 'application/pdf';
+    if (!okType) return reject(new Error('Format non supporté : image ou PDF uniquement.'));
+    if (file.size > COFFRE_PIECE_MAX_BYTES) return reject(new Error('Fichier trop lourd (5 Mo maximum).'));
+    const reader = new FileReader();
+    reader.onload = () =>
+      resolve({ ref: `PJ-${Date.now().toString(36).toUpperCase()}`, nom: file.name, type: file.type, dataUrl: String(reader.result) });
+    reader.onerror = () => reject(new Error('Lecture du fichier impossible.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+const escapeXml = (text: string) =>
+  text.replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' })[c] as string);
+
+/** Returns a displayable / downloadable URL for the entry's piece (renders a receipt for generated pieces). */
+function coffrePieceUrl(entry: CoffreEntry): string {
+  if (entry.piece?.dataUrl) return entry.piece.dataUrl;
+  const sign = entry.kind === 'entree' ? '+' : entry.kind === 'sortie' ? '-' : '';
+  const amountColor = entry.kind === 'entree' ? '#2F6B4F' : entry.kind === 'sortie' ? '#C1440E' : '#16181A';
+  const compte = coffreAccountLabel(entry.compte) + (entry.compteDest ? ' > ' + coffreAccountLabel(entry.compteDest) : '');
+  const lines: Array<[string, string]> = [
+    ['Date', entry.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) + ' ' + fmtTime12(entry.date)],
+    ['Type', COFFRE_KIND_META[entry.kind].label],
+    ['Catégorie', entry.categorie],
+    ['Compte', compte],
+    ['Note', entry.note ?? '—'],
+  ];
+  const rows = lines
+    .map(
+      ([k, v], i) =>
+        `<text x="40" y="${170 + i * 34}" font-size="12" fill="#4B5560" letter-spacing="1.5">${escapeXml(k.toUpperCase())}</text>` +
+        `<text x="190" y="${170 + i * 34}" font-size="15" fill="#16181A">${escapeXml(v)}</text>`
+    )
+    .join('');
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="560" height="440" viewBox="0 0 560 440" font-family="Courier New, monospace">` +
+    `<rect width="560" height="440" fill="#FBFAF6"/><rect x="8" y="8" width="544" height="424" fill="none" stroke="#16181A" stroke-width="3"/>` +
+    `<rect x="8" y="8" width="544" height="64" fill="#16181A"/>` +
+    `<text x="40" y="47" font-size="20" fill="#FBFAF6" letter-spacing="3">PIÈCE JUSTIFICATIVE</text>` +
+    `<text x="40" y="106" font-size="12" fill="#4B5560" letter-spacing="1.5">RÉF.</text>` +
+    `<text x="190" y="106" font-size="18" font-weight="bold" fill="#C1440E">${escapeXml(entry.piece?.ref ?? '—')}</text>` +
+    rows +
+    `<line x1="40" y1="350" x2="520" y2="350" stroke="#16181A" stroke-width="2" stroke-dasharray="6 4"/>` +
+    `<text x="40" y="396" font-size="12" fill="#4B5560" letter-spacing="1.5">MONTANT</text>` +
+    `<text x="520" y="398" font-size="26" font-weight="bold" text-anchor="end" fill="${amountColor}">${sign} ${escapeXml(fmtHTG(entry.montant))}</text>` +
+    `<text x="40" y="424" font-size="10" fill="#9CA3AF">Document généré (données de test)</text></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+function downloadPiece(entry: CoffreEntry) {
+  if (!entry.piece) return;
+  const a = document.createElement('a');
+  a.href = coffrePieceUrl(entry);
+  a.download = entry.piece.nom;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 /* ---------- Mock data for Rapports (cash entries) and Coffre ---------- */
@@ -497,6 +570,11 @@ function buildMockCoffreEntries(): CoffreEntry[] {
   ) =>
     out.push({
       id: `FM${out.length}`,
+      piece: {
+        ref: `PJ-${String(out.length + 1).padStart(4, '0')}`,
+        nom: `PJ-${String(out.length + 1).padStart(4, '0')}.svg`,
+        type: 'image/svg+xml',
+      },
       branchId,
       date: mockDateAt(daysAgo, randInt(8, 18), randInt(0, 59)),
       kind,
@@ -617,6 +695,11 @@ function buildMockPetty(): { petty: PettyEntry[]; coffre: CoffreEntry[]; counts:
       const date = mockDateAt(daysAgo, 8, randInt(0, 30));
       result.coffre.push({
         id: coffreId,
+        piece: {
+          ref: `BON-${String(result.coffre.length + 1).padStart(4, '0')}`,
+          nom: `BON-${String(result.coffre.length + 1).padStart(4, '0')}.svg`,
+          type: 'image/svg+xml',
+        },
         branchId,
         date,
         kind: 'sortie',
@@ -1976,6 +2059,9 @@ function OwnerBoard({
                   setCoffreEntries((prev) => [{ ...entry, id: `F${Date.now()}`, branchId: activeBranchId }, ...prev])
                 }
                 onDelete={(id) => setCoffreEntries((prev) => prev.filter((e) => e.id !== id))}
+                onSetPiece={(id, piece) =>
+                  setCoffreEntries((prev) => prev.map((e) => (e.id === id ? { ...e, piece } : e)))
+                }
               />
             )}
 
@@ -2003,6 +2089,7 @@ function OwnerBoard({
                         compte: 'especes',
                         montant: entry.montant,
                         note: 'Réapprovisionnement petite caisse',
+                        piece: { ref: `BON-${stamp}`, nom: `bon-reappro-${stamp}.svg`, type: 'image/svg+xml' },
                       },
                       ...prev,
                     ]);
@@ -4126,11 +4213,27 @@ function CoffreForm({
   const [compteDest, setCompteDest] = useState<CoffreAccountId>('moncash');
   const [montant, setMontant] = useState('');
   const [note, setNote] = useState('');
+  const [piece, setPiece] = useState<CoffrePiece | null>(null);
+  const [pieceError, setPieceError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const value = Number(montant);
-  const valid = Number.isFinite(value) && value > 0 && (kind !== 'transfert' || compte !== compteDest);
+  const amountOk = Number.isFinite(value) && value > 0 && (kind !== 'transfert' || compte !== compteDest);
+  const valid = amountOk && piece !== null;
   const debits = kind === 'sortie' || kind === 'transfert';
-  const insufficient = debits && valid && balances[compte] - value < 0;
+  const insufficient = debits && amountOk && balances[compte] - value < 0;
+
+  const onPickFile = async (ev: React.ChangeEvent<HTMLInputElement>) => {
+    const file = ev.target.files?.[0];
+    ev.target.value = '';
+    if (!file) return;
+    try {
+      setPiece(await readPieceFile(file));
+      setPieceError('');
+    } catch (err) {
+      setPieceError(err instanceof Error ? err.message : 'Fichier invalide.');
+    }
+  };
 
   const pickKind = (k: CoffreKind) => {
     setKind(k);
@@ -4155,9 +4258,12 @@ function CoffreForm({
       compteDest: kind === 'transfert' ? compteDest : undefined,
       montant: value,
       note: note.trim() || undefined,
+      piece: piece ?? undefined,
     });
     setMontant('');
     setNote('');
+    setPiece(null);
+    setPieceError('');
   };
 
   const fillDailyDeposit = () => {
@@ -4282,6 +4388,52 @@ function CoffreForm({
           />
         </div>
 
+        <div>
+          <div className={labelCls}>
+            Pièce justificative <span className="text-[#C1440E]">(obligatoire)</span>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={onPickFile} />
+          {piece ? (
+            <div className="flex items-center gap-2.5 border-2 border-[#2F6B4F] bg-[#E9F5EF] p-2">
+              {piece.type.startsWith('image/') ? (
+                <img src={piece.dataUrl} alt="" className="h-12 w-12 shrink-0 border-2 border-[#16181A] bg-white object-cover" />
+              ) : (
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-[#16181A] bg-white">
+                  <FileText size={20} />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12px]">{piece.nom}</div>
+                <div className="font-mono text-[10px] text-[#4B5560]">{piece.ref}</div>
+              </div>
+              <button
+                onClick={() => setPiece(null)}
+                aria-label="Retirer la pièce"
+                className="flex h-7 w-7 shrink-0 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="flex w-full items-center justify-center gap-2 border-2 border-dashed border-[#16181A] bg-[#FBFAF6] px-3 py-3 text-[10px] uppercase tracking-[0.14em] hover:bg-[#ECE7DC]"
+            >
+              <Paperclip size={14} /> Joindre facture, reçu ou bordereau
+            </button>
+          )}
+          {pieceError && (
+            <div className="mt-1.5 border-2 border-[#C1440E] bg-[#FDECE4] px-2.5 py-1.5 text-[10px] uppercase tracking-[0.08em] text-[#C1440E]">
+              {pieceError}
+            </div>
+          )}
+          {amountOk && !piece && !pieceError && (
+            <div className="mt-1.5 border-2 border-[#F2B705] bg-[#FFF6D6] px-2.5 py-1.5 text-[10px] uppercase tracking-[0.08em]">
+              Ajoute la pièce justificative pour enregistrer
+            </div>
+          )}
+        </div>
+
         <div className="text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
           Date : {date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
         </div>
@@ -4303,6 +4455,145 @@ function CoffreForm({
   );
 }
 
+function PieceViewer({
+  entry,
+  onClose,
+  onReplace,
+}: {
+  entry: CoffreEntry;
+  onClose: () => void;
+  onReplace: (piece: CoffrePiece) => void;
+}) {
+  const piece = entry.piece as CoffrePiece;
+  const isPdf = piece.type === 'application/pdf';
+  const replaceRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState('');
+
+  const imgSrc = useMemo(() => (isPdf ? '' : coffrePieceUrl(entry)), [entry, isPdf]);
+  const pdfUrl = useMemo(() => {
+    if (!isPdf || !piece.dataUrl) return null;
+    const bin = atob(piece.dataUrl.split(',')[1] ?? '');
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+  }, [isPdf, piece.dataUrl]);
+
+  useEffect(
+    () => () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    },
+    [pdfUrl]
+  );
+
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => ev.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const onPick = async (ev: React.ChangeEvent<HTMLInputElement>) => {
+    const file = ev.target.files?.[0];
+    ev.target.value = '';
+    if (!file) return;
+    try {
+      onReplace(await readPieceFile(file));
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Fichier invalide.');
+    }
+  };
+
+  const tone = entry.kind === 'entree' ? 'text-[#2F6B4F]' : entry.kind === 'sortie' ? 'text-[#C1440E]' : '';
+  const sign = entry.kind === 'entree' ? '+' : entry.kind === 'sortie' ? '−' : '⇄';
+  const detail = (label: string, value: string, cls = '') => (
+    <div className="border-b border-dashed border-[#4B5560]/40 py-2.5">
+      <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">{label}</div>
+      <div className={'mt-0.5 break-words text-[13px] ' + cls}>{value}</div>
+    </div>
+  );
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#16181A]/70 p-3 md:p-6"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Pièce justificative"
+    >
+      <div
+        className="flex max-h-[92vh] w-full max-w-5xl flex-col border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#C1440E]"
+        onClick={(ev) => ev.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 border-b-2 border-[#16181A] bg-[#16181A] px-4 py-3 text-[#FBFAF6]">
+          <div className="flex min-w-0 items-center gap-2 text-[11px] uppercase tracking-[0.18em]">
+            <Paperclip size={14} />
+            <span className="truncate">Pièce justificative · {piece.ref}</span>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Fermer"
+            className="flex h-7 w-7 shrink-0 items-center justify-center border-2 border-[#FBFAF6] hover:bg-[#FBFAF6] hover:text-[#16181A]"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[1fr_300px] lg:overflow-hidden">
+          <div className="flex min-h-[280px] items-start justify-center overflow-auto bg-[#ECE7DC] p-3 lg:max-h-[78vh]">
+            {isPdf ? (
+              pdfUrl ? (
+                <iframe title={piece.nom} src={pdfUrl} className="h-[70vh] w-full border-2 border-[#16181A] bg-white" />
+              ) : (
+                <div className="p-8 text-sm text-[#4B5560]">Aperçu PDF indisponible. Utilise Télécharger.</div>
+              )
+            ) : (
+              <img src={imgSrc} alt={piece.nom} className="max-w-full border-2 border-[#16181A] bg-white" />
+            )}
+          </div>
+
+          <div className="flex flex-col border-t-2 border-[#16181A] p-4 lg:border-l-2 lg:border-t-0 lg:overflow-y-auto">
+            {detail('Type', COFFRE_KIND_META[entry.kind].label)}
+            {detail('Catégorie', entry.categorie)}
+            {detail(
+              'Compte',
+              coffreAccountLabel(entry.compte) + (entry.compteDest ? ' → ' + coffreAccountLabel(entry.compteDest) : '')
+            )}
+            {detail('Montant', `${sign} ${fmtHTG(entry.montant)}`, 'font-mono font-bold ' + tone)}
+            {detail(
+              'Date',
+              entry.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) + ' · ' + fmtTime12(entry.date)
+            )}
+            {entry.note && detail('Note', entry.note)}
+            {detail('Fichier', piece.nom, 'font-mono text-[12px]')}
+
+            <div className="mt-4 grid gap-2">
+              <button
+                onClick={() => downloadPiece(entry)}
+                className="flex items-center justify-center gap-2 border-2 border-[#C1440E] bg-[#C1440E] px-4 py-2.5 text-[11px] uppercase tracking-[0.16em] text-white hover:bg-[#a53a0b]"
+              >
+                <Download size={14} /> Télécharger
+              </button>
+              <input ref={replaceRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={onPick} />
+              <button
+                onClick={() => replaceRef.current?.click()}
+                className="flex items-center justify-center gap-2 border-2 border-[#16181A] bg-white px-4 py-2.5 text-[11px] uppercase tracking-[0.16em] hover:bg-[#ECE7DC]"
+              >
+                <Paperclip size={14} /> Remplacer la pièce
+              </button>
+              {error && (
+                <div className="border-2 border-[#C1440E] bg-[#FDECE4] px-2.5 py-1.5 text-[10px] uppercase tracking-[0.08em] text-[#C1440E]">
+                  {error}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function BranchCoffreSection({
   branch,
   selectedDate,
@@ -4311,6 +4602,7 @@ function BranchCoffreSection({
   entries,
   onAdd,
   onDelete,
+  onSetPiece,
 }: {
   branch: Branch;
   selectedDate: Date;
@@ -4319,7 +4611,12 @@ function BranchCoffreSection({
   entries: CoffreEntry[];
   onAdd: (entry: Omit<CoffreEntry, 'id' | 'branchId'>) => void;
   onDelete: (id: string) => void;
+  onSetPiece: (id: string, piece: CoffrePiece) => void;
 }) {
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [attachError, setAttachError] = useState('');
+  const attachInputRef = useRef<HTMLInputElement>(null);
+  const attachTargetRef = useRef<string | null>(null);
   const [period, setPeriod] = useState<CoffrePeriod>('mois');
   const [kindFilter, setKindFilter] = useState<'all' | CoffreKind>('all');
   const [accountFilter, setAccountFilter] = useState<'all' | CoffreAccountId>('all');
@@ -4355,7 +4652,13 @@ function BranchCoffreSection({
     return periodEntries
       .filter((e) => kindFilter === 'all' || e.kind === kindFilter)
       .filter((e) => accountFilter === 'all' || e.compte === accountFilter || e.compteDest === accountFilter)
-      .filter((e) => !q || e.categorie.toLowerCase().includes(q) || (e.note ?? '').toLowerCase().includes(q))
+      .filter(
+        (e) =>
+          !q ||
+          e.categorie.toLowerCase().includes(q) ||
+          (e.note ?? '').toLowerCase().includes(q) ||
+          (e.piece?.ref ?? '').toLowerCase().includes(q)
+      )
       .sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [periodEntries, kindFilter, accountFilter, query]);
 
@@ -4382,6 +4685,26 @@ function BranchCoffreSection({
   };
   const inBreakdown = breakdown('entree');
   const outBreakdown = breakdown('sortie');
+
+  const startAttach = (id: string) => {
+    attachTargetRef.current = id;
+    attachInputRef.current?.click();
+  };
+
+  const onAttachFile = async (ev: React.ChangeEvent<HTMLInputElement>) => {
+    const file = ev.target.files?.[0];
+    ev.target.value = '';
+    const id = attachTargetRef.current;
+    if (!file || !id) return;
+    try {
+      onSetPiece(id, await readPieceFile(file));
+      setAttachError('');
+    } catch (err) {
+      setAttachError(err instanceof Error ? err.message : 'Fichier invalide.');
+    }
+  };
+
+  const viewingEntry = viewingId ? entries.find((e) => e.id === viewingId) ?? null : null;
 
   const chip = (active: boolean) =>
     'border-2 px-3 py-1.5 text-[10px] uppercase tracking-[0.14em] ' +
@@ -4415,6 +4738,20 @@ function BranchCoffreSection({
 
   return (
     <div className="space-y-5">
+      <input ref={attachInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={onAttachFile} />
+      {attachError && (
+        <div className="border-2 border-[#C1440E] bg-[#FDECE4] px-3 py-2 text-[11px] uppercase tracking-[0.08em] text-[#C1440E]">
+          {attachError}
+        </div>
+      )}
+      {viewingEntry && viewingEntry.piece && (
+        <PieceViewer
+          entry={viewingEntry}
+          onClose={() => setViewingId(null)}
+          onReplace={(piece) => onSetPiece(viewingEntry.id, piece)}
+        />
+      )}
+
       {/* Title bar */}
       <div className="flex flex-wrap items-end justify-between gap-2 border-b-2 border-[#16181A] pb-3">
         <div>
@@ -4518,16 +4855,16 @@ function BranchCoffreSection({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-[12px]">
+            <table className="w-full min-w-[760px] text-[12px]">
               <thead>
                 <tr className="border-b-2 border-[#16181A] text-left text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
                   <th className="px-3 py-2.5">Date</th>
                   <th className="px-3 py-2.5">Type</th>
-                  <th className="px-3 py-2.5">Catégorie</th>
+                  <th className="px-3 py-2.5">Catégorie / note</th>
                   <th className="px-3 py-2.5">Compte</th>
-                  <th className="px-3 py-2.5">Note</th>
+                  <th className="px-3 py-2.5">Pièce</th>
                   <th className="px-3 py-2.5 text-right">Montant</th>
-                  <th className="w-10 px-3 py-2.5" />
+                  <th className="px-3 py-2.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -4543,6 +4880,8 @@ function BranchCoffreSection({
                   const tone =
                     e.kind === 'entree' ? 'text-[#2F6B4F]' : e.kind === 'sortie' ? 'text-[#C1440E]' : 'text-[#16181A]';
                   const sign = e.kind === 'entree' ? '+' : e.kind === 'sortie' ? '−' : '⇄';
+                  const iconBtn =
+                    'flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]';
                   return (
                     <tr key={e.id} className="border-b border-[#16181A]/15 hover:bg-[#FBFAF6]">
                       <td className="whitespace-nowrap px-3 py-2.5">
@@ -4554,23 +4893,51 @@ function BranchCoffreSection({
                           <Icon size={13} /> {COFFRE_KIND_META[e.kind].label}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5">{e.categorie}</td>
+                      <td className="max-w-[200px] px-3 py-2.5">
+                        <div className="truncate">{e.categorie}</div>
+                        {e.note && <div className="truncate text-[11px] text-[#4B5560]">{e.note}</div>}
+                      </td>
                       <td className="whitespace-nowrap px-3 py-2.5 uppercase tracking-[0.06em]">
                         {coffreAccountLabel(e.compte)}
                         {e.compteDest && <span className="text-[#4B5560]"> → {coffreAccountLabel(e.compteDest)}</span>}
                       </td>
-                      <td className="max-w-[160px] truncate px-3 py-2.5 text-[#4B5560]">{e.note ?? '—'}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5">
+                        {e.piece ? (
+                          <button
+                            onClick={() => setViewingId(e.id)}
+                            className="inline-flex items-center gap-1 font-mono text-[11px] underline decoration-dotted underline-offset-2 hover:text-[#C1440E]"
+                          >
+                            <Paperclip size={11} /> {e.piece.ref}
+                          </button>
+                        ) : (
+                          <span className="border border-[#F2B705] bg-[#FFF6D6] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.08em]">
+                            Sans pièce
+                          </span>
+                        )}
+                      </td>
                       <td className={'whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums ' + tone}>
                         {sign} {fmtHTG(e.montant)}
                       </td>
                       <td className="px-3 py-2.5">
-                        <button
-                          onClick={() => onDelete(e.id)}
-                          aria-label="Supprimer"
-                          className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          {e.piece ? (
+                            <>
+                              <button onClick={() => setViewingId(e.id)} title="Voir la pièce" aria-label="Voir la pièce" className={iconBtn}>
+                                <Eye size={13} />
+                              </button>
+                              <button onClick={() => downloadPiece(e)} title="Télécharger la pièce" aria-label="Télécharger la pièce" className={iconBtn}>
+                                <Download size={13} />
+                              </button>
+                            </>
+                          ) : (
+                            <button onClick={() => startAttach(e.id)} title="Joindre une pièce" aria-label="Joindre une pièce" className={iconBtn}>
+                              <Paperclip size={13} />
+                            </button>
+                          )}
+                          <button onClick={() => onDelete(e.id)} title="Supprimer" aria-label="Supprimer" className={iconBtn}>
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
