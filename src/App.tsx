@@ -6579,7 +6579,7 @@ const API_URL: string = String((import.meta as any).env?.VITE_API_URL ?? '').rep
    et la page /terminal redirige le navigateur du téléphone vers MonCash.
    Aucune table SQL : uniquement Realtime Broadcast + Presence. */
 const SB_URL: string = String((import.meta as any).env?.VITE_SUPABASE_URL ?? '');
-const SB_KEY: string = String((import.meta as any).env?.VITE_SUPABASE_ANON_KEY ?? '');
+const SB_KEY: string = String((import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY ?? '');
 const PHONE_ENABLED = SB_URL !== '' && SB_KEY !== '';
 // Optionnel : domaines autorisés pour la redirection (ex. "moncashbutton.digicelgroup.com"). Vide = tout https.
 const PHONE_ALLOWED_HOSTS: string[] = String((import.meta as any).env?.VITE_PHONE_ALLOWED_HOSTS ?? '')
