@@ -159,6 +159,74 @@ const INITIAL_PRODUCTS: Product[] = [
   { id: 'p21', nom: 'Pelle Carrée', categorie: 'Outils', prix: 610, prixAchat: 400, stockOuverture: 19, stockFermeture: 19, seuil: 8, unite: 'unité' },
 ];
 
+const BRANCH_INVENTORY_SEED: Record<string, string[]> = {
+  'gros-morne': ['p01', 'p03', 'p05', 'p08', 'p11'],
+  'saint-marc': ['p02', 'p04', 'p06', 'p09', 'p13'],
+  'majuin': ['p14', 'p16', 'p17', 'p20', 'p21'],
+  'oreste': ['p07', 'p10', 'p12', 'p18', 'p19'],
+};
+
+/* Set to false to start with an empty sales history. */
+const USE_MOCK_SALES = true;
+
+/* Generates ~2 weeks of realistic sales for every branch, relative to today. */
+function buildMockSales(): SaleRecord[] {
+  if (!USE_MOCK_SALES) return [];
+
+  const paymentPool: PaymentMethodId[] = ['especes', 'especes', 'especes', 'moncash', 'natcash', 'credit'];
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const sales: SaleRecord[] = [];
+
+  let seed = 20260927;
+  const rand = () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const randInt = (min: number, max: number) => min + Math.floor(rand() * (max - min + 1));
+
+  Object.entries(BRANCH_INVENTORY_SEED).forEach(([branchId, productIds]) => {
+    const branchProducts = INITIAL_PRODUCTS.filter((p) => productIds.includes(p.id));
+
+    for (let daysAgo = 0; daysAgo < 14; daysAgo++) {
+      // A few quiet days without any sale (never today)
+      if (daysAgo > 0 && rand() < 0.12) continue;
+
+      const salesCount = randInt(3, 7);
+      for (let i = 0; i < salesCount; i++) {
+        let minutesOfDay = 7 * 60 + randInt(0, 599); // between 07:00 and 16:59
+        if (daysAgo === 0 && minutesOfDay > nowMinutes) minutesOfDay = randInt(0, Math.max(nowMinutes, 1));
+
+        const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 0, minutesOfDay);
+
+        const chosen = [...branchProducts].sort(() => rand() - 0.5).slice(0, randInt(1, 3));
+        const lignes: SaleLine[] = chosen.map((produit) => {
+          const qte = produit.prix < 150 ? randInt(10, 60) : randInt(1, 5);
+          return { nom: produit.nom, qte, prix: produit.prix, sousTotal: qte * produit.prix };
+        });
+        const total = lignes.reduce((sum, l) => sum + l.sousTotal, 0);
+        const paiement = paymentPool[randInt(0, paymentPool.length - 1)];
+        const recu = paiement === 'especes' ? Math.ceil(total / 500) * 500 : total;
+
+        sales.push({
+          id: `V${date.getTime()}-${sales.length}`,
+          date,
+          branchId,
+          lignes,
+          total,
+          paiement,
+          recu,
+          monnaie: paiement === 'especes' ? recu - total : 0,
+        });
+      }
+    }
+  });
+
+  return sales.sort((a, b) => b.date.getTime() - a.date.getTime());
+}
+
 const PAYMENT_METHODS: Array<{ id: PaymentMethodId; label: string; icon: typeof Banknote }> = [
   { id: 'especes', label: 'Espèces', icon: Banknote },
   { id: 'moncash', label: 'MonCash', icon: Smartphone },
@@ -269,7 +337,7 @@ export default function GestionMateriaux() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [categorie, setCategorie] = useState<string>('Tout');
   const [recherche, setRecherche] = useState<string>('');
-  const [ventes, setVentes] = useState<SaleRecord[]>([]);
+  const [ventes, setVentes] = useState<SaleRecord[]>(() => buildMockSales());
   const [checkoutOuvert, setCheckoutOuvert] = useState<boolean>(false);
   const [lastReceipt, setLastReceipt] = useState<SaleRecord | null>(null);
   const [invRecherche, setInvRecherche] = useState<string>('');
@@ -1003,12 +1071,7 @@ function OwnerBoard({
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [historyProductId, setHistoryProductId] = useState<string | null>(null);
   const [restockByProduct, setRestockByProduct] = useState<Record<string, number>>({});
-  const [branchInventoryIds, setBranchInventoryIds] = useState<Record<string, string[]>>({
-    'gros-morne': ['p01', 'p03', 'p05', 'p08', 'p11'],
-    'saint-marc': ['p02', 'p04', 'p06', 'p09', 'p13'],
-    'majuin': ['p14', 'p16', 'p17', 'p20', 'p21'],
-    'oreste': ['p07', 'p10', 'p12', 'p18', 'p19'],
-  });
+  const [branchInventoryIds, setBranchInventoryIds] = useState<Record<string, string[]>>(BRANCH_INVENTORY_SEED);
 
   useEffect(() => {
     if (selectedBranchId) setActiveBranchId(selectedBranchId);
