@@ -111,7 +111,7 @@ type VenteViewProps = {
   recherche: string;
   setRecherche: Dispatch<SetStateAction<string>>;
   produits: Product[];
-  ajouterAuPanier: (produit: Product) => void;
+  basculerProduit: (produit: Product) => void;
   lignesPanier: CartLine[];
   changerQte: (id: string, delta: number) => void;
   retirerDuPanier: (id: string) => void;
@@ -967,14 +967,13 @@ export default function GestionMateriaux() {
 
   const brancheActuelle = SUCURSALES.find((s) => s.id === selectedBranchId) ?? SUCURSALES[0];
 
-  function ajouterAuPanier(produit: Product) {
+  /* Clicking a product card selects it (qty 1) or deselects it.
+     Quantities are adjusted from the cart panel only. */
+  function basculerProduit(produit: Product) {
     if (produit.stockFermeture <= 0) return;
     setCart((prev) => {
-      const existe = prev.find((i) => i.id === produit.id);
-      if (existe) {
-        if (existe.qte >= produit.stockFermeture) return prev;
-        return prev.map((i) => (i.id === produit.id ? { ...i, qte: i.qte + 1 } : i));
-      }
+      const existe = prev.some((i) => i.id === produit.id);
+      if (existe) return prev.filter((i) => i.id !== produit.id);
       return [...prev, { id: produit.id, qte: 1 }];
     });
   }
@@ -1323,7 +1322,7 @@ export default function GestionMateriaux() {
             recherche={recherche}
             setRecherche={setRecherche}
             produits={produitsFiltres}
-            ajouterAuPanier={ajouterAuPanier}
+            basculerProduit={basculerProduit}
             lignesPanier={lignesPanier}
             changerQte={changerQte}
             retirerDuPanier={retirerDuPanier}
@@ -6020,7 +6019,7 @@ function VenteView({
   recherche,
   setRecherche,
   produits,
-  ajouterAuPanier,
+  basculerProduit,
   lignesPanier,
   changerQte,
   retirerDuPanier,
@@ -6068,18 +6067,27 @@ function VenteView({
           {produits.map((p) => {
             const stockBas = p.stockFermeture <= p.seuil;
             const epuise = p.stockFermeture <= 0;
+            const selectionne = lignesPanier.some((l) => l.id === p.id);
             return (
               <button
                 key={p.id}
                 disabled={epuise || isReadOnly}
-                onClick={() => ajouterAuPanier(p)}
+                onClick={() => basculerProduit(p)}
+                aria-pressed={selectionne}
                 className={
-                  'flex aspect-square flex-col border-2 border-[#16181A] bg-[#FBFAF6] p-3 text-left transition-colors ' +
+                  'relative flex aspect-square flex-col border-2 p-3 text-left transition-colors ' +
                   (epuise || isReadOnly
-                    ? 'cursor-not-allowed opacity-40'
-                    : 'hover:border-[#C1440E] hover:bg-white active:bg-[#ECE7DC]')
+                    ? 'cursor-not-allowed opacity-40 border-[#16181A] bg-[#FBFAF6]'
+                    : selectionne
+                      ? 'border-[#C1440E] bg-white'
+                      : 'border-[#16181A] bg-[#FBFAF6] hover:border-[#C1440E] hover:bg-white active:bg-[#ECE7DC]')
                 }
               >
+                {selectionne && (
+                  <span className="absolute right-0 top-0 z-10 flex h-6 w-6 items-center justify-center bg-[#C1440E] text-white">
+                    <Check size={15} strokeWidth={3} />
+                  </span>
+                )}
                 <div className="min-h-0 flex-1">
                   {p.image && (
                     <div className="flex h-full w-full items-center justify-center border border-[#c7c2b4] bg-white">
@@ -6122,7 +6130,7 @@ function VenteView({
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {lignesPanier.length === 0 ? (
             <div className="mt-10 text-center text-sm text-[#4B5560]">
-              Le panier est vide.<br />Touchez un article pour l'ajouter.
+              Le panier est vide.<br />Touchez un article pour le sélectionner.
             </div>
           ) : (
             lignesPanier.map((l) => (
