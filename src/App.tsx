@@ -3211,36 +3211,6 @@ function BranchAnalyticsSection({
 
 const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
-function SummaryLine({
-  label,
-  value,
-  sign,
-  hint,
-}: {
-  label: string;
-  value: number;
-  sign?: '-' | '+';
-  hint?: string;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-[#4B5560]/40 py-2.5">
-      <div>
-        <div className="text-[12px] uppercase tracking-[0.12em]">{label}</div>
-        {hint && <div className="text-[10px] text-[#4B5560]">{hint}</div>}
-      </div>
-      <div
-        className={
-          'font-mono text-sm tabular-nums ' +
-          (sign === '-' ? 'text-[#C1440E]' : sign === '+' ? 'text-[#2F6B4F]' : '')
-        }
-      >
-        {sign ? sign + ' ' : ''}
-        {fmtHTG(value)}
-      </div>
-    </div>
-  );
-}
-
 function CashEntryForm({
   onAdd,
   date,
@@ -3265,26 +3235,28 @@ function CashEntryForm({
   };
 
   return (
-    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-4">
-      <div className="mb-3 text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">Ajouter un mouvement de caisse</div>
-      <div className="flex flex-wrap gap-1.5">
-        {(Object.keys(CASH_ENTRY_META) as CashEntryType[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setType(t)}
-            className={
-              'border-2 px-3 py-1.5 text-[10px] uppercase tracking-[0.14em] ' +
-              (type === t
-                ? 'border-[#16181A] bg-[#16181A] text-white'
-                : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
-            }
-          >
-            {CASH_ENTRY_META[t].sign === -1 ? '− ' : '+ '}
-            {CASH_ENTRY_META[t].label}
-          </button>
-        ))}
+    <div className="border-2 border-[#16181A] bg-white">
+      <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
+        Nouveau mouvement de caisse
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="space-y-3 p-4">
+        <div className="grid grid-cols-2 gap-1.5">
+          {(Object.keys(CASH_ENTRY_META) as CashEntryType[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setType(t)}
+              className={
+                'border-2 px-2 py-2 text-[10px] uppercase tracking-[0.12em] ' +
+                (type === t
+                  ? 'border-[#16181A] bg-[#16181A] text-white'
+                  : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
+              }
+            >
+              {CASH_ENTRY_META[t].sign === -1 ? '− ' : '+ '}
+              {CASH_ENTRY_META[t].label}
+            </button>
+          ))}
+        </div>
         <input
           type="number"
           min={0}
@@ -3293,7 +3265,7 @@ function CashEntryForm({
           onChange={(e) => setMontant(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           placeholder="Montant (HTG)"
-          className="w-40 border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+          className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
         />
         <input
           type="text"
@@ -3301,13 +3273,13 @@ function CashEntryForm({
           onChange={(e) => setNote(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           placeholder="Note (optionnel)"
-          className="min-w-[160px] flex-1 border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+          className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
         />
         <button
           onClick={submit}
           disabled={!valid}
           className={
-            'flex items-center gap-2 border-2 px-4 py-2 text-[11px] uppercase tracking-[0.18em] ' +
+            'flex w-full items-center justify-center gap-2 border-2 px-4 py-2.5 text-[11px] uppercase tracking-[0.18em] ' +
             (valid
               ? 'border-[#C1440E] bg-[#C1440E] text-white hover:bg-[#a53a0b]'
               : 'cursor-not-allowed border-[#9CA3AF] bg-[#E5E7EB] text-[#6B7280]')
@@ -3343,89 +3315,205 @@ function DailyReport({
     year: 'numeric',
   });
 
+  const totalDeductions = sum.credits + sum.consommations + sum.achats;
+  const totalAdditions = sum.renflouements + sum.remboursements;
+
+  // Sales split by payment mode for the day
+  const byMode = PAYMENT_METHODS.map((m) => {
+    const list = ventes.filter((v) => v.statut !== 'annulee' && inDay(v.date) && v.paiement === m.id);
+    return { ...m, total: list.reduce((acc, v) => acc + v.total, 0), count: list.length };
+  });
+  const maxMode = Math.max(...byMode.map((m) => m.total), 1);
+
+  const kpis: Array<{ label: string; value: number; sign?: string; tone: string; box: string }> = [
+    { label: 'Total brut', value: sum.brut, tone: '', box: 'border-[#16181A] bg-white' },
+    { label: 'Déductions', value: totalDeductions, sign: '−', tone: 'text-[#C1440E]', box: 'border-[#16181A] bg-white' },
+    { label: 'Additions', value: totalAdditions, sign: '+', tone: 'text-[#2F6B4F]', box: 'border-[#16181A] bg-white' },
+    { label: 'Cash net', value: sum.cashNet, tone: '', box: 'border-[#16181A] bg-[#ECE7DC]' },
+    { label: 'Cash en main', value: sum.cashEnMain, tone: 'text-[#2F6B4F]', box: 'border-[#2F6B4F] bg-[#E9F5EF]' },
+  ];
+
+  const ledgerRow = (label: string, value: number, sign: '-' | '+', hint?: string) => (
+    <div key={label} className="flex items-baseline justify-between gap-3 border-b border-dashed border-[#4B5560]/40 py-2.5 last:border-b-0">
+      <div className="min-w-0">
+        <div className="text-[11px] uppercase tracking-[0.1em]">{label}</div>
+        {hint && <div className="text-[10px] leading-tight text-[#4B5560]">{hint}</div>}
+      </div>
+      <div className={'shrink-0 font-mono text-[13px] tabular-nums ' + (sign === '-' ? 'text-[#C1440E]' : 'text-[#2F6B4F]')}>
+        {sign === '-' ? '−' : '+'} {fmtHTG(value)}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-5">
-      <div className="border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
-        <div className="text-[11px] uppercase tracking-[0.22em] text-[#4B5560]">Rapport journalier</div>
-        <h2 className="mb-4 font-serif text-2xl capitalize">{dateLabel}</h2>
+      {/* Title bar */}
+      <div className="flex flex-wrap items-end justify-between gap-2 border-b-2 border-[#16181A] pb-3">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.22em] text-[#4B5560]">Rapport journalier</div>
+          <h2 className="font-serif text-2xl capitalize">{dateLabel}</h2>
+        </div>
+        <div className="text-[11px] uppercase tracking-[0.14em] text-[#4B5560]">{sum.nbVentes} vente(s) validée(s)</div>
+      </div>
 
-        <SummaryLine label="Total brut des ventes" value={sum.brut} hint={`${sum.nbVentes} vente(s) validée(s)`} />
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {kpis.map((k, i) => (
+          <div
+            key={k.label}
+            className={
+              'border-2 p-4 shadow-[4px_4px_0_#16181A] ' +
+              k.box +
+              (i === kpis.length - 1 ? ' col-span-2 lg:col-span-1' : '')
+            }
+          >
+            <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">{k.label}</div>
+            <div className={'mt-1.5 font-serif text-xl tabular-nums xl:text-2xl ' + k.tone}>
+              {k.sign ? k.sign + ' ' : ''}
+              {fmtHTG(k.value)}
+            </div>
+          </div>
+        ))}
+      </div>
 
-        <div className="mt-4 text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Déductions</div>
-        <SummaryLine label="Crédits" value={sum.credits} sign="-" hint="Ventes à crédit du jour (non encaissées)" />
-        <SummaryLine label="Consommations internes" value={sum.consommations} sign="-" />
-        <SummaryLine label="Achats" value={sum.achats} sign="-" />
+      {/* Ledger (left) + payment modes (right) */}
+      <div className="grid gap-5 xl:grid-cols-3">
+        <div className="border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#C1440E] xl:col-span-2">
+          <div className="flex items-center justify-between border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3">
+            <span className="text-[11px] uppercase tracking-[0.18em]">Détail de la caisse</span>
+            <span className="font-mono text-[12px] tabular-nums">Brut {fmtHTG(sum.brut)}</span>
+          </div>
 
-        <div className="mt-4 text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Additions</div>
-        <SummaryLine label="Renflouement" value={sum.renflouements} sign="+" />
-        <SummaryLine
-          label="Remboursement"
-          value={sum.remboursements}
-          sign="+"
-          hint="Paiements de crédits reçus + remboursements saisis"
-        />
+          <div className="grid divide-[#16181A] md:grid-cols-2 md:divide-x-2">
+            <div className="p-4">
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#C1440E]">Déductions</div>
+              {ledgerRow('Crédits', sum.credits, '-', 'Ventes à crédit non encaissées')}
+              {ledgerRow('Consommations internes', sum.consommations, '-')}
+              {ledgerRow('Achats', sum.achats, '-')}
+              <div className="mt-2 flex justify-between border-t-2 border-[#16181A] pt-2 text-[11px] font-bold uppercase tracking-[0.1em]">
+                <span>Total déductions</span>
+                <span className="font-mono tabular-nums text-[#C1440E]">− {fmtHTG(totalDeductions)}</span>
+              </div>
+            </div>
+            <div className="border-t-2 border-[#16181A] p-4 md:border-t-0">
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#2F6B4F]">Additions</div>
+              {ledgerRow('Renflouement', sum.renflouements, '+')}
+              {ledgerRow('Remboursement', sum.remboursements, '+', 'Crédits reçus + saisies manuelles')}
+              <div className="mt-2 flex justify-between border-t-2 border-[#16181A] pt-2 text-[11px] font-bold uppercase tracking-[0.1em]">
+                <span>Total additions</span>
+                <span className="font-mono tabular-nums text-[#2F6B4F]">+ {fmtHTG(totalAdditions)}</span>
+              </div>
+            </div>
+          </div>
 
-        <div className="mt-4 border-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <div className="text-[12px] font-bold uppercase tracking-[0.16em]">Cash net</div>
-            <div className="font-serif text-2xl tabular-nums">{fmtHTG(sum.cashNet)}</div>
+          {/* Equation strip */}
+          <div className="grid border-t-2 border-[#16181A] sm:grid-cols-3 sm:divide-x-2 sm:divide-[#16181A]">
+            <div className="p-4">
+              <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">Cash net</div>
+              <div className="font-serif text-xl tabular-nums">{fmtHTG(sum.cashNet)}</div>
+            </div>
+            <div className="border-t-2 border-[#16181A] p-4 sm:border-t-0">
+              <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">− Paiements mobiles</div>
+              <div className="font-serif text-xl tabular-nums text-[#C1440E]">{fmtHTG(sum.mobile)}</div>
+              <div className="text-[10px] text-[#4B5560]">MonCash / NatCash</div>
+            </div>
+            <div className="border-t-2 border-[#2F6B4F] bg-[#E9F5EF] p-4 sm:border-t-0">
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#2F6B4F]">= Cash en main</div>
+              <div className="font-serif text-2xl tabular-nums text-[#2F6B4F]">{fmtHTG(sum.cashEnMain)}</div>
+            </div>
           </div>
         </div>
 
-        <SummaryLine
-          label="Paiements mobiles"
-          value={sum.mobile}
-          sign="-"
-          hint="MonCash / NatCash — pas en caisse"
-        />
-
-        <div className="mt-2 border-2 border-[#2F6B4F] bg-[#E9F5EF] px-4 py-4 shadow-[4px_4px_0_#2F6B4F]">
-          <div className="flex items-baseline justify-between gap-3">
-            <div className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#2F6B4F]">Cash en main</div>
-            <div className="font-serif text-3xl tabular-nums text-[#2F6B4F]">{fmtHTG(sum.cashEnMain)}</div>
+        <div className="border-2 border-[#16181A] bg-white">
+          <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
+            Ventes par mode de paiement
+          </div>
+          <div className="space-y-4 p-4">
+            {byMode.map((m) => {
+              const Icon = m.icon;
+              return (
+                <div key={m.id}>
+                  <div className="mb-1 flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.1em]">
+                    <span className="flex items-center gap-2">
+                      <Icon size={13} /> {m.label}
+                      <span className="text-[#4B5560]">({m.count})</span>
+                    </span>
+                    <span className="font-mono tabular-nums">{fmtHTG(m.total)}</span>
+                  </div>
+                  <div className="h-3 border-2 border-[#16181A] bg-[#FBFAF6]">
+                    <div
+                      className={'h-full ' + (m.id === 'credit' ? 'bg-[#F2B705]' : m.id === 'especes' ? 'bg-[#2F6B4F]' : 'bg-[#C1440E]')}
+                      style={{ width: `${(m.total / maxMode) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      <CashEntryForm onAdd={onAddEntry} date={selectedDate} />
-
-      <div className="border-2 border-[#16181A] bg-white">
-        <div className="border-b-2 border-[#16181A] px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">
-          Mouvements saisis ce jour ({dayEntries.length})
+      {/* Entry form (left) + movements table (right) */}
+      <div className="grid gap-5 xl:grid-cols-5">
+        <div className="xl:col-span-2">
+          <CashEntryForm onAdd={onAddEntry} date={selectedDate} />
         </div>
-        {dayEntries.length === 0 ? (
-          <div className="px-4 py-6 text-center text-sm text-[#4B5560]">Aucun mouvement pour cette date.</div>
-        ) : (
-          <ul>
-            {dayEntries.map((e) => {
-              const meta = CASH_ENTRY_META[e.type];
-              return (
-                <li
-                  key={e.id}
-                  className="flex items-center gap-3 border-b border-[#16181A]/15 px-4 py-2.5 last:border-b-0"
-                >
-                  <span className="w-16 shrink-0 font-mono text-[11px] text-[#4B5560]">{fmtTime12(e.date)}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[12px] uppercase tracking-[0.1em]">{meta.label}</div>
-                    {e.note && <div className="truncate text-[11px] text-[#4B5560]">{e.note}</div>}
-                  </div>
-                  <span
-                    className={'font-mono text-sm tabular-nums ' + (meta.sign === -1 ? 'text-[#C1440E]' : 'text-[#2F6B4F]')}
-                  >
-                    {meta.sign === -1 ? '−' : '+'} {fmtHTG(e.montant)}
-                  </span>
-                  <button
-                    onClick={() => onDeleteEntry(e.id)}
-                    aria-label="Supprimer"
-                    className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+
+        <div className="border-2 border-[#16181A] bg-white xl:col-span-3">
+          <div className="flex items-center justify-between border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
+            <span>Mouvements du jour</span>
+            <span className="text-[#4B5560]">{dayEntries.length}</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="border-b-2 border-[#16181A] text-left text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
+                  <th className="px-3 py-2.5">Heure</th>
+                  <th className="px-3 py-2.5">Type</th>
+                  <th className="px-3 py-2.5">Note</th>
+                  <th className="px-3 py-2.5 text-right">Montant</th>
+                  <th className="w-10 px-3 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {dayEntries.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-10 text-center text-sm text-[#4B5560]">
+                      Aucun mouvement pour cette date.
+                    </td>
+                  </tr>
+                )}
+                {dayEntries.map((e) => {
+                  const meta = CASH_ENTRY_META[e.type];
+                  return (
+                    <tr key={e.id} className="border-b border-[#16181A]/15 hover:bg-[#FBFAF6]">
+                      <td className="px-3 py-2.5 font-mono text-[11px] text-[#4B5560]">{fmtTime12(e.date)}</td>
+                      <td className="px-3 py-2.5 uppercase tracking-[0.08em]">{meta.label}</td>
+                      <td className="max-w-[180px] truncate px-3 py-2.5 text-[#4B5560]">{e.note ?? '—'}</td>
+                      <td
+                        className={
+                          'px-3 py-2.5 text-right font-mono tabular-nums ' +
+                          (meta.sign === -1 ? 'text-[#C1440E]' : 'text-[#2F6B4F]')
+                        }
+                      >
+                        {meta.sign === -1 ? '−' : '+'} {fmtHTG(e.montant)}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <button
+                          onClick={() => onDeleteEntry(e.id)}
+                          aria-label="Supprimer"
+                          className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
