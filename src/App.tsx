@@ -6570,9 +6570,8 @@ function VenteView({
   );
 }
 
-/* Passerelle MonCash : le serveur (VITE_API_URL) crée le paiement et renvoie le lien de la passerelle.
-   Le client le règle sur son téléphone (QR / WhatsApp) ou sur ce terminal. */
-const API_URL: string = String((import.meta as any).env?.VITE_API_URL ?? '').replace(/\/$/, '');
+/* Passerelle MonCash : les fonctions Edge Supabase (moncash-create-deposit, moncash-status, moncash-webhook)
+   créent le paiement et suivent son statut. Le client règle sur son téléphone (QR / WhatsApp) ou sur ce terminal. */
 
 /* Liaison téléphone (Supabase Realtime) : le téléphone garde la page /terminal ouverte.
    Le POS lui envoie le lien MonCash par un canal Broadcast privé (nom = code de jumelage),
@@ -6754,12 +6753,21 @@ function MonCashPanel({
     setErreur('');
     try {
       const sb = getSb();
-      if (!sb) throw new Error('Supabase non configuré (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).');
+      if (!sb) throw new Error('Supabase non configuré (VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
 
       const { data, error } = await sb.functions.invoke('moncash-create-deposit', {
         body: { amount: Math.round(montant) },
       });
-      if (error || !data?.paymentUrl) throw error || new Error('Impossible de créer le paiement MonCash.');
+      if (error || !data?.paymentUrl) {
+        let detail = '';
+        try {
+          const body = await (error as any)?.context?.json?.();
+          detail = body?.error ? String(body.error) : '';
+        } catch {
+          /* corps illisible */
+        }
+        throw new Error(detail || (error as Error | null)?.message || 'Impossible de créer le paiement MonCash.');
+      }
 
       const id = String(data.referenceId ?? 'TCH-' + Date.now());
       setOrderId(id);
@@ -6786,9 +6794,10 @@ function MonCashPanel({
     let stop = false;
     const tick = async () => {
       try {
-        const r = await fetch(`${API_URL}/api/moncash/status/${encodeURIComponent(orderId)}`);
-        const d = await r.json();
-        if (stop) return;
+        const sb = getSb();
+        if (!sb) return;
+        const { data: d, error: e } = await sb.functions.invoke('moncash-status', { body: { referenceId: orderId } });
+        if (stop || e || !d) return;
         if (d.status === 'paid') {
           stop = true;
           onLock(false);
@@ -6962,7 +6971,7 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente, clie
   const insuffisant = paiement === 'especes' && recu < totalAPayer;
   const clientManquant = paiement === 'credit' && client.trim() === '';
   // Avec la passerelle configurée, la vente se confirme toute seule dès que MonCash valide le paiement.
-  const mcAuto = paiement === 'moncash' && API_URL !== '';
+  const mcAuto = paiement === 'moncash' && PHONE_ENABLED;
   const bloque = insuffisant || clientManquant || mcAuto;
 
   return (
@@ -7348,7 +7357,7 @@ function TerminalPage() {
 
       {!PHONE_ENABLED && (
         <div className="max-w-xs text-[13px] text-[#F2B705]">
-          Supabase n'est pas configuré (VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY).
+          Supabase n'est pas configuré (VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY).
         </div>
       )}
 
