@@ -106,6 +106,7 @@ type VenteViewProps = {
   isReadOnly?: boolean;
   categorie: string;
   setCategorie: Dispatch<SetStateAction<string>>;
+  categories: string[];
   recherche: string;
   setRecherche: Dispatch<SetStateAction<string>>;
   produits: Product[];
@@ -148,6 +149,9 @@ const CATEGORIES = [
   'Bois',
   'Électricité',
   'Outils',
+  'Quincaillerie',
+  'Boissons Gazeuse',
+  'Produits alimentaires',
 ] as const;
 
 const INITIAL_PRODUCTS: Product[] = [
@@ -172,12 +176,31 @@ const INITIAL_PRODUCTS: Product[] = [
   { id: 'p19', nom: 'Disjoncteur 20A', categorie: 'Électricité', prix: 385, prixAchat: 200, stockOuverture: 47, stockFermeture: 47, seuil: 15, unite: 'unité' },
   { id: 'p20', nom: 'Truelle de Maçon', categorie: 'Outils', prix: 320, prixAchat: 200, stockOuverture: 25, stockFermeture: 25, seuil: 8, unite: 'unité' },
   { id: 'p21', nom: 'Pelle Carrée', categorie: 'Outils', prix: 610, prixAchat: 400, stockOuverture: 19, stockFermeture: 19, seuil: 8, unite: 'unité' },
+
+  /* Succursale Majuin — quincaillerie générale, boissons gazeuses, produits alimentaires */
+  { id: 'p22', nom: 'Cadenas 40mm', categorie: 'Quincaillerie', prix: 350, prixAchat: 220, stockOuverture: 60, stockFermeture: 60, seuil: 15, unite: 'unité' },
+  { id: 'p23', nom: 'Charnières 3"', categorie: 'Quincaillerie', prix: 95, prixAchat: 55, stockOuverture: 120, stockFermeture: 120, seuil: 30, unite: 'paire' },
+  { id: 'p24', nom: 'Vis à Bois Assorties (bte)', categorie: 'Quincaillerie', prix: 275, prixAchat: 170, stockOuverture: 45, stockFermeture: 45, seuil: 10, unite: 'boîte' },
+  { id: 'p25', nom: 'Marteau de Menuisier', categorie: 'Quincaillerie', prix: 480, prixAchat: 300, stockOuverture: 22, stockFermeture: 22, seuil: 8, unite: 'unité' },
+  { id: 'p26', nom: 'Ruban Adhésif Toilé', categorie: 'Quincaillerie', prix: 150, prixAchat: 90, stockOuverture: 70, stockFermeture: 70, seuil: 15, unite: 'rouleau' },
+  { id: 'p27', nom: 'Ampoule LED 9W', categorie: 'Quincaillerie', prix: 165, prixAchat: 100, stockOuverture: 90, stockFermeture: 90, seuil: 20, unite: 'unité' },
+  { id: 'p28', nom: 'Coca-Cola 20oz', categorie: 'Boissons Gazeuse', prix: 100, prixAchat: 65, stockOuverture: 240, stockFermeture: 240, seuil: 48, unite: 'bouteille' },
+  { id: 'p29', nom: 'Sprite 20oz', categorie: 'Boissons Gazeuse', prix: 100, prixAchat: 65, stockOuverture: 180, stockFermeture: 180, seuil: 48, unite: 'bouteille' },
+  { id: 'p30', nom: 'Cola Couronne 12oz', categorie: 'Boissons Gazeuse', prix: 60, prixAchat: 35, stockOuverture: 300, stockFermeture: 300, seuil: 60, unite: 'bouteille' },
+  { id: 'p31', nom: 'Eau Culligan 500ml', categorie: 'Boissons Gazeuse', prix: 35, prixAchat: 20, stockOuverture: 400, stockFermeture: 400, seuil: 80, unite: 'bouteille' },
+  { id: 'p32', nom: 'Jus Tampico 1L', categorie: 'Boissons Gazeuse', prix: 150, prixAchat: 95, stockOuverture: 96, stockFermeture: 96, seuil: 20, unite: 'bouteille' },
+  { id: 'p33', nom: 'Riz Importé 25lb', categorie: 'Produits alimentaires', prix: 1450, prixAchat: 1150, stockOuverture: 40, stockFermeture: 40, seuil: 10, unite: 'sac' },
+  { id: 'p34', nom: 'Farine de Blé 5lb', categorie: 'Produits alimentaires', prix: 280, prixAchat: 200, stockOuverture: 65, stockFermeture: 65, seuil: 15, unite: 'sac' },
+  { id: 'p35', nom: 'Huile Végétale 1gal', categorie: 'Produits alimentaires', prix: 950, prixAchat: 700, stockOuverture: 30, stockFermeture: 30, seuil: 8, unite: 'gallon' },
+  { id: 'p36', nom: 'Sucre Blanc 5lb', categorie: 'Produits alimentaires', prix: 320, prixAchat: 240, stockOuverture: 55, stockFermeture: 55, seuil: 12, unite: 'sac' },
+  { id: 'p37', nom: 'Spaghetti (paquet)', categorie: 'Produits alimentaires', prix: 110, prixAchat: 75, stockOuverture: 140, stockFermeture: 140, seuil: 25, unite: 'paquet' },
+  { id: 'p38', nom: 'Lait en Poudre 400g', categorie: 'Produits alimentaires', prix: 385, prixAchat: 280, stockOuverture: 48, stockFermeture: 48, seuil: 10, unite: 'boîte' },
 ];
 
 const BRANCH_INVENTORY_SEED: Record<string, string[]> = {
   'gros-morne': ['p01', 'p03', 'p05', 'p08', 'p11'],
   'saint-marc': ['p02', 'p04', 'p06', 'p09', 'p13'],
-  'majuin': ['p14', 'p16', 'p17', 'p20', 'p21'],
+  'majuin': ['p22', 'p23', 'p24', 'p25', 'p26', 'p27', 'p28', 'p29', 'p30', 'p31', 'p32', 'p33', 'p34', 'p35', 'p36', 'p37', 'p38'],
   'oreste': ['p07', 'p10', 'p12', 'p18', 'p19'],
 };
 
@@ -887,13 +910,37 @@ export default function GestionMateriaux() {
   const [editStockId, setEditStockId] = useState<string | null>(null);
   const [editStockVal, setEditStockVal] = useState<string>('');
 
+  /* Chaque succursale ne vend que les articles qui lui sont assignés (BRANCH_INVENTORY_SEED). */
+  const produitsBranche = useMemo(() => {
+    if (!selectedBranchId) return products;
+    const ids = BRANCH_INVENTORY_SEED[selectedBranchId];
+    if (!ids) return products;
+    return products.filter((p) => ids.includes(p.id));
+  }, [products, selectedBranchId]);
+
+  /* Catégories réellement en vente dans cette succursale (ex : Majuin ne propose que
+     Quincaillerie / Boissons Gazeuse / Produits alimentaires) — pilote les filtres rapides. */
+  const categoriesBranche = useMemo(() => {
+    const presentes = new Set(produitsBranche.map((p) => p.categorie));
+    return ['Tout', ...CATEGORIES.filter((c) => c !== 'Tout' && presentes.has(c))];
+  }, [produitsBranche]);
+
+  useEffect(() => {
+    setCategorie('Tout');
+  }, [selectedBranchId]);
+
+  const produitsStockBas = useMemo(
+    () => produitsBranche.filter((p) => p.stockFermeture <= p.seuil),
+    [produitsBranche]
+  );
+
   const produitsFiltres = useMemo(() => {
-    return products.filter((p) => {
+    return produitsBranche.filter((p) => {
       const okCat = categorie === 'Tout' || p.categorie === categorie;
       const okRech = p.nom.toLowerCase().includes(recherche.toLowerCase());
       return okCat && okRech;
     });
-  }, [products, categorie, recherche]);
+  }, [produitsBranche, categorie, recherche]);
 
   const lignesPanier = useMemo<CartLine[]>(() => {
     return cart.flatMap((item) => {
@@ -905,11 +952,6 @@ export default function GestionMateriaux() {
 
   const totalPanier = lignesPanier.reduce((s, l) => s + l.sousTotal, 0);
   const nbArticlesPanier = cart.reduce((s, i) => s + i.qte, 0);
-
-  const produitsStockBas = useMemo(
-    () => products.filter((p) => p.stockFermeture <= p.seuil),
-    [products]
-  );
 
   const brancheActuelle = SUCURSALES.find((s) => s.id === selectedBranchId) ?? SUCURSALES[0];
 
@@ -999,7 +1041,7 @@ export default function GestionMateriaux() {
     setEditStockId(null);
   }
 
-  const inventaireFiltre = products.filter((p) =>
+  const inventaireFiltre = produitsBranche.filter((p) =>
     p.nom.toLowerCase().includes(invRecherche.toLowerCase())
   );
 
@@ -1265,6 +1307,7 @@ export default function GestionMateriaux() {
             isReadOnly={isReadOnly}
             categorie={categorie}
             setCategorie={setCategorie}
+            categories={categoriesBranche}
             recherche={recherche}
             setRecherche={setRecherche}
             produits={produitsFiltres}
@@ -5961,6 +6004,7 @@ function VenteView({
   isReadOnly,
   categorie,
   setCategorie,
+  categories,
   recherche,
   setRecherche,
   produits,
@@ -5992,7 +6036,7 @@ function VenteView({
         </div>
 
         <div className="flex gap-2 overflow-x-auto border-b-2 border-[#16181A] bg-[#FBFAF6] px-6 py-3">
-          {CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <button
               key={c}
               onClick={() => setCategorie(c)}
