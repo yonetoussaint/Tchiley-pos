@@ -81,7 +81,7 @@ type SaleRecord = {
 /* Onglets de gestion (mêmes sections que le panneau propriétaire, limitées à la succursale du vendeur). */
 type ManagementView = 'rapports' | 'produits' | 'ventes' | 'credits' | 'coffre' | 'petitecaisse';
 
-type View = 'vente' | 'inventaire' | 'historique' | 'dashboard' | ManagementView;
+type View = 'vente' | 'dashboard' | ManagementView;
 
 const MANAGEMENT_VIEWS: ManagementView[] = ['rapports', 'produits', 'ventes', 'credits', 'coffre', 'petitecaisse'];
 const isManagementView = (v: View): v is ManagementView => (MANAGEMENT_VIEWS as string[]).includes(v);
@@ -132,18 +132,6 @@ type CheckoutModalProps = {
   fermer: () => void;
   finaliserVente: (paiement: string, montantRecu: number, remise: number, client?: string) => void;
   clientsConnus?: string[];
-};
-
-type InventaireViewProps = {
-  isReadOnly?: boolean;
-  produits: Product[];
-  recherche: string;
-  setRecherche: Dispatch<SetStateAction<string>>;
-  editStockId: string | null;
-  editStockVal: string;
-  setEditStockVal: Dispatch<SetStateAction<string>>;
-  commencerEditStock: (produit: Product) => void;
-  validerEditStock: (id: string) => void;
 };
 
 const CATEGORIES = [
@@ -812,8 +800,6 @@ const fmtHTG = (n: number) =>
 
 const NAV_ITEMS: Array<{ id: View; label: string; icon: typeof ShoppingCart }> = [
   { id: 'vente', label: 'Vente', icon: ShoppingCart },
-  { id: 'inventaire', label: 'Inventaire', icon: Boxes },
-  { id: 'historique', label: 'Historique', icon: History },
   { id: 'dashboard', label: 'Tableau de Bord', icon: Gauge },
   { id: 'rapports', label: 'Rapports', icon: BarChart3 },
   { id: 'produits', label: 'Produits', icon: Package },
@@ -931,9 +917,6 @@ export default function GestionMateriaux() {
   );
   const [checkoutOuvert, setCheckoutOuvert] = useState<boolean>(false);
   const [lastReceipt, setLastReceipt] = useState<SaleRecord | null>(null);
-  const [invRecherche, setInvRecherche] = useState<string>('');
-  const [editStockId, setEditStockId] = useState<string | null>(null);
-  const [editStockVal, setEditStockVal] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [reportPeriod, setReportPeriod] = useState<ReportPeriod>('daily');
   const [reportsOpen, setReportsOpen] = useState<boolean>(false);
@@ -1068,23 +1051,6 @@ export default function GestionMateriaux() {
     setCheckoutOuvert(false);
     window.setTimeout(() => window.print(), 120);
   }
-
-  function commencerEditStock(produit: Product) {
-    setEditStockId(produit.id);
-    setEditStockVal(String(produit.stockFermeture));
-  }
-
-  function validerEditStock(id: string) {
-    const val = parseInt(editStockVal, 10);
-    if (!Number.isNaN(val) && val >= 0) {
-      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, stockFermeture: val } : p)));
-    }
-    setEditStockId(null);
-  }
-
-  const inventaireFiltre = produitsBranche.filter((p) =>
-    p.nom.toLowerCase().includes(invRecherche.toLowerCase())
-  );
 
   const venteAujourdhui = ventesValides.filter((v) => {
     const auj = new Date();
@@ -1499,22 +1465,6 @@ export default function GestionMateriaux() {
                 ouvrirCheckout={() => setCheckoutOuvert(true)}
               />
             )}
-
-            {view === 'inventaire' && (
-              <InventaireView
-                isReadOnly={isReadOnly}
-                produits={inventaireFiltre}
-                recherche={invRecherche}
-                setRecherche={setInvRecherche}
-                editStockId={editStockId}
-                editStockVal={editStockVal}
-                setEditStockVal={setEditStockVal}
-                commencerEditStock={commencerEditStock}
-                validerEditStock={validerEditStock}
-              />
-            )}
-
-            {view === 'historique' && <HistoriqueView ventes={ventesValides} />}
 
             {view === 'dashboard' && (
               <DashboardView
@@ -6795,136 +6745,6 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente, clie
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function InventaireView({
-  isReadOnly,
-  produits,
-  recherche,
-  setRecherche,
-  editStockId,
-  editStockVal,
-  setEditStockVal,
-  commencerEditStock,
-  validerEditStock,
-}: InventaireViewProps) {
-  return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex items-center gap-3 border-b-2 border-[#16181A] bg-[#FBFAF6] px-6 py-4">
-        <div className="relative max-w-sm flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4B5560]"
-          />
-          <input
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-            placeholder="Rechercher dans l'inventaire…"
-            className="w-full border-2 border-[#16181A] bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#C1440E]"
-          />
-        </div>
-        <button className="ml-auto flex items-center gap-2 border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[13px] text-white hover:bg-[#2b2e31]">
-          <PackagePlus size={15} />
-          Nouvel Article
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <table className="w-full border-collapse text-[13px]">
-          <thead>
-            <tr className="border-b-2 border-[#16181A] text-left text-[11px] uppercase tracking-wide text-[#4B5560]">
-              <th className="py-2 pr-3 font-normal">Article</th>
-              <th className="py-2 pr-3 font-normal">Catégorie</th>
-              <th className="py-2 pr-3 font-normal">Prix</th>
-              <th className="py-2 pr-3 font-normal">Stock</th>
-              <th className="py-2 pr-3 font-normal">Seuil</th>
-              <th className="py-2 pr-3 font-normal"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {produits.map((p) => {
-              const stockBas = p.stockFermeture <= p.seuil;
-              const enEdition = editStockId === p.id;
-              return (
-                <tr key={p.id} className="border-b border-[#c7c2b4]">
-                  <td className="py-2.5 pr-3 font-medium">{p.nom}</td>
-                  <td className="py-2.5 pr-3 text-[#4B5560]">{p.categorie}</td>
-                  <td className="py-2.5 pr-3">{fmtHTG(p.prix)}</td>
-                  <td className="py-2.5 pr-3">
-                    {enEdition ? (
-                      <input
-                        autoFocus
-                        type="number"
-                        value={editStockVal}
-                        onChange={(e) => setEditStockVal(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && validerEditStock(p.id)}
-                        className="w-20 border-2 border-[#C1440E] bg-white px-1.5 py-0.5 outline-none"
-                      />
-                    ) : (
-                      <span className={stockBas ? 'flex items-center gap-1 text-[#C1440E]' : ''}>
-                        {stockBas && <AlertTriangle size={12} />}
-                        {p.stockFermeture} {p.unite}{p.stockFermeture !== 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2.5 pr-3 text-[#4B5560]">{p.seuil}</td>
-                  <td className="py-2.5 pr-3 text-right">
-                    {enEdition ? (
-                      <button onClick={() => validerEditStock(p.id)} className="text-[#2F6B4F] hover:text-[#16181A]">
-                        <Check size={16} />
-                      </button>
-                    ) : (
-                      <button onClick={() => isReadOnly ? null : commencerEditStock(p)} className="text-[#4B5560] hover:text-[#C1440E] disabled:opacity-50" disabled={isReadOnly}>
-                        <Pencil size={14} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function HistoriqueView({ ventes }: { ventes: SaleRecord[] }) {
-  return (
-    <div className="flex-1 overflow-y-auto px-6 py-6">
-      <h2 className="mb-4 font-serif text-xl">Historique des Ventes</h2>
-      {ventes.length === 0 ? (
-        <div className="border-2 border-dashed border-[#4B5560] px-6 py-12 text-center text-sm text-[#4B5560]">
-          Aucune vente enregistrée pour l'instant.
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {ventes.map((v) => (
-            <div key={v.id} className="border-2 border-[#16181A] bg-[#FBFAF6] p-4">
-              <div className="flex items-center justify-between">
-                <div className="text-[13px] text-[#4B5560]">
-                  {v.date.toLocaleDateString('fr-HT')} — {v.date.toLocaleTimeString('fr-HT', { hour: '2-digit', minute: '2-digit' })}
-                </div>
-                <div className="border-2 border-[#16181A] px-2 py-0.5 text-[11px] uppercase tracking-wide">
-                  {PAYMENT_METHODS.find((m) => m.id === v.paiement)?.label || v.paiement}
-                </div>
-              </div>
-              <div className="mt-2 space-y-0.5">
-                {v.lignes.map((l, idx) => (
-                  <div key={idx} className="flex justify-between text-[13px]">
-                    <span>{l.qte} × {l.nom}</span>
-                    <span>{fmtHTG(l.sousTotal)}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-2 flex justify-between border-t border-[#c7c2b4] pt-2 font-serif text-[16px]">
-                <span>Total</span>
-                <span>{fmtHTG(v.total)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
