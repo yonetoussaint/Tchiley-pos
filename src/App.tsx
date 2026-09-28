@@ -54,6 +54,13 @@ type SaleLine = {
 
 type PaymentMethodId = 'especes' | 'moncash' | 'natcash' | 'credit';
 
+type CreditPayment = {
+  id: string;
+  date: Date;
+  montant: number;
+  mode: PaymentMethodId;
+};
+
 type SaleRecord = {
   id: string;
   date: Date;
@@ -64,6 +71,8 @@ type SaleRecord = {
   recu: number;
   monnaie: number;
   remise?: number;
+  client?: string;
+  paiementsCredit?: CreditPayment[];
   statut?: 'valide' | 'annulee';
 };
 
@@ -112,7 +121,8 @@ type CheckoutModalProps = {
   lignesPanier: CartLine[];
   totalPanier: number;
   fermer: () => void;
-  finaliserVente: (paiement: string, montantRecu: number, remise: number) => void;
+  finaliserVente: (paiement: string, montantRecu: number, remise: number, client?: string) => void;
+  clientsConnus?: string[];
 };
 
 type InventaireViewProps = {
@@ -173,6 +183,13 @@ const BRANCH_INVENTORY_SEED: Record<string, string[]> = {
 /* Set to false to start with an empty sales history. */
 const USE_MOCK_SALES = true;
 
+const MOCK_CLIENTS: Record<string, string[]> = {
+  'gros-morne': ['Jean Baptiste', 'Marie-Claire Joseph', 'Entreprise Dorival', 'Pierre Louis', 'Wilner Étienne'],
+  'saint-marc': ['Fritz Desrosiers', 'Rose-Marie Charles', 'Construction Saint-Marc SA', 'Kensley Auguste', 'Mme Lucienne Paul'],
+  'majuin': ['Jocelyn Pierre', 'Nadège Michel', 'Ti Jak Peinture', 'Ronald Célestin', 'Guerline Jean'],
+  'oreste': ['Evens Toussaint', 'Carline Noël', 'Électricité Oreste', 'Mackenson Thomas', 'Ludy Fils-Aimé'],
+};
+
 /* Generates ~2 weeks of realistic sales for every branch, relative to today. */
 function buildMockSales(): SaleRecord[] {
   if (!USE_MOCK_SALES) return [];
@@ -216,7 +233,25 @@ function buildMockSales(): SaleRecord[] {
         const remise = discountPct ? Math.round((subtotal * discountPct) / 100 / 5) * 5 : 0;
         const total = subtotal - remise;
         const paiement = paymentPool[randInt(0, paymentPool.length - 1)];
-        const recu = paiement === 'especes' ? Math.ceil(total / 500) * 500 : total;
+        const recu = paiement === 'especes' ? Math.ceil(total / 500) * 500 : paiement === 'credit' ? 0 : total;
+
+        let client: string | undefined;
+        let paiementsCredit: CreditPayment[] | undefined;
+        if (paiement === 'credit') {
+          const names = MOCK_CLIENTS[branchId] ?? [];
+          client = names[randInt(0, names.length - 1)];
+          paiementsCredit = [];
+          const roll = rand();
+          if (roll < 0.6) {
+            // ~30% fully paid later, ~30% partially paid, ~40% still unpaid
+            const montant = roll < 0.3 ? total : Math.round((total * (0.3 + rand() * 0.4)) / 5) * 5;
+            const payDate = new Date(Math.min(date.getTime() + randInt(1, 5) * 86400000, now.getTime()));
+            if (montant > 0 && payDate.getTime() > date.getTime()) {
+              const modes: PaymentMethodId[] = ['especes', 'moncash', 'natcash'];
+              paiementsCredit.push({ id: `P${payDate.getTime()}-${sales.length}`, date: payDate, montant, mode: modes[randInt(0, 2)] });
+            }
+          }
+        }
 
         sales.push({
           id: `V${date.getTime()}-${sales.length}`,
@@ -228,6 +263,8 @@ function buildMockSales(): SaleRecord[] {
           paiement,
           recu,
           monnaie: paiement === 'especes' ? recu - total : 0,
+          client,
+          paiementsCredit,
         });
       }
     }
@@ -242,6 +279,9 @@ const PAYMENT_METHODS: Array<{ id: PaymentMethodId; label: string; icon: typeof 
   { id: 'natcash', label: 'NatCash', icon: Smartphone },
   { id: 'credit', label: 'Crédit Client', icon: FileClock },
 ];
+
+const creditPaid = (sale: SaleRecord) => (sale.paiementsCredit ?? []).reduce((sum, p) => sum + p.montant, 0);
+const creditBalance = (sale: SaleRecord) => Math.max(sale.total - creditPaid(sale), 0);
 
 const fmtTime12 = (d: Date) =>
   d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
@@ -351,6 +391,10 @@ export default function GestionMateriaux() {
   const [recherche, setRecherche] = useState<string>('');
   const [ventes, setVentes] = useState<SaleRecord[]>(() => buildMockSales());
   const ventesValides = useMemo(() => ventes.filter((v) => v.statut !== 'annulee'), [ventes]);
+  const clientsConnus = useMemo(
+    () => Array.from(new Set(ventes.map((v) => v.client?.trim()).filter((c): c is string => !!c))).sort(),
+    [ventes]
+  );
   const [checkoutOuvert, setCheckoutOuvert] = useState<boolean>(false);
   const [lastReceipt, setLastReceipt] = useState<SaleRecord | null>(null);
   const [invRecherche, setInvRecherche] = useState<string>('');
@@ -417,7 +461,7 @@ export default function GestionMateriaux() {
     setCart([]);
   }
 
-  function finaliserVente(paiement: string, montantRecu: number, remiseMontant = 0) {
+  function finaliserVente(paiement: string, montantRecu: number, remiseMontant = 0, client?: string) {
     if (lignesPanier.length === 0) return;
     if (!selectedBranchId) return;
 
@@ -440,6 +484,8 @@ export default function GestionMateriaux() {
       paiement,
       recu,
       monnaie: paiement === 'especes' ? Math.max(recu - totalNet, 0) : 0,
+      client: paiement === 'credit' ? client?.trim() || undefined : undefined,
+      paiementsCredit: paiement === 'credit' ? [] : undefined,
     };
     setVentes((prev) => [vente, ...prev]);
     setProducts((prev) =>
@@ -768,6 +814,7 @@ export default function GestionMateriaux() {
           totalPanier={totalPanier}
           fermer={() => setCheckoutOuvert(false)}
           finaliserVente={finaliserVente}
+          clientsConnus={clientsConnus}
         />
       )}
 
@@ -810,6 +857,12 @@ function ReceiptModal({ sale, onClose }: { sale: SaleRecord; onClose: () => void
             <span>Paiement</span>
             <span>{PAYMENT_METHODS.find((m) => m.id === sale.paiement)?.label || sale.paiement}</span>
           </div>
+          {sale.client && (
+            <div className="flex justify-between">
+              <span>Client</span>
+              <span className="font-semibold text-[#16181A]">{sale.client}</span>
+            </div>
+          )}
         </div>
 
         <div className="mt-5 border-t-2 border-b-2 border-[#16181A] py-3">
@@ -852,6 +905,12 @@ function ReceiptModal({ sale, onClose }: { sale: SaleRecord; onClose: () => void
             <span>Total</span>
             <span className={cancelled ? 'line-through' : ''}>{fmtHTG(sale.total)}</span>
           </div>
+          {sale.paiement === 'credit' && !cancelled && (
+            <div className="flex justify-between border-t border-[#c7c2b4] pt-2 text-[#C1440E]">
+              <span>Solde dû</span>
+              <span className="font-medium">{fmtHTG(creditBalance(sale))}</span>
+            </div>
+          )}
         </div>
 
         <div className="print-actions mt-5 flex gap-2">
@@ -878,12 +937,13 @@ function ReceiptModal({ sale, onClose }: { sale: SaleRecord; onClose: () => void
    own section menu (Tableau de Bord / Produits / Rapports / Utilisateurs).
    ========================================================================= */
 
-type OwnerSection = 'dashboard' | 'products' | 'sales' | 'reports' | 'users';
+type OwnerSection = 'dashboard' | 'products' | 'sales' | 'credits' | 'reports' | 'users';
 
 const OWNER_SECTIONS: Array<{ id: OwnerSection; label: string; icon: typeof Gauge }> = [
   { id: 'dashboard', label: 'Tableau de Bord', icon: Gauge },
   { id: 'products', label: 'Produits', icon: Boxes },
   { id: 'sales', label: 'Ventes', icon: ShoppingCart },
+  { id: 'credits', label: 'Crédits', icon: FileClock },
   { id: 'reports', label: 'Rapports', icon: BarChart3 },
   { id: 'users', label: 'Utilisateurs', icon: Users },
 ];
@@ -1212,6 +1272,27 @@ function OwnerBoard({
     );
   };
 
+  const handleCreditPayment = (targets: SaleRecord[], montant: number, mode: PaymentMethodId) => {
+    const now = new Date();
+    let remaining = montant;
+    const additions: Record<string, CreditPayment> = {};
+    [...targets]
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .forEach((sale) => {
+        if (remaining <= 0) return;
+        const pay = Math.min(creditBalance(sale), remaining);
+        if (pay > 0) {
+          additions[sale.id] = { id: `P${now.getTime()}-${sale.id}`, date: now, montant: pay, mode };
+          remaining -= pay;
+        }
+      });
+    setVentes((prev) =>
+      prev.map((v) =>
+        additions[v.id] ? { ...v, paiementsCredit: [...(v.paiementsCredit ?? []), additions[v.id]] } : v
+      )
+    );
+  };
+
   const handleViewHistory = (product: Product) => {
     setHistoryProductId((prev) => (prev === product.id ? null : product.id));
   };
@@ -1398,6 +1479,10 @@ function OwnerBoard({
 
             {activeSection === 'sales' && (
               <BranchSalesSection sales={salesOfSelectedDate} selectedDate={selectedDate} onCancelSale={handleCancelSale} />
+            )}
+
+            {activeSection === 'credits' && (
+              <BranchCreditsSection sales={branchVentes} onPay={handleCreditPayment} />
             )}
 
             {activeSection === 'reports' && (
@@ -2137,6 +2222,7 @@ function BranchSalesSection({
       String(number),
       fmtTime12(sale.date),
       paymentLabel(sale.paiement),
+      sale.client ?? '',
       sale.statut === 'annulee' ? 'annulée annulee' : 'validée validee',
       String(sale.total),
       (sale.remise ?? 0) > 0 ? `remise ${sale.remise}` : '',
@@ -2250,6 +2336,7 @@ function BranchSalesSection({
                       <span className="inline-block border-2 border-[#16181A] px-2 py-0.5 text-[10px] uppercase tracking-wide">
                         {paymentLabel(sale.paiement)}
                       </span>
+                      {sale.client && <div className="mt-1 text-[11px] text-[#4B5560]">{sale.client}</div>}
                     </td>
                     <td className={cellBase + ' tabular-nums'}>
                       {(sale.remise ?? 0) > 0 ? (
@@ -2354,6 +2441,11 @@ function BranchSalesSection({
               {fmtHTG(saleToCancel.sale.total)} • {qtyOf(saleToCancel.sale)} article{qtyOf(saleToCancel.sale) !== 1 ? 's' : ''}.
               Le stock sera remis en inventaire et la vente ne comptera plus dans les totaux.
             </p>
+            {saleToCancel.sale.paiement === 'credit' && creditPaid(saleToCancel.sale) > 0 && (
+              <p className="mt-2 border-2 border-[#F2B705] bg-[#FDF6DC] px-3 py-2 text-[12px] text-[#8a6d00]">
+                {fmtHTG(creditPaid(saleToCancel.sale))} ont déjà été payés sur ce crédit : pensez à les rembourser au client.
+              </p>
+            )}
             <div className="mt-5 flex gap-2">
               <button
                 onClick={() => setSaleToCancel(null)}
@@ -2373,6 +2465,482 @@ function BranchSalesSection({
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function CreditPaymentModal({
+  title,
+  sales,
+  onClose,
+  onConfirm,
+}: {
+  title: string;
+  sales: SaleRecord[];
+  onClose: () => void;
+  onConfirm: (montant: number, mode: PaymentMethodId) => void;
+}) {
+  const balance = sales.reduce((sum, sale) => sum + creditBalance(sale), 0);
+  const [montant, setMontant] = useState<string>(String(balance));
+  const [mode, setMode] = useState<PaymentMethodId>('especes');
+  const value = parseFloat(montant) || 0;
+  const valid = value > 0 && value <= balance;
+  const history = sales.length === 1 ? sales[0].paiementsCredit ?? [] : [];
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
+      <div className="w-full max-w-sm border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#2F6B4F]">
+        <div className="flex items-start justify-between border-b-2 border-[#16181A] px-5 py-4">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.24em] text-[#4B5560]">Encaisser un paiement</div>
+            <div className="mt-1 font-serif text-xl leading-tight">{title}</div>
+          </div>
+          <button onClick={onClose} className="mt-1 text-[#4B5560] hover:text-[#C1440E]" aria-label="Fermer">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-4">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[13px] text-[#4B5560]">Solde dû</span>
+            <span className="font-serif text-2xl text-[#C1440E]">{fmtHTG(balance)}</span>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[12px] text-[#4B5560]">Montant reçu (HTG)</label>
+            <input
+              type="number"
+              min="0"
+              max={balance}
+              value={montant}
+              onChange={(event) => setMontant(event.target.value)}
+              className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+            />
+            <div className="mt-1.5 flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setMontant(String(balance))}
+                className="border-2 border-[#16181A] bg-white px-2 py-0.5 text-[11px] hover:bg-[#ECE7DC]"
+              >
+                Tout payer
+              </button>
+              <button
+                type="button"
+                onClick={() => setMontant(String(Math.round(balance / 2)))}
+                className="border-2 border-[#16181A] bg-white px-2 py-0.5 text-[11px] hover:bg-[#ECE7DC]"
+              >
+                Moitié
+              </button>
+            </div>
+            {value > balance && <div className="mt-1 text-[12px] text-[#C1440E]">Le montant dépasse le solde dû.</div>}
+          </div>
+
+          <div>
+            <div className="mb-1 text-[12px] text-[#4B5560]">Mode de paiement</div>
+            <div className="grid grid-cols-3 gap-2">
+              {PAYMENT_METHODS.filter((m) => m.id !== 'credit').map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setMode(m.id)}
+                  className={
+                    'border-2 border-[#16181A] px-2 py-2 text-[12px] ' +
+                    (mode === m.id ? 'bg-[#16181A] text-white' : 'bg-white hover:bg-[#ECE7DC]')
+                  }
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {sales.length > 1 && (
+            <div className="text-[12px] text-[#4B5560]">
+              Le paiement est appliqué d'abord aux ventes les plus anciennes ({sales.length} ventes impayées).
+            </div>
+          )}
+
+          {history.length > 0 && (
+            <div className="border-t-2 border-[#e4ded0] pt-3">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">Paiements déjà reçus</div>
+              {history.map((payment) => (
+                <div key={payment.id} className="flex justify-between text-[12px]">
+                  <span>
+                    {payment.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} •{' '}
+                    {PAYMENT_METHODS.find((m) => m.id === payment.mode)?.label}
+                  </span>
+                  <span className="tabular-nums text-[#2F6B4F]">{fmtHTG(payment.montant)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 border-t-2 border-[#16181A] px-5 py-4">
+          <button onClick={onClose} className="flex-1 border-2 border-[#16181A] bg-white py-2.5 text-[14px] hover:bg-[#ECE7DC]">
+            Annuler
+          </button>
+          <button
+            disabled={!valid}
+            onClick={() => onConfirm(value, mode)}
+            className={
+              'flex-1 border-2 border-[#16181A] py-2.5 text-[14px] font-medium ' +
+              (valid ? 'bg-[#2F6B4F] text-white hover:bg-[#255a40]' : 'cursor-not-allowed bg-[#d8d3c6] text-[#8b8f87]')
+            }
+          >
+            Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BranchCreditsSection({
+  sales,
+  onPay,
+}: {
+  sales: SaleRecord[];
+  onPay: (targets: SaleRecord[], montant: number, mode: PaymentMethodId) => void;
+}) {
+  const [view, setView] = useState<'clients' | 'sales'>('clients');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'open' | 'all'>('open');
+  const [receiptSale, setReceiptSale] = useState<SaleRecord | null>(null);
+  const [payTarget, setPayTarget] = useState<{ title: string; sales: SaleRecord[] } | null>(null);
+
+  // Credit sales, oldest first (oldest debts are the ones to chase first)
+  const creditSales = useMemo(
+    () =>
+      sales
+        .filter((sale) => sale.paiement === 'credit' && sale.statut !== 'annulee')
+        .sort((a, b) => a.date.getTime() - b.date.getTime()),
+    [sales]
+  );
+
+  const clientName = (sale: SaleRecord) => sale.client?.trim() || 'Client inconnu';
+
+  const clients = useMemo(() => {
+    const map = new Map<string, { nom: string; sales: SaleRecord[]; total: number; paid: number; last: Date }>();
+    creditSales.forEach((sale) => {
+      const nom = clientName(sale);
+      const key = nom.toLowerCase();
+      const entry = map.get(key) ?? { nom, sales: [], total: 0, paid: 0, last: sale.date };
+      entry.sales.push(sale);
+      entry.total += sale.total;
+      entry.paid += creditPaid(sale);
+      if (sale.date > entry.last) entry.last = sale.date;
+      map.set(key, entry);
+    });
+    return [...map.values()]
+      .map((entry) => ({ ...entry, balance: Math.max(entry.total - entry.paid, 0) }))
+      .sort((a, b) => b.balance - a.balance);
+  }, [creditSales]);
+
+  const totalDue = creditSales.reduce((sum, sale) => sum + creditBalance(sale), 0);
+  const debtorCount = clients.filter((c) => c.balance > 0).length;
+  const openSalesCount = creditSales.filter((sale) => creditBalance(sale) > 0).length;
+
+  const query = search.trim().toLowerCase();
+  const matchesQuery = (sale: SaleRecord) =>
+    !query ||
+    [clientName(sale), ...sale.lignes.map((l) => l.nom)].join(' ').toLowerCase().includes(query);
+
+  const clientRows = clients.filter(
+    (c) =>
+      (statusFilter === 'all' || c.balance > 0) &&
+      (!query || c.nom.toLowerCase().includes(query) || c.sales.some(matchesQuery))
+  );
+  const saleRows = creditSales.filter(
+    (sale) => (statusFilter === 'all' || creditBalance(sale) > 0) && matchesQuery(sale)
+  );
+
+  const daysAgo = (date: Date) => Math.floor((Date.now() - date.getTime()) / 86400000);
+  const ageLabel = (date: Date) => {
+    const days = daysAgo(date);
+    return days <= 0 ? "Aujourd'hui" : `il y a ${days} j`;
+  };
+  const fmtDate = (date: Date) => date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const cellBase = 'px-3 py-2.5 text-center';
+  const iconButton =
+    'flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#4B5560] transition-all duration-150 hover:border-[#16181A] hover:bg-[#ECE7DC] hover:text-[#16181A]';
+  const headClass =
+    'sticky top-0 z-10 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]';
+
+  const openPayment = (title: string, targets: SaleRecord[]) => {
+    const open = targets.filter((sale) => creditBalance(sale) > 0);
+    if (open.length > 0) setPayTarget({ title, sales: open });
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#C1440E]">
+          <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Total dû</div>
+          <div className="mt-2 font-serif text-3xl text-[#C1440E]">{fmtHTG(totalDue)}</div>
+        </div>
+        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#16181A]">
+          <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Clients débiteurs</div>
+          <div className="mt-2 font-serif text-3xl">{debtorCount}</div>
+        </div>
+        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#F2B705]">
+          <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Ventes impayées</div>
+          <div className="mt-2 font-serif text-3xl">{openSalesCount}</div>
+        </div>
+      </div>
+
+      <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#F2B705]">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-2xl">Ventes à crédit</h2>
+            <div className="text-[12px] text-[#4B5560]">Toutes les dates • ceux qui doivent de l'argent</div>
+          </div>
+          <div className="flex">
+            {(
+              [
+                ['clients', 'Par client'],
+                ['sales', 'Par vente'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setView(id)}
+                className={
+                  'border-2 border-[#16181A] px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] ' +
+                  (id === 'sales' ? '-ml-0.5 ' : '') +
+                  (view === id ? 'bg-[#16181A] text-white' : 'bg-white hover:bg-[#ECE7DC]')
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-[220px] flex-1 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 transition-shadow focus-within:shadow-[4px_4px_0_#C1440E]">
+            <Search className="h-4 w-4 shrink-0 text-[#4B5560]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Rechercher un client, un article..."
+              className="w-full border-none bg-transparent text-sm text-[#16181A] outline-none placeholder:text-[#4B5560]"
+            />
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as 'open' | 'all')}
+              className="shrink-0 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-[#16181A] outline-none"
+              aria-label="Filtrer par statut"
+            >
+              <option value="open">Impayés</option>
+              <option value="all">Tous</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="overflow-hidden border-2 border-[#16181A] bg-white">
+          <div className="max-h-[65vh] overflow-auto">
+            {view === 'clients' ? (
+              <table className="w-full min-w-[820px] border-collapse text-left" role="grid">
+                <thead className={headClass}>
+                  <tr className="divide-x divide-[#d3cbb6]">
+                    <th className="px-3 py-3 text-center">Client</th>
+                    <th className="px-3 py-3 text-center" title="Nombre de ventes à crédit">Ventes</th>
+                    <th className="px-3 py-3 text-center" title="Total pris à crédit">Total crédit</th>
+                    <th className="px-3 py-3 text-center" title="Total déjà payé">Payé</th>
+                    <th className="px-3 py-3 text-center" title="Montant restant à payer">Solde dû</th>
+                    <th className="px-3 py-3 text-center" title="Date du dernier achat à crédit">Dernier achat</th>
+                    <th className="px-3 py-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientRows.map((client) => (
+                    <tr
+                      key={client.nom.toLowerCase()}
+                      className="divide-x divide-[#e4ded0] border-b border-[#e4ded0] align-middle text-[13px] transition-all duration-150 odd:bg-white even:bg-[#FBFAF6] hover:bg-[#F3EFE3]"
+                    >
+                      <td className="px-3 py-2.5 text-left font-medium">{client.nom}</td>
+                      <td className={cellBase + ' tabular-nums'}>{client.sales.length}</td>
+                      <td className={cellBase + ' tabular-nums text-[#4B5560]'}>{fmtHTG(client.total)}</td>
+                      <td className={cellBase + ' tabular-nums text-[#2F6B4F]'}>{fmtHTG(client.paid)}</td>
+                      <td
+                        className={
+                          cellBase +
+                          ' font-serif text-[15px] tabular-nums ' +
+                          (client.balance > 0 ? 'text-[#C1440E]' : 'text-[#2F6B4F]')
+                        }
+                      >
+                        {client.balance > 0 ? fmtHTG(client.balance) : 'Soldé'}
+                      </td>
+                      <td className={cellBase}>
+                        <div className="whitespace-nowrap">{fmtDate(client.last)}</div>
+                        <div className="text-[11px] text-[#4B5560]">{ageLabel(client.last)}</div>
+                      </td>
+                      <td className={cellBase}>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => openPayment(client.nom, client.sales)}
+                            disabled={client.balance <= 0}
+                            className={
+                              'border-2 border-[#16181A] px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] ' +
+                              (client.balance > 0
+                                ? 'bg-[#2F6B4F] text-white hover:bg-[#255a40]'
+                                : 'cursor-not-allowed border-[#d8d3c6] bg-[#f1efe8] text-[#a4a89f]')
+                            }
+                          >
+                            Encaisser
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSearch(client.nom);
+                              setView('sales');
+                            }}
+                            className={iconButton}
+                            aria-label="Voir les ventes du client"
+                            title="Voir les ventes du client"
+                          >
+                            <Eye size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {clientRows.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-14 text-center text-[#4B5560]">
+                        <FileClock size={32} className="mx-auto mb-3 opacity-40" />
+                        <div className="text-sm">
+                          {query || statusFilter === 'all' ? 'Aucun client trouvé.' : 'Personne ne doit d\'argent 🎉'}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full min-w-[980px] border-collapse text-left" role="grid">
+                <thead className={headClass}>
+                  <tr className="divide-x divide-[#d3cbb6]">
+                    <th className="px-3 py-3 text-center">Date</th>
+                    <th className="px-3 py-3 text-center">Client</th>
+                    <th className="px-3 py-3 text-center">Articles</th>
+                    <th className="px-3 py-3 text-center" title="Montant total de la vente">Total</th>
+                    <th className="px-3 py-3 text-center" title="Montant déjà payé">Payé</th>
+                    <th className="px-3 py-3 text-center" title="Montant restant à payer">Solde dû</th>
+                    <th className="px-3 py-3 text-center">Statut</th>
+                    <th className="px-3 py-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {saleRows.map((sale) => {
+                    const paid = creditPaid(sale);
+                    const balance = creditBalance(sale);
+                    const status = balance <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
+                    return (
+                      <tr
+                        key={sale.id}
+                        className="divide-x divide-[#e4ded0] border-b border-[#e4ded0] align-middle text-[13px] transition-all duration-150 odd:bg-white even:bg-[#FBFAF6] hover:bg-[#F3EFE3]"
+                      >
+                        <td className={cellBase}>
+                          <div className="whitespace-nowrap">{fmtDate(sale.date)}</div>
+                          <div className="text-[11px] tabular-nums text-[#4B5560]">
+                            {fmtTime12(sale.date)} • {ageLabel(sale.date)}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 text-left font-medium">{clientName(sale)}</td>
+                        <td className="px-3 py-2.5 text-left">
+                          <div className="space-y-0.5">
+                            {sale.lignes.map((ligne, index) => (
+                              <div key={index}>
+                                <span className="tabular-nums text-[#4B5560]">{ligne.qte} ×</span> {ligne.nom}
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td className={cellBase + ' tabular-nums text-[#4B5560]'}>{fmtHTG(sale.total)}</td>
+                        <td className={cellBase + ' tabular-nums text-[#2F6B4F]'}>{paid > 0 ? fmtHTG(paid) : '—'}</td>
+                        <td
+                          className={
+                            cellBase +
+                            ' font-serif text-[15px] tabular-nums ' +
+                            (balance > 0 ? 'text-[#C1440E]' : 'text-[#2F6B4F]')
+                          }
+                        >
+                          {balance > 0 ? fmtHTG(balance) : '—'}
+                        </td>
+                        <td className={cellBase}>
+                          <span
+                            className={
+                              'inline-block border-2 px-2 py-0.5 text-[10px] uppercase tracking-wide ' +
+                              (status === 'paid'
+                                ? 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]'
+                                : status === 'partial'
+                                ? 'border-[#F2B705] bg-[#FDF6DC] text-[#8a6d00]'
+                                : 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E]')
+                            }
+                          >
+                            {status === 'paid' ? 'Payé' : status === 'partial' ? 'Partiel' : 'Impayé'}
+                          </span>
+                        </td>
+                        <td className={cellBase}>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => openPayment(clientName(sale), [sale])}
+                              disabled={balance <= 0}
+                              className={
+                                'border-2 border-[#16181A] px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] ' +
+                                (balance > 0
+                                  ? 'bg-[#2F6B4F] text-white hover:bg-[#255a40]'
+                                  : 'cursor-not-allowed border-[#d8d3c6] bg-[#f1efe8] text-[#a4a89f]')
+                              }
+                            >
+                              Encaisser
+                            </button>
+                            <button
+                              onClick={() => setReceiptSale(sale)}
+                              className={iconButton}
+                              aria-label="Voir le reçu"
+                              title="Voir le reçu"
+                            >
+                              <Eye size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {saleRows.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="py-14 text-center text-[#4B5560]">
+                        <FileClock size={32} className="mx-auto mb-3 opacity-40" />
+                        <div className="text-sm">
+                          {query || statusFilter === 'all' ? 'Aucune vente trouvée.' : 'Aucune vente impayée.'}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {receiptSale && <ReceiptModal sale={receiptSale} onClose={() => setReceiptSale(null)} />}
+
+      {payTarget && (
+        <CreditPaymentModal
+          title={payTarget.title}
+          sales={payTarget.sales}
+          onClose={() => setPayTarget(null)}
+          onConfirm={(montant, mode) => {
+            onPay(payTarget.sales, montant, mode);
+            setPayTarget(null);
+          }}
+        />
       )}
     </div>
   );
@@ -2927,9 +3495,10 @@ function VenteView({
   );
 }
 
-function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente }: CheckoutModalProps) {
+function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente, clientsConnus = [] }: CheckoutModalProps) {
   const [paiement, setPaiement] = useState<PaymentMethodId>('especes');
   const [montantRecu, setMontantRecu] = useState<string>('');
+  const [client, setClient] = useState<string>('');
   const [remiseInput, setRemiseInput] = useState<string>('');
   const [remiseMode, setRemiseMode] = useState<'htg' | 'pct'>('htg');
 
@@ -2941,6 +3510,8 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente }: Ch
   const recu = montantRecu === '' ? totalAPayer : parseFloat(montantRecu) || 0;
   const monnaie = paiement === 'especes' ? Math.max(recu - totalAPayer, 0) : 0;
   const insuffisant = paiement === 'especes' && recu < totalAPayer;
+  const clientManquant = paiement === 'credit' && client.trim() === '';
+  const bloque = insuffisant || clientManquant;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -3052,6 +3623,28 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente }: Ch
           </div>
         )}
 
+        {paiement === 'credit' && (
+          <div className="px-5 pb-4">
+            <label className="mb-1 block text-[12px] text-[#4B5560]">Nom du client (obligatoire)</label>
+            <input
+              type="text"
+              list="clients-credit"
+              value={client}
+              onChange={(e) => setClient(e.target.value)}
+              placeholder="Ex: Jean Baptiste"
+              className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+            />
+            <datalist id="clients-credit">
+              {clientsConnus.map((nom) => (
+                <option key={nom} value={nom} />
+              ))}
+            </datalist>
+            <div className="mt-2 text-[12px] text-[#4B5560]">
+              Le client devra {fmtHTG(totalAPayer)}. Le paiement sera enregistré plus tard dans l'onglet Crédits.
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2 border-t-2 border-[#16181A] px-5 py-4">
           <button
             onClick={fermer}
@@ -3060,11 +3653,18 @@ function CheckoutModal({ lignesPanier, totalPanier, fermer, finaliserVente }: Ch
             Annuler
           </button>
           <button
-            disabled={insuffisant}
-            onClick={() => finaliserVente(paiement, paiement === 'especes' ? recu : totalAPayer, remise)}
+            disabled={bloque}
+            onClick={() =>
+              finaliserVente(
+                paiement,
+                paiement === 'especes' ? recu : paiement === 'credit' ? 0 : totalAPayer,
+                remise,
+                client
+              )
+            }
             className={
               'flex flex-1 items-center justify-center gap-2 border-2 border-[#16181A] py-2.5 text-[14px] font-medium ' +
-              (insuffisant
+              (bloque
                 ? 'cursor-not-allowed bg-[#d8d3c6] text-[#8b8f87]'
                 : 'bg-[#2F6B4F] text-white hover:bg-[#255a40]')
             }
