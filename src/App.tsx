@@ -1643,10 +1643,12 @@ function DatePicker({
   selectedDate,
   onSelect,
   salesDays,
+  block = false,
 }: {
   selectedDate: Date;
   onSelect: (date: Date) => void;
   salesDays: Set<string>;
+  block?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState(
@@ -1694,7 +1696,7 @@ function DatePicker({
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className={block ? 'relative min-w-0 flex-1 md:flex-none' : 'relative'}>
       <button
         type="button"
         onClick={toggleOpen}
@@ -1702,7 +1704,8 @@ function DatePicker({
         aria-expanded={open}
         title={selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
         className={
-          'flex h-8 items-center gap-1.5 border-2 border-[#16181A] px-2 text-[11px] uppercase tracking-wide whitespace-nowrap transition-colors ' +
+          'flex items-center gap-1.5 border-2 border-[#16181A] px-2 text-[11px] uppercase tracking-wide whitespace-nowrap transition-colors ' +
+          (block ? 'h-10 w-full justify-center md:h-8 md:w-auto md:justify-start ' : 'h-8 ') +
           (open ? 'bg-[#E3DCCC]' : 'bg-[#ECE7DC] hover:bg-[#E3DCCC]')
         }
       >
@@ -1714,7 +1717,10 @@ function DatePicker({
         <div
           role="dialog"
           aria-label="Choisir une date"
-          className="absolute right-0 top-full z-50 mt-2 w-72 border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[6px_6px_0_#2F6B4F]"
+          className={
+            'absolute top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[6px_6px_0_#2F6B4F] ' +
+            (block ? 'left-1/2 -translate-x-1/2 md:left-auto md:right-0 md:translate-x-0' : 'right-0')
+          }
         >
           <div className="mb-2 flex items-center justify-between">
             <button
@@ -2101,7 +2107,7 @@ function OwnerBoard({
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-serif text-xl leading-tight">{activeBranch.nom}</span>
+              <span className="font-serif text-lg leading-tight sm:text-xl">{activeBranch.nom}</span>
               <span
                 className={
                   'border-2 px-2 py-0.5 text-[9px] uppercase tracking-wide ' +
@@ -2113,25 +2119,28 @@ function OwnerBoard({
                 {activeBranch.statut}
               </span>
             </div>
-            <div className="break-words text-[12px] text-[#4B5560]">
-              {activeBranch.ville} • {activeBranch.adresse} • Responsable: {activeBranch.gestionnaire}
+            <div className="mt-0.5 break-words text-[12px] leading-snug text-[#4B5560]">
+              <span>{activeBranch.ville} • {activeBranch.adresse}</span>
+              <span className="block md:inline">
+                <span className="hidden md:inline"> • </span>Responsable: {activeBranch.gestionnaire}
+              </span>
             </div>
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1">
+          <div className="flex w-full items-center gap-1 border-t-2 border-dashed border-[#d3cbb6] pt-3 md:ml-auto md:w-auto md:shrink-0 md:border-t-0 md:pt-0">
             <button
               onClick={() => shiftSelectedDate(-1)}
-              className="flex h-8 w-8 items-center justify-center border-2 border-[#16181A] bg-white text-sm hover:bg-[#ECE7DC]"
+              className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-white text-lg hover:bg-[#ECE7DC] md:h-8 md:w-8 md:text-sm"
               aria-label="Jour précédent"
             >
               ‹
             </button>
-            <DatePicker selectedDate={selectedDate} onSelect={setSelectedDate} salesDays={salesDays} />
+            <DatePicker selectedDate={selectedDate} onSelect={setSelectedDate} salesDays={salesDays} block />
             <button
               onClick={() => shiftSelectedDate(1)}
               disabled={isCurrentDateSelected}
               className={
-                'flex h-8 w-8 items-center justify-center border-2 border-[#16181A] text-sm ' +
+                'flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] text-lg md:h-8 md:w-8 md:text-sm ' +
                 (isCurrentDateSelected ? 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]' : 'bg-white hover:bg-[#ECE7DC]')
               }
               aria-label="Jour suivant"
