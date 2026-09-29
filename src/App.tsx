@@ -2994,7 +2994,7 @@ function BranchProductsSection({
   return (
     <div
       style={M3_VARS}
-      className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-6 pt-4 font-sans text-[var(--m3-on-surface)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#2F6B4F]"
+      className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-28 pt-4 font-sans text-[var(--m3-on-surface)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#2F6B4F]"
     >
       <style>{M3_CSS}</style>
 
@@ -3049,7 +3049,7 @@ function BranchProductsSection({
         <div className="contents">
           <button
             onClick={onAddProduct}
-            className={`group relative fixed bottom-5 right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-2xl bg-[var(--m3-primary-container)] px-5 text-sm font-medium tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] transition-transform duration-200 active:scale-95 motion-reduce:transition-none ${M3_FOCUS} sm:static sm:z-auto sm:h-auto sm:gap-2 sm:overflow-visible sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#16181A] sm:px-3 sm:py-2 sm:text-[11px] sm:uppercase sm:tracking-[0.18em] sm:text-white sm:shadow-none sm:transition-colors sm:hover:bg-[#2b2e31] sm:active:scale-100`}
+            className={`group fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-2xl bg-[var(--m3-primary-container)] px-5 text-sm font-medium tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] transition-transform duration-200 active:scale-95 motion-reduce:transition-none ${M3_FOCUS} sm:static sm:z-auto sm:h-auto sm:gap-2 sm:overflow-visible sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#16181A] sm:px-3 sm:py-2 sm:text-[11px] sm:uppercase sm:tracking-[0.18em] sm:text-white sm:shadow-none sm:transition-colors sm:hover:bg-[#2b2e31] sm:active:scale-100`}
           >
             <M3StateLayer className="sm:hidden" />
             <Plus className="h-6 w-6 sm:h-3.5 sm:w-3.5" />
