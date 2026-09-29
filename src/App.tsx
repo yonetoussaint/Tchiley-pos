@@ -5818,7 +5818,65 @@ function BranchAnalyticsSection({
   const maxDayRevenue = Math.max(...revenueByDay.map((d) => d.total), 1);
 
   return (
-    <div className="space-y-6">
+    <>
+      {/* Phone: Material 3 */}
+      <div className="space-y-3 sm:hidden">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="col-span-2 rounded-[28px] bg-[var(--m3-primary-container)] p-5 text-[var(--m3-on-primary-container)]">
+            <div className="flex items-center gap-1.5 text-xs font-medium opacity-80">
+              <TrendingUp size={14} /> Profit net estimé
+            </div>
+            <div className="mt-1 break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(totalProfit)}</div>
+          </div>
+          <div className="min-w-0 rounded-[20px] bg-[var(--m3-surface-container)] p-4">
+            <div className="text-xs text-[var(--m3-on-surface-variant)]">Revenu total</div>
+            <div className="mt-1 truncate text-lg font-medium tabular-nums">{fmtHTG(totalRevenue)}</div>
+          </div>
+          <div className="min-w-0 rounded-[20px] bg-[var(--m3-surface-container)] p-4">
+            <div className="text-xs text-[var(--m3-on-surface-variant)]">Nombre de ventes</div>
+            <div className="mt-1 truncate text-lg font-medium tabular-nums">{ventes.length}</div>
+          </div>
+        </div>
+
+        <section className="rounded-[28px] bg-[var(--m3-surface-container-low)] p-4">
+          <h3 className="text-base font-medium">Revenus — 7 derniers jours</h3>
+          <div className="mt-4 flex h-40 items-stretch gap-2">
+            {revenueByDay.map((d, i) => (
+              <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                <div className="flex w-full flex-1 items-end">
+                  <div
+                    className={'w-full rounded-t-[10px] rounded-b-[4px] ' + (d.total > 0 && d.total === maxDayRevenue ? 'bg-[var(--m3-primary)]' : 'bg-[var(--m3-outline-variant)]')}
+                    style={{ height: `${Math.max((d.total / maxDayRevenue) * 100, d.total > 0 ? 4 : 2)}%` }}
+                  />
+                </div>
+                <div className="text-[11px] capitalize text-[var(--m3-on-surface-variant)]">{d.label}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[28px] bg-[var(--m3-surface-container-low)] p-4">
+          <h3 className="text-base font-medium">Performance — {branch.nom.split(' ').pop()}</h3>
+          {[
+            { title: 'Meilleures ventes', tone: 'text-[var(--m3-primary)]', list: topSellers },
+            { title: 'Ventes faibles', tone: 'text-[#BA1A1A]', list: slowestMovers },
+          ].map((g) => (
+            <div key={g.title} className="mt-4">
+              <div className={'mb-1 text-xs font-medium ' + g.tone}>{g.title}</div>
+              <div className="divide-y divide-[var(--m3-outline-variant)]">
+                {g.list.map((p) => (
+                  <div key={p.nom} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                    <span className="min-w-0 truncate">{p.nom}</span>
+                    <span className="shrink-0 rounded-full bg-[var(--m3-surface-container-high)] px-2.5 py-0.5 text-xs font-medium tabular-nums">{p.qte} u.</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
+      </div>
+
+    <div className="hidden space-y-6 sm:block">
       <div className="grid gap-4 md:grid-cols-3">
         <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
           <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Revenu Total</div>
@@ -5879,6 +5937,7 @@ function BranchAnalyticsSection({
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -5971,7 +6030,7 @@ function CashEntryForm({
   );
 }
 
-function DailyReport({
+function DailyReportDesktop({
   ventes,
   entries,
   selectedDate,
@@ -6198,7 +6257,7 @@ function DailyReport({
   );
 }
 
-function PeriodReport({
+function PeriodReportDesktop({
   mode,
   ventes,
   entries,
@@ -6322,6 +6381,485 @@ function PeriodReport({
   );
 }
 
+/* ---------- Phone (Material 3) versions of the Rapports tab ----------
+   Desktop keeps the brutalist tables/cards below (DailyReportDesktop / PeriodReportDesktop);
+   below the `sm` breakpoint these lighter, thumb-friendly layouts are shown instead. */
+
+/* Bottom sheet to record a cash movement (replaces the inline form on the phone). */
+function CashEntrySheet({
+  date,
+  onAdd,
+  onClose,
+}: {
+  date: Date;
+  onAdd: (entry: Omit<CashEntry, 'id' | 'branchId'>) => void;
+  onClose: () => void;
+}) {
+  const [type, setType] = useState<CashEntryType>('consommation');
+  const [montant, setMontant] = useState('');
+  const [note, setNote] = useState('');
+  const value = Number(montant);
+  const valid = Number.isFinite(value) && value > 0;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const submit = () => {
+    if (!valid) return;
+    const when = new Date(date);
+    const now = new Date();
+    when.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0);
+    onAdd({ date: when, type, montant: value, note: note.trim() || undefined });
+    onClose();
+  };
+
+  const field =
+    'block min-w-0 rounded-xl bg-[var(--m3-surface)] px-4 pb-1.5 pt-2 ring-1 ring-[var(--m3-outline)] transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none';
+  const input = 'h-8 w-full min-w-0 bg-transparent p-0 text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]';
+
+  return createPortal(
+    <>
+      <div aria-hidden="true" onClick={onClose} className="m3-scrim fixed inset-0 z-[80] bg-black/40 sm:hidden" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Nouveau mouvement de caisse"
+        style={M3_VARS}
+        className="m3-sheet fixed inset-x-0 bottom-0 z-[81] max-h-[90vh] w-full overflow-y-auto rounded-t-[28px] bg-[var(--m3-surface-container-low)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 text-[var(--m3-on-surface)] shadow-[0_-8px_24px_rgba(0,0,0,0.16)] sm:hidden"
+      >
+        <div className="mx-auto mb-3 mt-1 h-1 w-8 rounded-full bg-[var(--m3-outline-variant)]" />
+        <div className="px-2 pb-3">
+          <div className="text-xs font-medium text-[var(--m3-on-surface-variant)]">Caisse</div>
+          <div className="mt-1 text-[24px] font-normal leading-8">Nouveau mouvement</div>
+        </div>
+
+        <div role="group" aria-label="Type de mouvement" className="grid grid-cols-2 gap-2">
+          {(Object.keys(CASH_ENTRY_META) as CashEntryType[]).map((t) => {
+            const selected = type === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                aria-pressed={selected}
+                className={
+                  'flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-full px-3 text-[13px] font-medium m3-press motion-reduce:transition-none ' +
+                  M3_FOCUS +
+                  ' ' +
+                  (selected
+                    ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                    : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]')
+                }
+              >
+                {selected && <Check size={16} className="shrink-0" />}
+                <span className="truncate">
+                  {CASH_ENTRY_META[t].sign === -1 ? '− ' : '+ '}
+                  {CASH_ENTRY_META[t].label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 space-y-2">
+          <label className={field}>
+            <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">Montant (HTG)</span>
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={montant}
+              onChange={(e) => setMontant(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              placeholder="0"
+              className={input + ' tabular-nums'}
+            />
+          </label>
+          <label className={field}>
+            <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">Note (optionnel)</span>
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              className={input}
+            />
+          </label>
+        </div>
+
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className={`h-12 shrink-0 rounded-full px-6 text-sm font-medium text-[var(--m3-primary)] active:bg-[var(--m3-surface-container-highest)] ${M3_FOCUS}`}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!valid}
+            className={
+              `group relative flex h-12 flex-1 items-center justify-center gap-2 overflow-hidden rounded-full text-sm font-medium m3-press motion-reduce:transition-none ${M3_FOCUS} ` +
+              (valid
+                ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
+                : 'cursor-not-allowed bg-[var(--m3-surface-container-highest)] text-[var(--m3-outline)]')
+            }
+          >
+            {valid && <M3StateLayer />}
+            <Plus size={18} /> Ajouter
+          </button>
+        </div>
+      </div>
+    </>,
+    document.body
+  );
+}
+
+function DailyReportMobile({
+  ventes,
+  entries,
+  selectedDate,
+  onAddEntry,
+  onDeleteEntry,
+}: {
+  ventes: SaleRecord[];
+  entries: CashEntry[];
+  selectedDate: Date;
+  onAddEntry: (entry: Omit<CashEntry, 'id' | 'branchId'>) => void;
+  onDeleteEntry: (id: string) => void;
+}) {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const inDay = (d: Date) => isSameDay(d, selectedDate);
+  const sum = useMemo(() => summarizeCash(ventes, entries, inDay), [ventes, entries, selectedDate]); // eslint-disable-line
+  const dayEntries = entries.filter((e) => inDay(e.date)).sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  const totalDeductions = sum.credits + sum.consommations + sum.achats;
+  const totalAdditions = sum.renflouements + sum.remboursements;
+
+  const byMode = PAYMENT_METHODS.map((m) => {
+    const list = ventes.filter((v) => v.statut !== 'annulee' && inDay(v.date) && v.paiement === m.id);
+    return { ...m, total: list.reduce((acc, v) => acc + v.total, 0), count: list.length };
+  });
+  const maxMode = Math.max(...byMode.map((m) => m.total), 1);
+
+  const line = (label: string, value: number, sign: '-' | '+', hint?: string) => (
+    <div key={label} className="flex items-center justify-between gap-3 py-3">
+      <div className="min-w-0">
+        <div className="text-sm">{label}</div>
+        {hint && <div className="text-xs leading-4 text-[var(--m3-on-surface-variant)]">{hint}</div>}
+      </div>
+      <div className={'shrink-0 text-sm font-medium tabular-nums ' + (sign === '-' ? 'text-[#BA1A1A]' : 'text-[var(--m3-primary)]')}>
+        {sign === '-' ? '−' : '+'} {fmtHTG(value)}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      {/* Hero: cash en main */}
+      <section className="rounded-[28px] bg-[var(--m3-primary-container)] p-5 text-[var(--m3-on-primary-container)]">
+        <div className="text-xs font-medium opacity-80">Cash en main</div>
+        <div className="mt-1 break-words text-[32px] font-bold leading-10 tracking-tight tabular-nums">{fmtHTG(sum.cashEnMain)}</div>
+        <div className="mt-1 text-xs opacity-80">
+          {sum.nbVentes} vente{sum.nbVentes !== 1 ? 's' : ''} validée{sum.nbVentes !== 1 ? 's' : ''}
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="min-w-0 rounded-[20px] bg-white/45 p-3">
+            <div className="text-xs opacity-80">Cash net</div>
+            <div className="truncate text-base font-medium tabular-nums">{fmtHTG(sum.cashNet)}</div>
+          </div>
+          <div className="min-w-0 rounded-[20px] bg-white/45 p-3">
+            <div className="truncate text-xs opacity-80">− Paiements mobiles</div>
+            <div className="truncate text-base font-medium tabular-nums">{fmtHTG(sum.mobile)}</div>
+          </div>
+        </div>
+      </section>
+
+      {/* KPI tiles */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="col-span-2 flex items-center justify-between gap-3 rounded-[20px] bg-[var(--m3-surface-container)] p-4">
+          <span className="text-sm text-[var(--m3-on-surface-variant)]">Total brut</span>
+          <span className="text-lg font-medium tabular-nums">{fmtHTG(sum.brut)}</span>
+        </div>
+        <div className={`min-w-0 rounded-[20px] p-4 ${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`}>
+          <div className="flex items-center gap-1.5 text-xs opacity-80">
+            <ArrowUpRight size={14} /> Déductions
+          </div>
+          <div className="mt-1 truncate text-lg font-medium tabular-nums">− {fmtHTG(totalDeductions)}</div>
+        </div>
+        <div className="min-w-0 rounded-[20px] bg-[var(--m3-secondary-container)] p-4 text-[var(--m3-on-secondary-container)]">
+          <div className="flex items-center gap-1.5 text-xs opacity-80">
+            <ArrowDownLeft size={14} /> Additions
+          </div>
+          <div className="mt-1 truncate text-lg font-medium tabular-nums">+ {fmtHTG(totalAdditions)}</div>
+        </div>
+      </div>
+
+      {/* Ledger */}
+      <section className="rounded-[28px] bg-[var(--m3-surface-container-low)] p-4">
+        <h3 className="text-base font-medium">Détail de la caisse</h3>
+
+        <div className="mt-3 text-xs font-medium text-[#BA1A1A]">Déductions</div>
+        <div className="divide-y divide-[var(--m3-outline-variant)]">
+          {line('Crédits', sum.credits, '-', 'Ventes à crédit non encaissées')}
+          {line('Consommations internes', sum.consommations, '-')}
+          {line('Achats', sum.achats, '-')}
+        </div>
+        <div className="flex items-center justify-between border-t border-[var(--m3-outline)] pt-3 text-sm font-medium">
+          <span>Total déductions</span>
+          <span className="tabular-nums text-[#BA1A1A]">− {fmtHTG(totalDeductions)}</span>
+        </div>
+
+        <div className="mt-5 text-xs font-medium text-[var(--m3-primary)]">Additions</div>
+        <div className="divide-y divide-[var(--m3-outline-variant)]">
+          {line('Renflouement', sum.renflouements, '+')}
+          {line('Remboursement', sum.remboursements, '+', 'Crédits reçus + saisies manuelles')}
+        </div>
+        <div className="flex items-center justify-between border-t border-[var(--m3-outline)] pt-3 text-sm font-medium">
+          <span>Total additions</span>
+          <span className="tabular-nums text-[var(--m3-primary)]">+ {fmtHTG(totalAdditions)}</span>
+        </div>
+      </section>
+
+      {/* Payment modes */}
+      <section className="rounded-[28px] bg-[var(--m3-surface-container-low)] p-4">
+        <h3 className="text-base font-medium">Ventes par mode de paiement</h3>
+        <div className="mt-3 space-y-4">
+          {byMode.map((m) => {
+            const Icon = m.icon;
+            const bar = m.id === 'credit' ? 'bg-[var(--m3-tertiary)]' : m.id === 'especes' ? 'bg-[var(--m3-primary)]' : 'bg-[var(--m3-outline)]';
+            return (
+              <div key={m.id}>
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+                    <Icon size={18} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{m.label}</div>
+                    <div className="text-xs text-[var(--m3-on-surface-variant)]">
+                      {m.count} vente{m.count !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-sm font-medium tabular-nums">{fmtHTG(m.total)}</div>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--m3-surface-container-highest)]">
+                  <div className={'h-full rounded-full ' + bar} style={{ width: `${(m.total / maxMode) * 100}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Movements */}
+      <section>
+        <div className="flex items-center justify-between px-1 pb-2 pt-1">
+          <h3 className="text-base font-medium">Mouvements du jour</h3>
+          <span className="rounded-full bg-[var(--m3-surface-container-high)] px-2.5 py-0.5 text-xs font-medium tabular-nums">{dayEntries.length}</span>
+        </div>
+        {dayEntries.length === 0 ? (
+          <div className="rounded-[28px] bg-[var(--m3-surface-container-low)] px-4 py-8 text-center text-sm text-[var(--m3-on-surface-variant)]">
+            Aucun mouvement pour cette date.
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {dayEntries.map((e) => {
+              const meta = CASH_ENTRY_META[e.type];
+              const out = meta.sign === -1;
+              return (
+                <li key={e.id} className="flex items-center gap-3 rounded-[20px] bg-[var(--m3-surface-container)] py-2 pl-3 pr-1">
+                  <span
+                    className={
+                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-full ' +
+                      (out ? `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}` : 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]')
+                    }
+                  >
+                    {out ? <ArrowUpRight size={18} /> : <ArrowDownLeft size={18} />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{meta.label}</div>
+                    <div className="truncate text-xs text-[var(--m3-on-surface-variant)]">
+                      {fmtTime12(e.date)}
+                      {e.note ? ` · ${e.note}` : ''}
+                    </div>
+                  </div>
+                  <div className={'shrink-0 text-sm font-medium tabular-nums ' + (out ? 'text-[#BA1A1A]' : 'text-[var(--m3-primary)]')}>
+                    {out ? '−' : '+'} {fmtHTG(e.montant)}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteEntry(e.id)}
+                    aria-label="Supprimer"
+                    className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+                  >
+                    <M3StateLayer />
+                    <Trash2 size={20} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {/* FAB */}
+      <button
+        type="button"
+        onClick={() => setSheetOpen(true)}
+        className={`group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
+      >
+        <M3StateLayer />
+        <Plus className="h-6 w-6" />
+        Mouvement
+      </button>
+      {sheetOpen && <CashEntrySheet date={selectedDate} onAdd={onAddEntry} onClose={() => setSheetOpen(false)} />}
+    </div>
+  );
+}
+
+function PeriodReportMobile({
+  mode,
+  ventes,
+  entries,
+  selectedDate,
+}: {
+  mode: 'monthly' | 'annual';
+  ventes: SaleRecord[];
+  entries: CashEntry[];
+  selectedDate: Date;
+}) {
+  const year = selectedDate.getFullYear();
+  const month = selectedDate.getMonth();
+  const [openRow, setOpenRow] = useState<string | null>(null);
+
+  const rows = useMemo(() => {
+    if (mode === 'monthly') {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      return Array.from({ length: daysInMonth }, (_, i) => {
+        const day = i + 1;
+        const inPeriod = (d: Date) => d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+        return { label: String(day).padStart(2, '0') + ' ' + MONTHS_FR[month].slice(0, 3), sum: summarizeCash(ventes, entries, inPeriod) };
+      });
+    }
+    return MONTHS_FR.map((name, m) => {
+      const inPeriod = (d: Date) => d.getFullYear() === year && d.getMonth() === m;
+      return { label: name, sum: summarizeCash(ventes, entries, inPeriod) };
+    });
+  }, [mode, ventes, entries, year, month]);
+
+  const total = useMemo(() => {
+    const inPeriod =
+      mode === 'monthly'
+        ? (d: Date) => d.getFullYear() === year && d.getMonth() === month
+        : (d: Date) => d.getFullYear() === year;
+    return summarizeCash(ventes, entries, inPeriod);
+  }, [mode, ventes, entries, year, month]);
+
+  const title = mode === 'monthly' ? `${MONTHS_FR[month]} ${year}` : String(year);
+  const visibleRows = rows.filter((r) => r.sum.nbVentes > 0 || r.sum.achats + r.sum.consommations + r.sum.renflouements + r.sum.remboursements > 0);
+
+  const err = 'text-[#BA1A1A]';
+  const pos = 'text-[var(--m3-primary)]';
+  const cols: Array<{ key: string; label: string; get: (s: CashSummary) => number; tone?: string }> = [
+    { key: 'brut', label: 'Total brut', get: (s) => s.brut },
+    { key: 'credits', label: 'Crédits', get: (s) => s.credits, tone: err },
+    { key: 'conso', label: 'Conso. internes', get: (s) => s.consommations, tone: err },
+    { key: 'achats', label: 'Achats', get: (s) => s.achats, tone: err },
+    { key: 'renf', label: 'Renflouement', get: (s) => s.renflouements, tone: pos },
+    { key: 'remb', label: 'Remboursement', get: (s) => s.remboursements, tone: pos },
+    { key: 'net', label: 'Cash net', get: (s) => s.cashNet },
+    { key: 'main', label: 'Cash en main', get: (s) => s.cashEnMain, tone: 'font-medium ' + pos },
+  ];
+
+  const detail = (s: CashSummary, showZero: boolean) => (
+    <div className="divide-y divide-[var(--m3-outline-variant)]">
+      {cols.map((c) => {
+        const v = c.get(s);
+        return (
+          <div key={c.key} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+            <span className="text-[var(--m3-on-surface-variant)]">{c.label}</span>
+            <span className={'tabular-nums ' + (c.tone ?? '')}>{v === 0 && !showZero ? '—' : fmtHTG(v)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      <section className="rounded-[28px] bg-[var(--m3-primary-container)] p-5 text-[var(--m3-on-primary-container)]">
+        <div className="text-xs font-medium opacity-80">Cash en main — {title}</div>
+        <div className="mt-1 break-words text-[32px] font-bold leading-10 tracking-tight tabular-nums">{fmtHTG(total.cashEnMain)}</div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="min-w-0 rounded-[20px] bg-white/45 p-3">
+            <div className="text-xs opacity-80">Total brut</div>
+            <div className="truncate text-base font-medium tabular-nums">{fmtHTG(total.brut)}</div>
+          </div>
+          <div className="min-w-0 rounded-[20px] bg-white/45 p-3">
+            <div className="text-xs opacity-80">Cash net</div>
+            <div className="truncate text-base font-medium tabular-nums">{fmtHTG(total.cashNet)}</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="px-1 pb-2 pt-1">
+          <h3 className="text-base font-medium">{mode === 'monthly' ? 'Par jour' : 'Par mois'}</h3>
+          <p className="text-xs text-[var(--m3-on-surface-variant)]">
+            {mode === 'monthly' ? 'Change le mois avec le sélecteur de date en haut.' : "Change l'année avec le sélecteur de date en haut."}
+          </p>
+        </div>
+        {visibleRows.length === 0 ? (
+          <div className="rounded-[28px] bg-[var(--m3-surface-container-low)] px-4 py-8 text-center text-sm text-[var(--m3-on-surface-variant)]">
+            Aucune activité sur cette période.
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {visibleRows.map((r) => {
+              const open = openRow === r.label;
+              return (
+                <li key={r.label} className="overflow-hidden rounded-[20px] bg-[var(--m3-surface-container)]">
+                  <button
+                    type="button"
+                    onClick={() => setOpenRow(open ? null : r.label)}
+                    aria-expanded={open}
+                    className={`group relative flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left ${M3_FOCUS}`}
+                  >
+                    <M3StateLayer />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{r.label}</div>
+                      <div className="text-xs text-[var(--m3-on-surface-variant)]">
+                        {r.sum.nbVentes} vente{r.sum.nbVentes !== 1 ? 's' : ''} · brut {fmtHTG(r.sum.brut)}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-[11px] text-[var(--m3-on-surface-variant)]">En main</div>
+                      <div className="text-sm font-medium tabular-nums text-[var(--m3-primary)]">{fmtHTG(r.sum.cashEnMain)}</div>
+                    </div>
+                    <ChevronDown size={18} className={'shrink-0 text-[var(--m3-on-surface-variant)] transition-transform motion-reduce:transition-none ' + (open ? 'rotate-180' : '')} />
+                  </button>
+                  {open && <div className="border-t border-[var(--m3-outline-variant)] px-4 pb-2">{detail(r.sum, false)}</div>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="rounded-[28px] bg-[var(--m3-surface-container-low)] p-4">
+        <h3 className="text-base font-medium">Total {title}</h3>
+        {detail(total, true)}
+      </section>
+    </div>
+  );
+}
+
 function BranchReportsSection({
   branch,
   period,
@@ -6344,45 +6882,109 @@ function BranchReportsSection({
   onDeleteEntry: (id: string) => void;
 }) {
   const validSales = useMemo(() => ventes.filter((v) => v.statut !== 'annulee'), [ventes]);
+  const PERIOD_SHORT: Record<ReportPeriod, string> = { daily: 'Journalier', monthly: 'Mensuel', annual: 'Annuel' };
+  const subtitle =
+    period === 'daily'
+      ? selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : period === 'monthly'
+      ? `${MONTHS_FR[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
+      : String(selectedDate.getFullYear());
+
   return (
-    <div className="space-y-5">
-      {/* Mobile-friendly tab switch (mirrors the drop-down in the side menu) */}
-      <div className="flex flex-wrap gap-1.5">
-        {REPORT_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setPeriod(tab.id)}
-            className={
-              'border-2 px-4 py-2 text-[11px] uppercase tracking-[0.16em] ' +
-              (period === tab.id
-                ? 'border-[#16181A] bg-[#16181A] text-white'
-                : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
-            }
-          >
-            {tab.label}
-          </button>
-        ))}
+    <>
+      {/* Phone: Material 3, full-screen like the Produits tab */}
+      <div
+        style={M3_VARS}
+        className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-28 pt-4 font-sans text-[var(--m3-on-surface)] sm:hidden"
+      >
+        <div className="mb-4">
+          <h2 className="text-[32px] font-bold leading-10 tracking-tight">Rapports</h2>
+          <p className="truncate text-sm capitalize leading-5 text-[var(--m3-on-surface-variant)]">{subtitle}</p>
+        </div>
+
+        {/* Segmented button */}
+        <div role="group" aria-label="Période du rapport" className="mb-4 flex h-10 overflow-hidden rounded-full border border-[var(--m3-outline)]">
+          {REPORT_TABS.map((tab, i) => {
+            const selected = period === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setPeriod(tab.id)}
+                aria-pressed={selected}
+                className={
+                  'flex min-w-0 flex-1 items-center justify-center gap-1.5 text-sm font-medium m3-morph motion-reduce:transition-none ' +
+                  M3_FOCUS +
+                  (i > 0 ? ' border-l border-[var(--m3-outline)]' : '') +
+                  (selected
+                    ? ' bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                    : ' text-[var(--m3-on-surface)] active:bg-[var(--m3-surface-container-highest)]')
+                }
+              >
+                {selected && <Check size={16} className="shrink-0" />}
+                <span className="truncate">{PERIOD_SHORT[tab.id]}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {period === 'daily' && (
+          <DailyReportMobile
+            ventes={ventes}
+            entries={entries}
+            selectedDate={selectedDate}
+            onAddEntry={onAddEntry}
+            onDeleteEntry={onDeleteEntry}
+          />
+        )}
+        {period === 'monthly' && (
+          <div className="space-y-3">
+            <PeriodReportMobile mode="monthly" ventes={ventes} entries={entries} selectedDate={selectedDate} />
+            <BranchAnalyticsSection branch={branch} ventes={validSales} products={products} />
+          </div>
+        )}
+        {period === 'annual' && <PeriodReportMobile mode="annual" ventes={ventes} entries={entries} selectedDate={selectedDate} />}
       </div>
 
-      {period === 'daily' && (
-        <DailyReport
-          ventes={ventes}
-          entries={entries}
-          selectedDate={selectedDate}
-          onAddEntry={onAddEntry}
-          onDeleteEntry={onDeleteEntry}
-        />
-      )}
-      {period === 'monthly' && (
-        <>
-          <PeriodReport mode="monthly" ventes={ventes} entries={entries} selectedDate={selectedDate} />
-          <BranchAnalyticsSection branch={branch} ventes={validSales} products={products} />
-        </>
-      )}
-      {period === 'annual' && (
-        <PeriodReport mode="annual" ventes={ventes} entries={entries} selectedDate={selectedDate} />
-      )}
-    </div>
+      {/* Desktop: unchanged brutalist layout */}
+      <div className="hidden space-y-5 sm:block">
+        <div className="flex flex-wrap gap-1.5">
+          {REPORT_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setPeriod(tab.id)}
+              className={
+                'border-2 px-4 py-2 text-[11px] uppercase tracking-[0.16em] ' +
+                (period === tab.id
+                  ? 'border-[#16181A] bg-[#16181A] text-white'
+                  : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
+              }
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {period === 'daily' && (
+          <DailyReportDesktop
+            ventes={ventes}
+            entries={entries}
+            selectedDate={selectedDate}
+            onAddEntry={onAddEntry}
+            onDeleteEntry={onDeleteEntry}
+          />
+        )}
+        {period === 'monthly' && (
+          <>
+            <PeriodReportDesktop mode="monthly" ventes={ventes} entries={entries} selectedDate={selectedDate} />
+            <BranchAnalyticsSection branch={branch} ventes={validSales} products={products} />
+          </>
+        )}
+        {period === 'annual' && (
+          <PeriodReportDesktop mode="annual" ventes={ventes} entries={entries} selectedDate={selectedDate} />
+        )}
+      </div>
+    </>
   );
 }
 
