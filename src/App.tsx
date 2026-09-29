@@ -6992,16 +6992,34 @@ function BranchReportsSection({
    COFFRE — every entry / exit of money, per account (Espèces, MonCash, NatCash)
    ========================================================================= */
 
+/* True below the `sm` breakpoint (phone). Used where mounting both layouts would be wasteful (iframes, images). */
+function useIsPhone() {
+  const query = '(max-width: 639px)';
+  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setPhone(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return phone;
+}
+
 function CoffreForm({
   balances,
   date,
   cashEnMainDuJour,
   onAdd,
+  sheet = false,
+  onClose,
 }: {
   balances: Record<CoffreAccountId, number>;
   date: Date;
   cashEnMainDuJour: number;
   onAdd: (entry: Omit<CoffreEntry, 'id' | 'branchId'>) => void;
+  /** Phone: render as a Material 3 bottom sheet (portal) instead of the brutalist card. */
+  sheet?: boolean;
+  onClose?: () => void;
 }) {
   const [kind, setKind] = useState<CoffreKind>('entree');
   const [categorie, setCategorie] = useState<string>(COFFRE_CATEGORIES.entree[0]);
@@ -7012,6 +7030,13 @@ function CoffreForm({
   const [piece, setPiece] = useState<CoffrePiece | null>(null);
   const [pieceError, setPieceError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!sheet || !onClose) return;
+    const onKey = (ev: KeyboardEvent) => ev.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [sheet, onClose]);
 
   const value = Number(montant);
   const amountOk = Number.isFinite(value) && value > 0 && (kind !== 'transfert' || compte !== compteDest);
@@ -7060,6 +7085,7 @@ function CoffreForm({
     setNote('');
     setPiece(null);
     setPieceError('');
+    if (sheet) onClose?.();
   };
 
   const fillDailyDeposit = () => {
@@ -7087,6 +7113,224 @@ function CoffreForm({
       ))}
     </div>
   );
+
+  if (sheet) {
+    const m3Field =
+      'block min-w-0 rounded-xl bg-[var(--m3-surface)] px-4 pb-1.5 pt-2 ring-1 ring-[var(--m3-outline)] transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none';
+    const m3Input = 'h-8 w-full min-w-0 bg-transparent p-0 text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]';
+    const m3Label = 'block text-xs leading-4 text-[var(--m3-on-surface-variant)]';
+    const kindTone: Record<CoffreKind, string> = {
+      entree: 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]',
+      sortie: `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`,
+      transfert: 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]',
+    };
+    const accountChips = (current: CoffreAccountId, onPick: (id: CoffreAccountId) => void, exclude?: CoffreAccountId) => (
+      <div className="flex flex-wrap gap-2">
+        {COFFRE_ACCOUNTS.filter((a) => a.id !== exclude).map((a) => {
+          const selected = current === a.id;
+          return (
+            <button
+              key={a.id}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onPick(a.id)}
+              className={`relative flex h-10 items-center gap-2 overflow-hidden px-4 text-sm font-medium m3-morph ${M3_FOCUS} ${
+                selected ? 'rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]' : 'rounded-xl border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+              }`}
+            >
+              {selected && <Check size={16} />}
+              {a.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+
+    return createPortal(
+      <>
+        <div aria-hidden="true" onClick={onClose} className="m3-scrim fixed inset-0 z-[80] bg-black/40" />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Nouveau mouvement"
+          style={M3_VARS}
+          className="m3-sheet fixed inset-x-0 bottom-0 z-[81] flex max-h-[92dvh] w-full flex-col rounded-t-[28px] bg-[var(--m3-surface-container-low)] pt-2 text-[var(--m3-on-surface)] shadow-[0_-8px_24px_rgba(0,0,0,0.16)]"
+        >
+          <div className="mx-auto mb-3 mt-1 h-1 w-8 shrink-0 rounded-full bg-[var(--m3-outline-variant)]" />
+          <div className="shrink-0 px-6 pb-3">
+            <div className="text-xs font-medium text-[var(--m3-on-surface-variant)]">Coffre</div>
+            <div className="mt-1 text-[24px] font-normal leading-8">Nouveau mouvement</div>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3">
+            {/* Type: segmented button */}
+            <div role="group" aria-label="Type de mouvement" className="flex h-10 overflow-hidden rounded-full border border-[var(--m3-outline)]">
+              {(Object.keys(COFFRE_KIND_META) as CoffreKind[]).map((k, i) => {
+                const Icon = COFFRE_KIND_META[k].icon;
+                const selected = kind === k;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => pickKind(k)}
+                    className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 text-sm font-medium m3-morph motion-reduce:transition-none ${M3_FOCUS} ${
+                      i > 0 ? 'border-l border-[var(--m3-outline)]' : ''
+                    } ${selected ? kindTone[k] : 'text-[var(--m3-on-surface)] active:bg-[var(--m3-surface-container-highest)]'}`}
+                  >
+                    {selected ? <Check size={16} className="shrink-0" /> : <Icon size={16} className="shrink-0" />}
+                    <span className="truncate">{COFFRE_KIND_META[k].label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {kind === 'entree' && cashEnMainDuJour > 0 && (
+              <button
+                type="button"
+                onClick={fillDailyDeposit}
+                className={`group relative flex min-h-12 w-full items-center gap-3 overflow-hidden rounded-2xl bg-[var(--m3-tertiary-container)] px-4 py-2 text-left text-sm text-[var(--m3-on-tertiary-container)] m3-press-card motion-reduce:transition-none ${M3_FOCUS}`}
+              >
+                <M3StateLayer />
+                <Banknote size={18} className="shrink-0" />
+                <span className="min-w-0">
+                  Verser le cash en main du jour
+                  <span className="block font-medium tabular-nums">{fmtHTG(cashEnMainDuJour)}</span>
+                </span>
+              </button>
+            )}
+
+            {kind !== 'transfert' && (
+              <label className={m3Field}>
+                <span className={m3Label}>Catégorie</span>
+                <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className={m3Input}>
+                  {COFFRE_CATEGORIES[kind].map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            <div>
+              <div className="mb-2 px-1 text-xs font-medium text-[var(--m3-on-surface-variant)]">{kind === 'transfert' ? 'De' : 'Compte'}</div>
+              {accountChips(compte, pickSource)}
+            </div>
+            {kind === 'transfert' && (
+              <div>
+                <div className="mb-2 px-1 text-xs font-medium text-[var(--m3-on-surface-variant)]">Vers</div>
+                {accountChips(compteDest, setCompteDest, compte)}
+              </div>
+            )}
+
+            <div>
+              <label className={m3Field}>
+                <span className={m3Label}>Montant (HTG)</span>
+                <input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={montant}
+                  onChange={(e) => setMontant(e.target.value)}
+                  placeholder="0"
+                  className={m3Input + ' tabular-nums'}
+                />
+              </label>
+              {insufficient && (
+                <div className={`mt-2 rounded-2xl px-4 py-2.5 text-sm ${M3_STATUS.low.bg} ${M3_STATUS.low.fg}`}>
+                  Solde {coffreAccountLabel(compte)} insuffisant : {fmtHTG(balances[compte])} disponible
+                </div>
+              )}
+            </div>
+
+            <label className={m3Field}>
+              <span className={m3Label}>Note (optionnel)</span>
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Ex : facture fournisseur, transport…"
+                className={m3Input}
+              />
+            </label>
+
+            <div>
+              <div className="mb-2 px-1 text-xs font-medium text-[var(--m3-on-surface-variant)]">
+                Pièce justificative <span className="text-[#BA1A1A]">(obligatoire)</span>
+              </div>
+              <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={onPickFile} />
+              {piece ? (
+                <div className="flex items-center gap-3 rounded-[20px] bg-[var(--m3-primary-container)] p-2 pr-1 text-[var(--m3-on-primary-container)]">
+                  {piece.type.startsWith('image/') ? (
+                    <img src={piece.dataUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl bg-white object-cover" />
+                  ) : (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/60">
+                      <FileText size={22} />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{piece.nom}</div>
+                    <div className="font-mono text-xs opacity-80">{piece.ref}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPiece(null)}
+                    aria-label="Retirer la pièce"
+                    className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full ${M3_FOCUS}`}
+                  >
+                    <M3StateLayer />
+                    <X size={20} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className={`group relative flex h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl border border-dashed border-[var(--m3-outline)] text-sm font-medium text-[var(--m3-primary)] m3-press-card motion-reduce:transition-none ${M3_FOCUS}`}
+                >
+                  <M3StateLayer />
+                  <Paperclip size={18} /> Joindre facture, reçu ou bordereau
+                </button>
+              )}
+              {pieceError && <div className={`mt-2 rounded-2xl px-4 py-2.5 text-sm ${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`}>{pieceError}</div>}
+              {amountOk && !piece && !pieceError && (
+                <div className={`mt-2 rounded-2xl px-4 py-2.5 text-sm ${M3_STATUS.low.bg} ${M3_STATUS.low.fg}`}>
+                  Ajoute la pièce justificative pour enregistrer
+                </div>
+              )}
+            </div>
+
+            <div className="px-1 text-xs text-[var(--m3-on-surface-variant)]">
+              Date : {date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2 border-t border-[var(--m3-outline-variant)] bg-[var(--m3-surface-container-low)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className={`h-12 shrink-0 rounded-full px-6 text-sm font-medium text-[var(--m3-primary)] active:bg-[var(--m3-surface-container-highest)] ${M3_FOCUS}`}
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!valid}
+              className={`group relative flex h-12 flex-1 items-center justify-center gap-2 overflow-hidden rounded-full text-sm font-medium m3-press motion-reduce:transition-none ${M3_FOCUS} ${
+                valid ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'cursor-not-allowed bg-[var(--m3-surface-container-highest)] text-[var(--m3-outline)]'
+              }`}
+            >
+              {valid && <M3StateLayer />}
+              <Plus size={18} /> Enregistrer
+            </button>
+          </div>
+        </div>
+      </>,
+      document.body
+    );
+  }
 
   const labelCls = 'mb-1.5 text-[10px] uppercase tracking-[0.16em] text-[#4B5560]';
   const fieldCls = 'w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]';
@@ -7264,6 +7508,7 @@ function PieceViewer({
   const isPdf = piece.type === 'application/pdf';
   const replaceRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
+  const phone = useIsPhone();
 
   const imgSrc = useMemo(() => (isPdf ? '' : coffrePieceUrl(entry)), [entry, isPdf]);
   const pdfUrl = useMemo(() => {
@@ -7307,6 +7552,103 @@ function PieceViewer({
       <div className={'mt-0.5 break-words text-[13px] ' + cls}>{value}</div>
     </div>
   );
+
+  if (phone) {
+    const heroTone =
+      entry.kind === 'entree'
+        ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]'
+        : entry.kind === 'sortie'
+          ? `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`
+          : 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]';
+    const rows: Array<[string, string]> = [
+      ['Catégorie', entry.categorie],
+      ['Compte', coffreAccountLabel(entry.compte) + (entry.compteDest ? ' → ' + coffreAccountLabel(entry.compteDest) : '')],
+      ['Date', entry.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) + ' · ' + fmtTime12(entry.date)],
+      ...(entry.note ? ([['Note', entry.note]] as Array<[string, string]>) : []),
+      ['Fichier', piece.nom],
+    ];
+    return createPortal(
+      <>
+        <div aria-hidden="true" onClick={onClose} className="m3-scrim fixed inset-0 z-[80] bg-black/40" />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pièce justificative"
+          style={M3_VARS}
+          className="m3-sheet fixed inset-x-0 bottom-0 z-[81] flex max-h-[92dvh] w-full flex-col rounded-t-[28px] bg-[var(--m3-surface-container-low)] pt-2 text-[var(--m3-on-surface)] shadow-[0_-8px_24px_rgba(0,0,0,0.16)]"
+        >
+          <div className="mx-auto mb-1 mt-1 h-1 w-8 shrink-0 rounded-full bg-[var(--m3-outline-variant)]" />
+          <div className="flex shrink-0 items-center gap-2 pb-1 pl-6 pr-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-[var(--m3-on-surface-variant)]">Pièce justificative</div>
+              <div className="truncate font-mono text-[20px] leading-7">{piece.ref}</div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fermer"
+              className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+            >
+              <M3StateLayer />
+              <X size={22} />
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3">
+            <div className="overflow-hidden rounded-[20px] bg-[var(--m3-surface-container)] p-2">
+              {isPdf ? (
+                pdfUrl ? (
+                  <iframe title={piece.nom} src={pdfUrl} className="h-[52vh] w-full rounded-xl bg-white" />
+                ) : (
+                  <div className="p-6 text-center text-sm text-[var(--m3-on-surface-variant)]">Aperçu PDF indisponible. Utilise Télécharger.</div>
+                )
+              ) : (
+                <img src={imgSrc} alt={piece.nom} className="mx-auto max-h-[52vh] max-w-full rounded-xl bg-white object-contain" />
+              )}
+            </div>
+
+            <div className={`rounded-[28px] p-5 ${heroTone}`}>
+              <div className="text-xs font-medium opacity-80">{COFFRE_KIND_META[entry.kind].label}</div>
+              <div className="mt-1 break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">
+                {sign} {fmtHTG(entry.montant)}
+              </div>
+            </div>
+
+            <div className="divide-y divide-[var(--m3-outline-variant)] rounded-[28px] bg-[var(--m3-surface-container)] px-4">
+              {rows.map(([k, v]) => (
+                <div key={k} className="py-3">
+                  <div className="text-xs text-[var(--m3-on-surface-variant)]">{k}</div>
+                  <div className="mt-0.5 break-words text-sm">{v}</div>
+                </div>
+              ))}
+            </div>
+
+            {error && <div className={`rounded-2xl px-4 py-2.5 text-sm ${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`}>{error}</div>}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2 border-t border-[var(--m3-outline-variant)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+            <input ref={replaceRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={onPick} />
+            <button
+              type="button"
+              onClick={() => replaceRef.current?.click()}
+              className={`flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-full border border-[var(--m3-outline)] text-sm font-medium text-[var(--m3-primary)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
+            >
+              <Paperclip size={18} /> <span className="truncate">Remplacer</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadPiece(entry)}
+              className={`group relative flex h-12 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-full bg-[var(--m3-primary)] text-sm font-medium text-[var(--m3-on-primary)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
+            >
+              <M3StateLayer />
+              <Download size={18} /> <span className="truncate">Télécharger</span>
+            </button>
+          </div>
+        </div>
+      </>,
+      document.body
+    );
+  }
 
   return createPortal(
     <div
@@ -7417,6 +7759,7 @@ function BranchCoffreSection({
   const [kindFilter, setKindFilter] = useState<'all' | CoffreKind>('all');
   const [accountFilter, setAccountFilter] = useState<'all' | CoffreAccountId>('all');
   const [query, setQuery] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
 
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
@@ -7532,14 +7875,63 @@ function BranchCoffreSection({
     );
   };
 
+  const num = (n: number) => fmtHTG(n).replace(' HTG', '');
+  const net = totalIn - totalOut;
+
+  const m3Chip = (selected: boolean, label: string, onClick: () => void) => (
+    <button
+      key={label}
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`group relative shrink-0 before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] ${M3_FOCUS}`}
+    >
+      <span
+        className={`relative flex h-9 items-center gap-2 overflow-hidden px-3.5 text-sm font-medium m3-morph ${selected ? 'rounded-full' : 'rounded-xl'} ${
+          selected
+            ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+            : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+        }`}
+      >
+        <M3StateLayer />
+        {selected && <Check size={16} />}
+        {label}
+      </span>
+    </button>
+  );
+
+  const m3Breakdown = (title: string, list: Array<{ label: string; total: number }>, tone: string, bar: string) => {
+    const max = Math.max(...list.map((l) => l.total), 1);
+    return (
+      <div>
+        <div className={'mb-2 text-xs font-medium ' + tone}>{title}</div>
+        {list.length === 0 ? (
+          <div className="text-sm text-[var(--m3-on-surface-variant)]">Aucun mouvement.</div>
+        ) : (
+          <div className="space-y-3">
+            {list.map((l) => (
+              <div key={l.label}>
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate">{l.label}</span>
+                  <span className="shrink-0 font-medium tabular-nums">{fmtHTG(l.total)}</span>
+                </div>
+                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--m3-surface-container-highest)]">
+                  <div className={'h-full rounded-full ' + bar} style={{ width: `${(l.total / max) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const iconBtn =
+    'group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ' + M3_FOCUS;
+
   return (
-    <div className="space-y-5">
+    <>
       <input ref={attachInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={onAttachFile} />
-      {attachError && (
-        <div className="border-2 border-[#C1440E] bg-[#FDECE4] px-3 py-2 text-[11px] uppercase tracking-[0.08em] text-[#C1440E]">
-          {attachError}
-        </div>
-      )}
       {viewingEntry && viewingEntry.piece && (
         <PieceViewer
           entry={viewingEntry}
@@ -7547,6 +7939,236 @@ function BranchCoffreSection({
           onReplace={(piece) => onSetPiece(viewingEntry.id, piece)}
         />
       )}
+
+      {/* Phone: Material 3, full-screen like the Produits and Rapports tabs */}
+      <div
+        style={M3_VARS}
+        className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-28 pt-4 font-sans text-[var(--m3-on-surface)] sm:hidden"
+      >
+        <div className="mb-4">
+          <h2 className="text-[32px] font-bold leading-10 tracking-tight">Coffre</h2>
+          <p className="truncate text-sm leading-5 text-[var(--m3-on-surface-variant)]">
+            {branch.nom} · {entries.length} mouvement{entries.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        {attachError && <div className={`mb-3 rounded-2xl px-4 py-3 text-sm ${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`}>{attachError}</div>}
+
+        <div className="space-y-3">
+          {/* Balance hero */}
+          <section
+            className={
+              'rounded-[28px] p-5 ' +
+              (totalBalance < 0 ? `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}` : 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]')
+            }
+          >
+            <div className="flex items-center gap-1.5 text-xs font-medium opacity-80">
+              <Vault size={14} /> Solde du coffre
+            </div>
+            <div className="mt-1 break-words text-[32px] font-bold leading-10 tracking-tight tabular-nums">{fmtHTG(totalBalance)}</div>
+          </section>
+
+          {/* Accounts */}
+          <section className="divide-y divide-[var(--m3-outline-variant)] rounded-[28px] bg-[var(--m3-surface-container-low)] px-4">
+            {COFFRE_ACCOUNTS.map((a) => {
+              const Icon = a.icon;
+              return (
+                <div key={a.id} className="flex items-center gap-3 py-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+                    <Icon size={18} />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{a.label}</span>
+                  <span className={'shrink-0 text-sm font-medium tabular-nums ' + (balances[a.id] < 0 ? 'text-[#BA1A1A]' : '')}>{fmtHTG(balances[a.id])}</span>
+                </div>
+              );
+            })}
+          </section>
+
+          {/* Period: segmented button */}
+          <div role="group" aria-label="Période" className="flex h-10 overflow-hidden rounded-full border border-[var(--m3-outline)]">
+            {COFFRE_PERIODS.map((p, i) => {
+              const selected = period === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setPeriod(p.id)}
+                  className={
+                    'flex min-w-0 flex-1 items-center justify-center gap-1 text-sm font-medium m3-morph motion-reduce:transition-none ' +
+                    M3_FOCUS +
+                    (i > 0 ? ' border-l border-[var(--m3-outline)]' : '') +
+                    (selected
+                      ? ' bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                      : ' text-[var(--m3-on-surface)] active:bg-[var(--m3-surface-container-highest)]')
+                  }
+                >
+                  {selected && <Check size={14} className="shrink-0" />}
+                  <span className="truncate">{p.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search */}
+          <div className="flex h-14 w-full min-w-0 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none">
+            <Search className="h-6 w-6 shrink-0 text-[var(--m3-on-surface-variant)]" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Catégorie, note ou réf. pièce…"
+              className="w-full min-w-0 border-none bg-transparent text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery('')} aria-label="Effacer la recherche" className={`${iconBtn} -mr-2`}>
+                <M3StateLayer />
+                <X size={20} />
+              </button>
+            )}
+          </div>
+
+          {/* Filter chips: type, then account */}
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filtrer par type">
+            {m3Chip(kindFilter === 'all', 'Tous', () => setKindFilter('all'))}
+            {(Object.keys(COFFRE_KIND_META) as CoffreKind[]).map((k) => m3Chip(kindFilter === k, COFFRE_KIND_META[k].plural, () => setKindFilter(k)))}
+          </div>
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filtrer par compte">
+            {m3Chip(accountFilter === 'all', 'Tous les comptes', () => setAccountFilter('all'))}
+            {COFFRE_ACCOUNTS.map((a) => m3Chip(accountFilter === a.id, a.label, () => setAccountFilter(a.id)))}
+          </div>
+
+          {/* Period totals */}
+          <section>
+            <div className="flex items-baseline justify-between px-1 pb-2 pt-1">
+              <h3 className="text-base font-medium">Journal · {periodLabel}</h3>
+              <span className="text-xs text-[var(--m3-on-surface-variant)]">HTG</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="min-w-0 rounded-[20px] bg-[var(--m3-secondary-container)] p-3 text-[var(--m3-on-secondary-container)]">
+                <div className="flex items-center gap-1 text-xs opacity-80">
+                  <ArrowDownLeft size={12} /> Entrées
+                </div>
+                <div className="mt-1 truncate text-sm font-medium tabular-nums">+ {num(totalIn)}</div>
+              </div>
+              <div className={`min-w-0 rounded-[20px] p-3 ${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`}>
+                <div className="flex items-center gap-1 text-xs opacity-80">
+                  <ArrowUpRight size={12} /> Sorties
+                </div>
+                <div className="mt-1 truncate text-sm font-medium tabular-nums">− {num(totalOut)}</div>
+              </div>
+              <div className="min-w-0 rounded-[20px] bg-[var(--m3-surface-container)] p-3">
+                <div className="text-xs text-[var(--m3-on-surface-variant)]">Net</div>
+                <div className={'mt-1 truncate text-sm font-medium tabular-nums ' + (net < 0 ? 'text-[#BA1A1A]' : '')}>{num(net)}</div>
+              </div>
+            </div>
+          </section>
+
+          {/* Ledger */}
+          {rows.length === 0 ? (
+            <div className="rounded-[28px] bg-[var(--m3-surface-container-low)] px-4 py-10 text-center text-sm text-[var(--m3-on-surface-variant)]">
+              Aucun mouvement sur cette période.
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {rows.map((e) => {
+                const Icon = COFFRE_KIND_META[e.kind].icon;
+                const tone = e.kind === 'entree' ? 'text-[var(--m3-primary)]' : e.kind === 'sortie' ? 'text-[#BA1A1A]' : '';
+                const sign = e.kind === 'entree' ? '+' : e.kind === 'sortie' ? '−' : '⇄';
+                const iconTone =
+                  e.kind === 'entree'
+                    ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]'
+                    : e.kind === 'sortie'
+                      ? `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`
+                      : 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]';
+                return (
+                  <li key={e.id} className="rounded-[20px] bg-[var(--m3-surface-container)] p-3">
+                    <div className="flex items-center gap-3">
+                      <span className={'flex h-10 w-10 shrink-0 items-center justify-center rounded-full ' + iconTone}>
+                        <Icon size={18} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">{e.categorie}</div>
+                        <div className="truncate text-xs text-[var(--m3-on-surface-variant)]">
+                          {e.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} · {fmtTime12(e.date)} · {coffreAccountLabel(e.compte)}
+                          {e.compteDest ? ` → ${coffreAccountLabel(e.compteDest)}` : ''}
+                        </div>
+                      </div>
+                      <div className={'shrink-0 text-sm font-medium tabular-nums ' + tone}>
+                        {sign} {fmtHTG(e.montant)}
+                      </div>
+                    </div>
+                    {e.note && <div className="mt-1.5 pl-[52px] text-xs text-[var(--m3-on-surface-variant)]">{e.note}</div>}
+                    <div className="mt-1 flex items-center justify-between gap-2 pl-[52px]">
+                      {e.piece ? (
+                        <button
+                          type="button"
+                          onClick={() => setViewingId(e.id)}
+                          className={`group relative flex h-8 min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-[var(--m3-outline)] px-3 text-xs font-medium ${M3_FOCUS}`}
+                        >
+                          <M3StateLayer />
+                          <Paperclip size={12} className="shrink-0" />
+                          <span className="truncate font-mono">{e.piece.ref}</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startAttach(e.id)}
+                          className={`flex h-8 min-w-0 items-center gap-1.5 rounded-lg px-3 text-xs font-medium ${M3_STATUS.low.bg} ${M3_STATUS.low.fg} ${M3_FOCUS}`}
+                        >
+                          <Paperclip size={12} className="shrink-0" />
+                          <span className="truncate">Joindre une pièce</span>
+                        </button>
+                      )}
+                      <div className="-mr-1 flex items-center">
+                        {e.piece && (
+                          <button type="button" onClick={() => downloadPiece(e)} aria-label="Télécharger la pièce" className={iconBtn}>
+                            <M3StateLayer />
+                            <Download size={20} />
+                          </button>
+                        )}
+                        <button type="button" onClick={() => onDelete(e.id)} aria-label="Supprimer" className={iconBtn}>
+                          <M3StateLayer />
+                          <Trash2 size={20} />
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {/* Breakdown */}
+          <section className="space-y-5 rounded-[28px] bg-[var(--m3-surface-container-low)] p-4">
+            <h3 className="text-base font-medium">Par catégorie · {periodLabel}</h3>
+            {m3Breakdown('Entrées', inBreakdown, 'text-[var(--m3-primary)]', 'bg-[var(--m3-primary)]')}
+            {m3Breakdown('Sorties', outBreakdown, 'text-[#BA1A1A]', 'bg-[#BA1A1A]')}
+          </section>
+        </div>
+
+        {/* FAB */}
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className={`group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
+        >
+          <M3StateLayer />
+          <Plus className="h-6 w-6" />
+          Mouvement
+        </button>
+        {formOpen && (
+          <CoffreForm sheet onClose={() => setFormOpen(false)} balances={balances} date={selectedDate} cashEnMainDuJour={cashEnMainDuJour} onAdd={onAdd} />
+        )}
+      </div>
+
+      {/* Desktop: unchanged brutalist layout */}
+      <div className="hidden space-y-5 sm:block">
+        {attachError && (
+          <div className="border-2 border-[#C1440E] bg-[#FDECE4] px-3 py-2 text-[11px] uppercase tracking-[0.08em] text-[#C1440E]">
+            {attachError}
+          </div>
+        )}
 
       {/* Title bar */}
       <div className="flex flex-wrap items-end justify-between gap-2 border-b-2 border-[#16181A] pb-3">
@@ -7758,7 +8380,8 @@ function BranchCoffreSection({
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
