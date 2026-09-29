@@ -1811,6 +1811,12 @@ function DatePicker({
     setOpen(false);
   };
 
+  /* Mobile (< md): Material 3 modal date picker — scrim, 28dp surface, headline,
+     circular day cells, text buttons. Desktop (≥ md): unchanged house-style popover. */
+  const m3Nav =
+    'flex h-10 w-10 items-center justify-center rounded-full text-[var(--m3-on-surface-variant)] transition-colors hover:bg-[var(--m3-surface-container-highest)] active:bg-[var(--m3-surface-container-highest)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ' +
+    M3_FOCUS;
+
   return (
     <div ref={containerRef} className={block ? 'relative min-w-0 flex-1 md:flex-none' : 'relative'}>
       <button
@@ -1820,110 +1826,195 @@ function DatePicker({
         aria-expanded={open}
         title={selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
         className={
-          'flex items-center gap-1.5 border-2 border-[#16181A] px-2 text-[11px] uppercase tracking-wide whitespace-nowrap transition-colors ' +
+          'flex items-center gap-2 whitespace-nowrap rounded-full border-0 px-4 text-sm font-medium text-[var(--m3-on-surface)] transition-colors ' +
+          'md:gap-1.5 md:rounded-none md:border-2 md:border-[#16181A] md:px-2 md:text-[11px] md:font-normal md:uppercase md:tracking-wide md:text-inherit ' +
           (block ? 'h-10 w-full justify-center md:h-8 md:w-auto md:justify-start ' : 'h-8 ') +
-          (open ? 'bg-[#E3DCCC]' : 'bg-[#ECE7DC] hover:bg-[#E3DCCC]')
+          (open
+            ? 'bg-[var(--m3-secondary-container)] md:bg-[#E3DCCC] '
+            : 'bg-[var(--m3-surface-container-high)] hover:bg-[var(--m3-surface-container-highest)] md:bg-[#ECE7DC] md:hover:bg-[#E3DCCC] ') +
+          M3_FOCUS
         }
       >
-        <CalendarDays size={13} />
-        {selectedDate.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
+        <CalendarDays size={16} className="text-[var(--m3-primary)] md:h-[13px] md:w-[13px] md:text-inherit" />
+        <span className="capitalize md:normal-case">
+          {selectedDate.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
+        </span>
       </button>
 
       {open && (
-        <div
-          role="dialog"
-          aria-label="Choisir une date"
-          className={
-            'absolute top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[6px_6px_0_#2F6B4F] ' +
-            (block ? 'left-1/2 -translate-x-1/2 md:left-auto md:right-0 md:translate-x-0' : 'right-0')
-          }
-        >
-          <div className="mb-2 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => setViewMonth(new Date(year, month - 1, 1))}
-              className="flex h-8 w-8 items-center justify-center border-2 border-[#16181A] bg-white text-sm hover:bg-[#ECE7DC]"
-              aria-label="Mois précédent"
-            >
-              ‹
-            </button>
-            <div className="font-serif text-base capitalize">
-              {viewMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+        <>
+          {/* M3 scrim (mobile only) */}
+          <div
+            aria-hidden="true"
+            onClick={() => setOpen(false)}
+            className="m3-scrim fixed inset-0 z-[80] bg-black/40 md:hidden"
+          />
+
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choisir une date"
+            style={M3_VARS}
+            className={
+              'm3-dialog fixed left-1/2 top-1/2 z-[81] w-[328px] max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-[28px] bg-[var(--m3-surface-container-high)] pb-2 pt-4 text-[var(--m3-on-surface)] shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14),0_6px_30px_5px_rgba(0,0,0,0.12)] ' +
+              'md:absolute md:left-auto md:right-0 md:top-full md:z-50 md:mt-2 md:w-72 md:translate-x-0 md:translate-y-0 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:text-inherit md:shadow-[6px_6px_0_#2F6B4F]'
+            }
+          >
+            {/* M3 header: supporting text + headline (mobile only) */}
+            <div className="px-6 pb-3 md:hidden">
+              <div className="text-xs font-medium text-[var(--m3-on-surface-variant)]">Sélectionner une date</div>
+              <div className="mt-2 text-[28px] font-normal capitalize leading-9">
+                {selectedDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setViewMonth(new Date(year, month + 1, 1))}
-              disabled={!canGoNextMonth}
-              className={
-                'flex h-8 w-8 items-center justify-center border-2 border-[#16181A] text-sm ' +
-                (canGoNextMonth ? 'bg-white hover:bg-[#ECE7DC]' : 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]')
-              }
-              aria-label="Mois suivant"
-            >
-              ›
-            </button>
-          </div>
+            <div className="mb-1 h-px bg-[var(--m3-outline-variant)] md:hidden" />
 
-          <div className="mb-1 grid grid-cols-7 text-center text-[10px] font-medium uppercase tracking-wide text-[#4B5560]">
-            {WEEKDAY_INITIALS_FR.map((label, index) => (
-              <div key={index} className="py-1">{label}</div>
-            ))}
-          </div>
+            <div className="px-3 md:px-0">
+              <div className="mb-2 flex items-center justify-between md:mb-2">
+                {/* mobile: month label left, chevrons right */}
+                <div className="pl-3 text-sm font-medium capitalize md:hidden">
+                  {viewMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                </div>
+                <div className="flex items-center md:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setViewMonth(new Date(year, month - 1, 1))}
+                    className={m3Nav}
+                    aria-label="Mois précédent"
+                  >
+                    <ChevronRight size={20} className="rotate-180" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMonth(new Date(year, month + 1, 1))}
+                    disabled={!canGoNextMonth}
+                    className={m3Nav}
+                    aria-label="Mois suivant"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
 
-          <div className="grid grid-cols-7 gap-0.5">
-            {cells.map((date, index) => {
-              if (!date) return <div key={`blank-${index}`} />;
-              const isFuture = date > today;
-              const isSelected = isSameDay(date, selectedDate);
-              const isToday = isSameDay(date, today);
-              const hasSales = salesDays.has(dayKey(date));
-              return (
+                {/* desktop: original header */}
                 <button
-                  key={dayKey(date)}
                   type="button"
-                  disabled={isFuture}
-                  onClick={() => pickDate(date)}
-                  aria-label={date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                  aria-pressed={isSelected}
-                  className={
-                    'relative flex h-9 items-center justify-center border-2 text-[12px] tabular-nums transition-colors ' +
-                    (isFuture
-                      ? 'cursor-not-allowed border-transparent text-[#B8BDC3]'
-                      : isSelected
-                      ? 'border-[#C1440E] bg-[#C1440E] font-medium text-white'
-                      : isToday
-                      ? 'border-[#16181A] bg-white font-medium hover:bg-[#ECE7DC]'
-                      : 'border-transparent hover:border-[#16181A] hover:bg-[#ECE7DC]')
-                  }
+                  onClick={() => setViewMonth(new Date(year, month - 1, 1))}
+                  className="hidden h-8 w-8 items-center justify-center border-2 border-[#16181A] bg-white text-sm hover:bg-[#ECE7DC] md:flex"
+                  aria-label="Mois précédent"
                 >
-                  {date.getDate()}
-                  {hasSales && (
-                    <span
-                      className={
-                        'absolute bottom-1 h-1.5 w-1.5 rounded-full ' +
-                        (isSelected ? 'bg-white' : isFuture ? 'bg-[#B8BDC3]' : 'bg-[#2F6B4F]')
-                      }
-                    />
-                  )}
+                  ‹
                 </button>
-              );
-            })}
-          </div>
+                <div className="hidden font-serif text-base capitalize md:block">
+                  {viewMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewMonth(new Date(year, month + 1, 1))}
+                  disabled={!canGoNextMonth}
+                  className={
+                    'hidden h-8 w-8 items-center justify-center border-2 border-[#16181A] text-sm md:flex ' +
+                    (canGoNextMonth ? 'bg-white hover:bg-[#ECE7DC]' : 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]')
+                  }
+                  aria-label="Mois suivant"
+                >
+                  ›
+                </button>
+              </div>
 
-          <div className="mt-3 flex items-center justify-between border-t-2 border-[#e4ded0] pt-2 text-[10px] uppercase tracking-wide text-[#4B5560]">
-            <span className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#2F6B4F]" />
-              Jour avec ventes
-            </span>
-            <button
-              type="button"
-              onClick={() => pickDate(new Date())}
-              className="border-2 border-[#16181A] bg-white px-2 py-1 text-[#16181A] hover:bg-[#ECE7DC]"
-            >
-              Aujourd'hui
-            </button>
+              <div className="mb-1 grid grid-cols-7 text-center text-xs font-medium text-[var(--m3-on-surface)] md:text-[10px] md:uppercase md:tracking-wide md:text-[#4B5560]">
+                {WEEKDAY_INITIALS_FR.map((label, index) => (
+                  <div key={index} className="flex h-10 items-center justify-center md:h-auto md:py-1">{label}</div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 md:gap-0.5">
+                {cells.map((date, index) => {
+                  if (!date) return <div key={`blank-${index}`} />;
+                  const isFuture = date > today;
+                  const isSelected = isSameDay(date, selectedDate);
+                  const isToday = isSameDay(date, today);
+                  const hasSales = salesDays.has(dayKey(date));
+                  return (
+                    <div key={dayKey(date)} className="flex items-center justify-center md:block">
+                      <button
+                        type="button"
+                        disabled={isFuture}
+                        onClick={() => pickDate(date)}
+                        aria-label={date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        aria-pressed={isSelected}
+                        className={
+                          'relative flex h-10 w-10 items-center justify-center rounded-full border text-sm tabular-nums transition-colors ' +
+                          'md:h-9 md:w-full md:rounded-none md:border-2 md:text-[12px] ' +
+                          M3_FOCUS + ' ' +
+                          (isFuture
+                            ? 'cursor-not-allowed border-transparent text-[var(--m3-on-surface)] opacity-40 md:text-[#B8BDC3] md:opacity-100'
+                            : isSelected
+                            ? 'border-[var(--m3-primary)] bg-[var(--m3-primary)] font-medium text-[var(--m3-on-primary)] md:border-[#C1440E] md:bg-[#C1440E] md:text-white'
+                            : isToday
+                            ? 'border-[var(--m3-outline)] font-medium text-[var(--m3-primary)] hover:bg-[var(--m3-surface-container-highest)] md:border-[#16181A] md:bg-white md:text-inherit md:hover:bg-[#ECE7DC]'
+                            : 'border-transparent hover:bg-[var(--m3-surface-container-highest)] md:hover:border-[#16181A] md:hover:bg-[#ECE7DC]')
+                        }
+                      >
+                        {date.getDate()}
+                        {hasSales && (
+                          <span
+                            className={
+                              'absolute bottom-1 h-1 w-1 rounded-full md:h-1.5 md:w-1.5 ' +
+                              (isSelected
+                                ? 'bg-[var(--m3-on-primary)] md:bg-white'
+                                : isFuture
+                                ? 'bg-[var(--m3-outline)] md:bg-[#B8BDC3]'
+                                : 'bg-[var(--m3-primary)] md:bg-[#2F6B4F]')
+                            }
+                          />
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* M3 actions: text buttons (mobile only) */}
+            <div className="mt-2 flex items-center justify-between gap-2 px-3 pb-1 md:hidden">
+              <span className="flex items-center gap-1.5 pl-3 text-xs text-[var(--m3-on-surface-variant)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--m3-primary)]" />
+                Jour avec ventes
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => pickDate(new Date())}
+                  className={`h-10 rounded-full px-3 text-sm font-medium text-[var(--m3-primary)] hover:bg-[var(--m3-surface-container-highest)] active:bg-[var(--m3-surface-container-highest)] ${M3_FOCUS}`}
+                >
+                  Aujourd'hui
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className={`h-10 rounded-full px-3 text-sm font-medium text-[var(--m3-primary)] hover:bg-[var(--m3-surface-container-highest)] active:bg-[var(--m3-surface-container-highest)] ${M3_FOCUS}`}
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+
+            {/* desktop footer: original */}
+            <div className="mt-3 hidden items-center justify-between border-t-2 border-[#e4ded0] pt-2 text-[10px] uppercase tracking-wide text-[#4B5560] md:flex">
+              <span className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#2F6B4F]" />
+                Jour avec ventes
+              </span>
+              <button
+                type="button"
+                onClick={() => pickDate(new Date())}
+                className="border-2 border-[#16181A] bg-white px-2 py-1 text-[#16181A] hover:bg-[#ECE7DC]"
+              >
+                Aujourd'hui
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
