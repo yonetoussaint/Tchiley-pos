@@ -1272,7 +1272,7 @@ function GestionMateriaux() {
         </div>
         <button
           onClick={() => setSelectedBranchId(null)}
-          className={`h-10 rounded-full bg-[var(--m3-secondary-container)] px-4 text-sm font-medium text-[var(--m3-on-secondary-container)] transition-transform active:scale-95 motion-reduce:transition-none md:h-auto md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:px-3 md:py-2 md:text-[11px] md:font-normal md:uppercase md:tracking-[0.18em] md:text-[#16181A] md:hover:bg-[#ECE7DC] md:active:scale-100 ${M3_FOCUS}`}
+          className={`h-10 rounded-full bg-[var(--m3-secondary-container)] px-4 text-sm font-medium text-[var(--m3-on-secondary-container)] m3-press motion-reduce:transition-none md:h-auto md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:px-3 md:py-2 md:text-[11px] md:font-normal md:uppercase md:tracking-[0.18em] md:text-[#16181A] md:hover:bg-[#ECE7DC] md:active:scale-100 ${M3_FOCUS}`}
         >
           Changer de succursale
         </button>
@@ -1350,10 +1350,10 @@ function GestionMateriaux() {
         })()}
 
         {/* Branch header + hamburger menu (same as admin board) */}
-        <div className="mb-4 hidden shrink-0 flex-wrap items-center gap-3 rounded-[28px] bg-[var(--m3-surface-container)] p-4 md:flex md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
+        <div className="mb-4 hidden shrink-0 flex-wrap items-center gap-3 rounded-[32px] bg-[var(--m3-surface-container)] p-4 md:flex md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
           <button
             onClick={() => setMenuOpen((prev) => !prev)}
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] transition-transform active:scale-95 motion-reduce:transition-none md:h-10 md:w-10 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#16181A] md:text-[#FBFAF6] md:hover:bg-[#2b2e31] md:active:scale-100 ${M3_FOCUS}`}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] m3-press motion-reduce:transition-none md:h-10 md:w-10 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#16181A] md:text-[#FBFAF6] md:hover:bg-[#2b2e31] md:active:scale-100 ${M3_FOCUS}`}
             aria-label="Menu de la succursale"
           >
             <Menu size={18} />
@@ -1420,7 +1420,7 @@ function GestionMateriaux() {
           <nav
             aria-label="Sections du magasin"
             className={
-              'fixed inset-y-0 left-0 z-[70] w-72 max-w-[85vw] overflow-y-auto rounded-r-[28px] bg-[var(--m3-surface-container)] p-3 shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14)] transition-transform duration-200 motion-reduce:transition-none ' +
+              'fixed inset-y-0 left-0 z-[70] w-72 max-w-[85vw] overflow-y-auto rounded-r-[32px] bg-[var(--m3-surface-container)] p-3 shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14)] transition-transform duration-200 motion-reduce:transition-none ' +
               (menuOpen ? 'translate-x-0 ' : '-translate-x-full ') +
               'md:static md:z-auto md:max-w-none md:shrink-0 md:translate-x-0 md:self-start md:overflow-visible md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-2 md:shadow-none md:transition-[width] md:duration-150 ' +
               (menuOpen ? 'md:w-56' : 'md:w-14')
@@ -1811,7 +1811,7 @@ function DatePicker({
     setOpen(false);
   };
 
-  /* Mobile (< md): Material 3 modal date picker — scrim, 28dp surface, headline,
+  /* Mobile (< md): Material 3 Expressive modal date picker — scrim, 28dp surface, headline,
      circular day cells, text buttons. Desktop (≥ md): unchanged house-style popover. */
   const m3Nav =
     'flex h-10 w-10 items-center justify-center rounded-full text-[var(--m3-on-surface-variant)] transition-colors hover:bg-[var(--m3-surface-container-highest)] active:bg-[var(--m3-surface-container-highest)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ' +
@@ -1843,7 +1843,7 @@ function DatePicker({
 
       {open && (
         <>
-          {/* M3 scrim (mobile only) */}
+          {/* M3 Expressive scrim (mobile only) */}
           <div
             aria-hidden="true"
             onClick={() => setOpen(false)}
@@ -1856,7 +1856,7 @@ function DatePicker({
             aria-label="Choisir une date"
             style={M3_VARS}
             className={
-              'm3-dialog fixed left-1/2 top-1/2 z-[81] w-[328px] max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-[28px] bg-[var(--m3-surface-container-high)] pb-2 pt-4 text-[var(--m3-on-surface)] shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14),0_6px_30px_5px_rgba(0,0,0,0.12)] ' +
+              'm3-dialog fixed left-1/2 top-1/2 z-[81] w-[328px] max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-[32px] bg-[var(--m3-surface-container-high)] pb-2 pt-4 text-[var(--m3-on-surface)] shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14),0_6px_30px_5px_rgba(0,0,0,0.12)] ' +
               'md:absolute md:left-auto md:right-0 md:top-full md:z-50 md:mt-2 md:w-72 md:translate-x-0 md:translate-y-0 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:text-inherit md:shadow-[6px_6px_0_#2F6B4F]'
             }
           >
@@ -2076,19 +2076,19 @@ function BranchHeaderCards({
   const title = shortName || branch.nom;
   const shownDate = date ? date.selectedDate : new Date();
   const navBtn =
-    'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg transition-transform active:scale-95 motion-reduce:transition-none ' +
+    'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg m3-press motion-reduce:transition-none ' +
     M3_FOCUS;
 
   return (
     <div className="mb-4 flex shrink-0 flex-col gap-3 md:hidden">
       {/* 1 · Identité de la succursale */}
-      <section className="rounded-[28px] bg-[var(--m3-surface-container)] p-4">
+      <section className="rounded-[32px] bg-[var(--m3-surface-container)] p-4">
         <div className="flex items-start gap-3">
           {onMenu && (
             <button
               type="button"
               onClick={onMenu}
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] transition-transform active:scale-95 motion-reduce:transition-none ${M3_FOCUS}`}
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
               aria-label="Menu de la succursale"
             >
               <Menu size={20} />
@@ -2129,7 +2129,7 @@ function BranchHeaderCards({
       </section>
 
       {/* 2 · Journée consultée */}
-      <section className="rounded-[24px] bg-[var(--m3-surface-container)] p-3">
+      <section className="rounded-[28px] bg-[var(--m3-surface-container)] p-3">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--m3-on-surface-variant)]">
             <CalendarDays size={14} /> Journée consultée
@@ -2184,7 +2184,7 @@ function BranchHeaderCards({
             const cls =
               'flex min-w-0 flex-col gap-1 rounded-[20px] p-3 text-left ' +
               (warn ? 'bg-[#FFE08B] text-[#251A00]' : 'bg-[var(--m3-surface-container)]') +
-              (s.onClick ? ' transition-transform active:scale-[0.98] motion-reduce:transition-none ' + M3_FOCUS : '');
+              (s.onClick ? ' m3-press-card motion-reduce:transition-none ' + M3_FOCUS : '');
             const body = (
               <>
                 <span className="flex items-center gap-1.5 text-xs opacity-80">
@@ -2219,7 +2219,7 @@ function BranchHeaderCards({
                 onClick={s.onClick}
                 aria-current={s.active ? 'page' : undefined}
                 className={
-                  'flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-transform active:scale-95 motion-reduce:transition-none ' +
+                  'flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium m3-press motion-reduce:transition-none ' +
                   (s.active
                     ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
                     : 'bg-[var(--m3-surface-container)] text-[var(--m3-on-surface-variant)]') +
@@ -2491,7 +2491,7 @@ function OwnerBoard({
           <button
             type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] transition-transform active:scale-95 motion-reduce:transition-none ${M3_FOCUS}`}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
             aria-label="Menu de la succursale"
             aria-expanded={menuOpen}
           >
@@ -2596,7 +2596,7 @@ function OwnerBoard({
           }))}
         />
 
-        <div className="mb-4 hidden md:flex flex-wrap items-center gap-3 rounded-[28px] bg-[var(--m3-surface-container)] p-4 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
+        <div className="mb-4 hidden md:flex flex-wrap items-center gap-3 rounded-[32px] bg-[var(--m3-surface-container)] p-4 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
           <button
             onClick={() => setMenuOpen((prev) => !prev)}
             className="hidden h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31] md:flex"
@@ -2662,7 +2662,7 @@ function OwnerBoard({
           <nav
             aria-label="Sections de la succursale"
             className={
-              'rounded-r-[28px] bg-[var(--m3-surface-container)] p-3 ' +
+              'rounded-r-[32px] bg-[var(--m3-surface-container)] p-3 ' +
               'fixed inset-y-0 left-0 z-[70] w-72 max-w-[85vw] overflow-y-auto shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14)] transition-transform duration-200 motion-reduce:transition-none ' +
               (menuOpen ? 'translate-x-0 ' : '-translate-x-full ') +
               'md:static md:z-auto md:max-w-none md:translate-x-0 md:overflow-visible md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-2 md:shadow-none md:shrink-0 md:transition-[width] md:duration-150 ' +
@@ -3226,47 +3226,98 @@ function BranchDashboardSection({
 }
 
 /* =========================================================================
-   Shared Material 3 tokens — still used by the other tabs (Tableau de bord,
-   Ventes, menus…). The Products tab no longer reads them on phone.
+   MATERIAL 3 EXPRESSIVE — mobile UI
+   Expressive = vivid tonal colour (incl. tertiary), larger corner radii,
+   shape-morphing controls (pill → rounded square on press / selection),
+   spring-based motion and emphasised (heavier) type.
+   Colour roles (container / on-container pairs) are exposed as CSS custom
+   properties on the section root, so the whole phone UI can be re-tinted by
+   swapping a palette ("dynamic colour", user-controlled). Desktop keeps the
+   house style: every M3 class below is only applied below the `sm` breakpoint.
    ========================================================================= */
 const M3_VARS = {
-    '--m3-primary': '#2C6A4C', '--m3-on-primary': '#FFFFFF',
-    '--m3-primary-container': '#B1F0CE', '--m3-on-primary-container': '#002114',
-    '--m3-secondary-container': '#CFE9D9', '--m3-on-secondary-container': '#0A1F14',
-    '--m3-surface': '#F6FBF5', '--m3-surface-container': '#EAEFE9',
-    '--m3-surface-container-high': '#E4EAE3', '--m3-surface-container-highest': '#DFE4DD',
-    '--m3-on-surface': '#181D19', '--m3-on-surface-variant': '#404943',
-    '--m3-outline': '#707973', '--m3-outline-variant': '#BFC9C2',
+    '--m3-primary': '#00693F', '--m3-on-primary': '#FFFFFF',
+    '--m3-primary-container': '#8BF4B7', '--m3-on-primary-container': '#00210F',
+    '--m3-secondary-container': '#C7EBD2', '--m3-on-secondary-container': '#082013',
+    '--m3-tertiary': '#7B5800', '--m3-on-tertiary': '#FFFFFF',
+    '--m3-tertiary-container': '#FFDF9A', '--m3-on-tertiary-container': '#261A00',
+    '--m3-surface': '#F4FBF4', '--m3-surface-container-lowest': '#FFFFFF',
+    '--m3-surface-container-low': '#EEF6EE', '--m3-surface-container': '#E8F0E8',
+    '--m3-surface-container-high': '#E2EAE2', '--m3-surface-container-highest': '#DCE4DC',
+    '--m3-on-surface': '#171D18', '--m3-on-surface-variant': '#3E4941',
+    '--m3-outline': '#6E7A70', '--m3-outline-variant': '#BDC9BF',
+    /* Expressive shape scale */
+    '--m3-shape-lg-inc': '20px', '--m3-shape-xl-inc': '32px', '--m3-shape-xxl': '48px',
   } as CSSProperties;
+
+/* Stock status roles — fixed across palettes so meaning never changes with the tint. */
+const M3_STATUS = {
+  ok: { bg: 'bg-[var(--m3-primary-container)]', fg: 'text-[var(--m3-on-primary-container)]' },
+  low: { bg: 'bg-[#FFE08B]', fg: 'text-[#251A00]' },
+  out: { bg: 'bg-[#FFDAD6]', fg: 'text-[#410002]' },
+};
 
 const M3_FOCUS =
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--m3-primary)]';
 
-/* =========================================================================
-   SOFT MARKET — mobile Products tab (see SoftMarket-UI-UX-Bible.md)
-   Tokens are scoped to the section root with an `sm-` prefix so they never
-   collide with the M3 variables. Desktop keeps the house style: every Soft
-   Market class below is only meant for widths under the `sm` breakpoint.
-   ========================================================================= */
-const SM_VARS = {
-  '--sm-bg': '#FFFFFF', '--sm-tx': '#2A2F38', '--sm-mu': '#667080',
-  '--sm-lime': '#CDE882', '--sm-card': '#F1F3F6', '--sm-track': '#DCE2E9',
-  '--sm-div': 'rgba(42,47,56,.10)',
-  '--sm-r1': '6px', '--sm-r2': '10px', '--sm-r3': '14px',
-  '--sm-font': "'Manrope', system-ui, sans-serif",
-} as CSSProperties;
+const M3_CSS = `
+:root {
+  /* M3 Expressive motion: spatial springs overshoot, effects springs don't. */
+  --m3-spring-spatial: cubic-bezier(.34,1.56,.64,1);
+  --m3-spring-effects: cubic-bezier(.2,0,0,1);
+}
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --m3-spring-spatial: linear(0, .18 5%, .55 12%, .9 20%, 1.06 28%, 1.09 34%, 1.04 44%, .99 58%, 1.005 74%, 1);
+    --m3-spring-effects: linear(0, .35 7%, .72 16%, .92 28%, .99 42%, 1);
+  }
+}
+@keyframes m3-in { from { opacity: 0; transform: translateY(-12px) scale(.98); } to { opacity: 1; transform: none; } }
+.m3-in { animation: m3-in .5s var(--m3-spring-spatial); }
+@keyframes m3e-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes m3e-dialog-in { from { opacity: 0; transform: translate(-50%, -46%) scale(.86); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 
-/* 2px ink focus ring with 2px offset on everything interactive. */
-const SM_FOCUS =
-  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--sm-tx)]';
+/* Phone only: pressed controls squish and morph their shape (pill -> rounded square). */
+@media (max-width: 639px) {
+  .m3-press { transition: transform .45s var(--m3-spring-spatial), border-radius .45s var(--m3-spring-spatial), background-color .2s var(--m3-spring-effects); }
+  .m3-press:active { transform: scale(.94); border-radius: 16px; }
+  .m3-press-card { transition: transform .4s var(--m3-spring-spatial); }
+  .m3-press-card:active { transform: scale(.97); }
+  .m3-scrim { animation: m3e-scrim-in .25s var(--m3-spring-effects); }
+  .m3-dialog { animation: m3e-dialog-in .5s var(--m3-spring-spatial); }
+}
+.m3-morph { transition: border-radius .5s var(--m3-spring-spatial), background-color .25s var(--m3-spring-effects), color .25s var(--m3-spring-effects); }
 
-const SM_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap');
-@media (max-width: 639px) { .sm-root.sm-root { font-family: var(--sm-font); } }
-@keyframes sm-open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
-.sm-open { animation: sm-open .2s ease-out; }
-@media (prefers-reduced-motion: reduce) { .sm-open { animation: none; } }
+/* Expressive loading indicator: a single shape that morphs and rotates. */
+@keyframes m3-morph {
+  0%   { border-radius: 50%;             transform: rotate(0deg); }
+  20%  { border-radius: 24%;             transform: rotate(72deg); }
+  40%  { border-radius: 50% 12% 50% 12%; transform: rotate(144deg); }
+  60%  { border-radius: 14%;             transform: rotate(216deg); }
+  80%  { border-radius: 40% 60% 40% 60%; transform: rotate(288deg); }
+  100% { border-radius: 50%;             transform: rotate(360deg); }
+}
+.m3-loading { display: inline-block; background: currentColor; animation: m3-morph 2s var(--m3-spring-effects) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .m3-in, .m3-scrim, .m3-dialog { animation: none; }
+  .m3-press, .m3-press-card, .m3-morph { transition: none; }
+  .m3-loading { animation: none; border-radius: 30%; }
+}
 `;
+
+function M3Loading({ size = 18 }: { size?: number }) {
+  return <span role="progressbar" aria-label="Chargement" className="m3-loading shrink-0" style={{ width: size * 0.8, height: size * 0.8 }} />;
+}
+
+/* State layer: a translucent overlay in the content colour (hover 8 %, focus/press 12 %). */
+function M3StateLayer({ className = '' }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute inset-0 bg-current opacity-0 transition-opacity duration-150 group-hover:opacity-[0.08] group-focus-visible:opacity-[0.12] group-active:opacity-[0.12] motion-reduce:transition-none ${className}`}
+    />
+  );
+}
 
 function categoryIcon(categorie: string) {
   if (categorie === 'Quincaillerie') return Wrench;
@@ -3275,9 +3326,8 @@ function categoryIcon(categorie: string) {
   return Package;
 }
 
-/* Text field: persistent 13px label above, white fill, hairline border, r2, 52px tall.
-   16px text avoids the iOS zoom-on-focus. */
-function SMTextField({
+/* Filled text field with a persistent small label; 16px text avoids the iOS zoom-on-focus. */
+function M3TextField({
   label,
   value,
   onChange,
@@ -3289,25 +3339,35 @@ function SMTextField({
   placeholder?: string;
 }) {
   return (
-    <label className="block min-w-0">
-      <span className="mb-1 block text-[13px] font-semibold text-[color:var(--sm-mu)]">{label}</span>
+    <label className="block min-w-0 rounded-xl bg-[var(--m3-surface)] px-4 pb-1.5 pt-2 ring-1 ring-[var(--m3-outline)] transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none">
+      <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">{label}</span>
       <input
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className={`h-[52px] w-full min-w-0 rounded-[10px] border border-[color:var(--sm-div)] bg-white px-3 text-base text-[color:var(--sm-tx)] placeholder:text-[color:var(--sm-mu)] ${SM_FOCUS}`}
+        className="h-8 w-full min-w-0 bg-transparent p-0 text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
       />
     </label>
   );
 }
 
-/* Numeric field for the phone row: a gray read-only tile until the row is in edit mode,
-   then a white field with a hairline border. Same 52px height in both states, so nothing jumps. */
-function SMNumberField({
+type ProductFieldTone = 'green' | 'ink' | 'steel' | 'yellow';
+
+const PRODUCT_FIELD_TONES: Record<ProductFieldTone, { text: string }> = {
+  green: { text: 'text-[var(--m3-primary)]' },
+  steel: { text: 'text-[var(--m3-on-surface-variant)]' },
+  ink: { text: 'text-[var(--m3-on-surface)]' },
+  yellow: { text: 'text-[#7A5900]' },
+};
+
+/* Numeric field for the phone card: read-only tile until the card is in edit mode,
+   then an outlined field that highlights with the primary colour on focus. */
+function ProductNumberField({
   label,
   value,
   onChange,
   editing,
+  tone = 'ink',
   placeholder,
   decimal = false,
 }: {
@@ -3315,12 +3375,18 @@ function SMNumberField({
   value: number;
   onChange: (value: number) => void;
   editing: boolean;
+  tone?: ProductFieldTone;
   placeholder?: string;
   decimal?: boolean;
 }) {
+  const t = PRODUCT_FIELD_TONES[tone];
   return (
-    <label className="block min-w-0">
-      <span className="mb-1 block truncate text-xs text-[color:var(--sm-mu)]">{label}</span>
+    <label
+      className={`block min-w-0 rounded-xl bg-[var(--m3-surface)] px-3 pb-1 pt-2 transition-shadow motion-reduce:transition-none ${
+        editing ? 'ring-1 ring-[var(--m3-outline)] focus-within:ring-2 focus-within:ring-[var(--m3-primary)]' : ''
+      }`}
+    >
+      <span className="block truncate text-xs leading-4 text-[var(--m3-on-surface-variant)]">{label}</span>
       <input
         type="number"
         min="0"
@@ -3331,11 +3397,7 @@ function SMNumberField({
         tabIndex={editing ? 0 : -1}
         onFocus={(event) => event.target.select()}
         onChange={(event) => onChange(Number(event.target.value) || 0)}
-        className={`h-[52px] w-full min-w-0 rounded-[10px] border px-3 text-base font-semibold tabular-nums text-[color:var(--sm-tx)] ${
-          editing
-            ? `border-[color:var(--sm-div)] bg-white ${SM_FOCUS}`
-            : 'border-transparent bg-[var(--sm-card)] outline-none'
-        }`}
+        className={`h-8 w-full min-w-0 bg-transparent p-0 text-base font-medium tabular-nums outline-none ${t.text}`}
       />
     </label>
   );
@@ -3418,15 +3480,13 @@ function BranchProductsSection({
 
   return (
     <div
-      style={SM_VARS}
-      className="sm-root -mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-white px-2 pb-28 pt-4 font-sans text-[color:var(--sm-tx)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#2F6B4F]"
+      style={M3_VARS}
+      className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-28 pt-4 font-sans text-[var(--m3-on-surface)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#2F6B4F]"
     >
-      <style>{SM_CSS}</style>
-
       <div className="mb-4 flex items-center gap-2 sm:mb-5 sm:justify-between">
         <div className="min-w-0 flex-1 sm:flex-none">
-          <h2 className="text-[28px] font-bold leading-9 sm:font-serif sm:text-2xl sm:font-normal sm:leading-normal">Produits</h2>
-          <p className="truncate text-[13px] leading-5 text-[color:var(--sm-mu)] sm:hidden">
+          <h2 className="text-[32px] font-bold leading-10 tracking-tight sm:font-serif sm:text-2xl sm:font-normal sm:leading-normal sm:tracking-normal">Produits</h2>
+          <p className="truncate text-sm leading-5 text-[var(--m3-on-surface-variant)] sm:hidden">
             {branchProducts.length} article{branchProducts.length !== 1 ? 's' : ''}
             {lowStockCount > 0 ? ` · ${lowStockCount} en stock bas` : ''}
           </p>
@@ -3437,23 +3497,24 @@ function BranchProductsSection({
       </div>
 
       <div className="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
-        <div className="flex h-[52px] w-full min-w-0 items-center gap-3 rounded-[10px] border border-[color:var(--sm-div)] bg-white px-3 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[color:var(--sm-tx)] sm:h-auto sm:min-w-[220px] sm:flex-1 sm:gap-2 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:px-3 sm:py-2 sm:focus-within:outline-none sm:focus-within:shadow-[4px_4px_0_#C1440E]">
-          <Search className="h-5 w-5 shrink-0 text-[color:var(--sm-mu)] sm:h-4 sm:w-4 sm:text-[#4B5560]" />
+        <div className="flex h-14 w-full min-w-0 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none sm:h-auto sm:min-w-[220px] sm:flex-1 sm:gap-2 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:px-3 sm:py-2 sm:focus-within:shadow-[4px_4px_0_#C1440E] sm:focus-within:ring-0">
+          <Search className="h-6 w-6 shrink-0 text-[var(--m3-on-surface-variant)] sm:h-4 sm:w-4 sm:text-[#4B5560]" />
           <input
             type="text"
             value={inventorySearch}
             onChange={(event) => setInventorySearch(event.target.value)}
             placeholder="Rechercher un produit..."
-            className="w-full min-w-0 border-none bg-transparent text-base text-[color:var(--sm-tx)] outline-none placeholder:text-[color:var(--sm-mu)] sm:text-sm sm:text-[#16181A] sm:placeholder:text-[#4B5560]"
+            className="w-full min-w-0 border-none bg-transparent text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)] sm:text-sm sm:text-[#16181A] sm:placeholder:text-[#4B5560]"
           />
           {inventorySearch && (
             <button
               type="button"
               onClick={() => setInventorySearch('')}
               aria-label="Effacer la recherche"
-              className={`-mr-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[color:var(--sm-mu)] active:translate-y-px sm:hidden ${SM_FOCUS}`}
+              className={`group relative -mr-2 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] sm:hidden ${M3_FOCUS}`}
             >
-              <X size={18} />
+              <M3StateLayer />
+              <X size={20} />
             </button>
           )}
           <select
@@ -3470,23 +3531,23 @@ function BranchProductsSection({
           </select>
         </div>
 
-        {/* Desktop keeps its inline button; on phone the primary action lives in the fixed bar below. */}
         <div className="contents">
           <button
             onClick={onAddProduct}
-            className="hidden shrink-0 items-center justify-center gap-2 border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2b2e31] sm:flex"
+            className={`group fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS} sm:static sm:z-auto sm:h-auto sm:gap-2 sm:overflow-visible sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#16181A] sm:px-3 sm:py-2 sm:text-[11px] sm:uppercase sm:tracking-[0.18em] sm:text-white sm:shadow-none sm:transition-colors sm:hover:bg-[#2b2e31] sm:active:scale-100`}
           >
-            <Plus className="h-3.5 w-3.5" />
+            <M3StateLayer className="sm:hidden" />
+            <Plus className="h-6 w-6 sm:h-3.5 sm:w-3.5" />
             Nouveau
           </button>
         </div>
       </div>
 
-      {/* Category chips (phone only): square, hairline, lime when selected. Only categories present in this branch. */}
+      {/* Category filter chips (phone only) — only categories present in this branch */}
       <div
         role="group"
         aria-label="Filtrer par catégorie"
-        className="-mx-2 mb-2 flex gap-2 overflow-x-auto px-2 py-1 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden"
+        className="-mx-3 mb-2 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden"
       >
         {['Tout', ...presentCategories].map((category) => {
           const selected = inventoryCategoryFilter === category;
@@ -3496,39 +3557,57 @@ function BranchProductsSection({
               type="button"
               aria-pressed={selected}
               onClick={() => setInventoryCategoryFilter(category)}
-              className={`h-11 shrink-0 whitespace-nowrap rounded-none border px-4 text-sm text-[color:var(--sm-tx)] transition-colors active:translate-y-px motion-reduce:transition-none ${SM_FOCUS} ${
-                selected
-                  ? 'border-transparent bg-[var(--sm-lime)] font-bold'
-                  : 'border-[color:var(--sm-div)] bg-white font-semibold'
-              }`}
+              className={`group relative shrink-0 before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] ${M3_FOCUS}`}
             >
-              {category}
+              <span
+                className={`relative flex h-9 items-center gap-2 overflow-hidden px-3.5 text-sm font-medium m3-morph ${
+                  selected ? 'rounded-full' : 'rounded-xl'
+                } ${
+                  selected
+                    ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                    : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+                }`}
+              >
+                <M3StateLayer />
+                {selected && <Check size={16} />}
+                {category}
+              </span>
             </button>
           );
         })}
       </div>
 
-      {/* Stock status — segmented control on phone (light track, raised white segment), original pills on desktop */}
-      <div className="mb-4 grid grid-cols-3 rounded-[10px] bg-[var(--sm-track)] p-[3px] sm:mb-5 sm:flex sm:flex-wrap sm:gap-2 sm:rounded-none sm:bg-transparent sm:p-0">
+      {/* Stock status — segmented button on phone, original pills on desktop */}
+      <div className="mb-4 grid h-14 grid-cols-3 gap-0.5 sm:mb-5 sm:flex sm:h-auto sm:flex-wrap sm:gap-2">
         {[
           { id: 'all', label: 'Tous' },
           { id: 'low', label: 'En stock bas' },
           { id: 'normal', label: 'Normal' },
-        ].map((status) => {
+        ].map((status, idx, arr) => {
           const selected = inventoryStatusFilter === status.id;
+          /* Connected button group: selected = full pill, others = small inner corners. */
+          const shape = selected
+            ? 'rounded-full'
+            : idx === 0
+              ? 'rounded-l-full rounded-r-lg'
+              : idx === arr.length - 1
+                ? 'rounded-r-full rounded-l-lg'
+                : 'rounded-lg';
           return (
             <button
               key={status.id}
               onClick={() => setInventoryStatusFilter(status.id as 'all' | 'low' | 'normal')}
               aria-pressed={selected}
               className={
-                `flex h-10 items-center justify-center overflow-hidden whitespace-nowrap rounded-[6px] px-1 text-sm text-[color:var(--sm-tx)] transition-[background-color,box-shadow] active:translate-y-px motion-reduce:transition-none ${SM_FOCUS} ` +
-                'sm:h-auto sm:rounded-none sm:border-2 sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:font-medium sm:uppercase sm:tracking-[0.16em] sm:active:translate-y-0 ' +
+                `group relative flex items-center justify-center gap-1.5 overflow-hidden px-1 text-sm font-semibold m3-morph ${shape} ${M3_FOCUS} ` +
+                'sm:rounded-none sm:border-2 sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:uppercase sm:tracking-[0.16em] ' +
                 (selected
-                  ? 'bg-white font-bold shadow-[0_1px_3px_rgba(42,47,56,0.18)] sm:border-[#C1440E] sm:bg-[#C1440E] sm:text-white sm:shadow-none'
-                  : 'font-semibold sm:border-[#16181A] sm:bg-white sm:text-[#16181A] sm:hover:bg-[#ECE7DC]')
+                  ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)] sm:border-[#C1440E] sm:bg-[#C1440E] sm:text-white'
+                  : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)] sm:border-[#16181A] sm:bg-white sm:text-[#16181A] sm:hover:bg-[#ECE7DC]')
               }
             >
+              <M3StateLayer className="sm:hidden" />
+              {selected && <Check size={16} className="sm:hidden" />}
               {status.label}
             </button>
           );
@@ -3786,240 +3865,240 @@ function BranchProductsSection({
           </table>
         </div>
 
-        {/* Mobile list — Soft Market: plain hairline list (not cards), edge-to-edge dividers, none under the last row */}
-        <div className="sm:hidden">
-          {filteredProducts.length > 0 && (
-            <div
-              className={
-                '-mx-2 divide-y divide-[color:var(--sm-div)] border-t border-[color:var(--sm-div)]' +
-                (filteredProducts.length === 1 ? ' border-b' : '')
-              }
-            >
-              {filteredProducts.map((product) => {
-                const soldToday = soldByProductToday[product.id] ?? 0;
-                const restockValue = restockByProduct[product.id] ?? 0;
-                const isLowStock = product.stockFermeture <= product.seuil;
-                const isOutOfStock = product.stockFermeture <= 0;
-                const needsAttention = isLowStock || isOutOfStock;
-                const editing = isEditing(product.id);
-                const saving = isSaving(product.id);
-                const open = editing || expandedId === product.id;
-                const showHistory = selectedHistoryProduct?.id === product.id;
-                const CategoryIcon = categoryIcon(product.categorie);
-                const btn =
-                  `flex h-[46px] items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap rounded-[10px] px-1.5 text-sm font-semibold text-[color:var(--sm-tx)] transition-transform active:translate-y-px motion-reduce:transition-none ${SM_FOCUS}`;
-                return (
-                  <div key={product.id}>
-                    {editing ? (
-                      <div className="sm-open space-y-3 px-2 pb-1 pt-4">
-                        <SMTextField
-                          label="Nom du produit"
-                          value={product.nom}
-                          placeholder="Nom du produit"
-                          onChange={(value) => onUpdateProduct(product.id, { nom: value })}
-                        />
-                        <SMTextField
-                          label="Catégorie"
-                          value={product.categorie}
-                          placeholder="Catégorie"
-                          onChange={(value) => onUpdateProduct(product.id, { categorie: value })}
-                        />
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setExpandedId((prev) => (prev === product.id ? null : product.id))}
-                        aria-expanded={open}
-                        className={`flex min-h-[72px] w-full items-center gap-3 px-2 py-[13px] text-left active:bg-[var(--sm-card)] ${SM_FOCUS}`}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-[var(--sm-card)] text-[color:var(--sm-mu)]"
-                        >
-                          <CategoryIcon size={20} />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[15px] font-semibold leading-5">{product.nom}</span>
-                          <span className="block truncate text-[13px] leading-5 text-[color:var(--sm-mu)]">
-                            {product.categorie} · Vendu {soldToday}
-                          </span>
-                        </span>
-                        <span className="flex shrink-0 flex-col items-end gap-1">
-                          <span className="text-[15px] font-bold leading-5 tabular-nums">{fmtHTG(product.prix)}</span>
-                          {/* Neutral pill: grey when fine, white + hairline + icon when it needs attention (never colour alone) */}
-                          <span
-                            className={`inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs font-bold tabular-nums ${
-                              needsAttention
-                                ? 'border-[color:var(--sm-div)] bg-white'
-                                : 'border-transparent bg-[var(--sm-card)]'
-                            }`}
-                          >
-                            {needsAttention && <AlertTriangle size={12} aria-hidden="true" />}
-                            {isOutOfStock ? (
-                              'Rupture'
-                            ) : (
-                              <>
-                                {isLowStock && <span className="sr-only">Stock bas : </span>}
-                                {isLowStock ? `${product.stockFermeture} · bas` : `${product.stockFermeture} en stock`}
-                              </>
-                            )}
-                          </span>
-                        </span>
-                        <ChevronDown
-                          size={20}
-                          aria-hidden="true"
-                          className={
-                            'shrink-0 text-[color:var(--sm-mu)] transition-transform duration-200 motion-reduce:transition-none ' +
-                            (open ? 'rotate-180' : '')
-                          }
-                        />
-                      </button>
-                    )}
-
-                    {/* Expanded details */}
-                    {open && (
-                      <div className="sm-open px-2 pb-4 pt-1">
-                        {showHistory && !editing && (
-                          <div className="mb-3 grid grid-cols-4 border-y border-[color:var(--sm-div)] py-2 text-center">
-                            {[
-                              ['Vendu', soldToday],
-                              ['Ouv.', product.stockOuverture],
-                              ['Ferm.', product.stockFermeture],
-                              ['Seuil', product.seuil],
-                            ].map(([label, value]) => (
-                              <div key={label}>
-                                <div className="text-xs leading-4 text-[color:var(--sm-mu)]">{label}</div>
-                                <div className="text-[15px] font-bold tabular-nums">{value}</div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-3 gap-2">
-                          <SMNumberField
-                            label="Prix vente"
-                            decimal
-                            editing={editing}
-                            value={product.prix}
-                            onChange={(value) => onUpdateProduct(product.id, { prix: value })}
-                          />
-                          <SMNumberField
-                            label="Prix achat"
-                            decimal
-                            editing={editing}
-                            value={product.prixAchat}
-                            onChange={(value) => onUpdateProduct(product.id, { prixAchat: value })}
-                          />
-                          <SMNumberField
-                            label="Seuil"
-                            editing={editing}
-                            value={product.seuil}
-                            onChange={(value) => onUpdateProduct(product.id, { seuil: value })}
-                          />
-                          <SMNumberField
-                            label="Ouverture"
-                            editing={editing}
-                            value={product.stockOuverture}
-                            onChange={(value) => onUpdateProduct(product.id, { stockOuverture: value })}
-                          />
-                          <SMNumberField
-                            label="Fermeture"
-                            editing={editing}
-                            value={product.stockFermeture}
-                            onChange={(value) => onUpdateProduct(product.id, { stockFermeture: value })}
-                          />
-                          <SMNumberField
-                            label="Ajout stock"
-                            placeholder="Qté"
-                            editing={editing}
-                            value={restockValue}
-                            onChange={(value) => setRestockByProduct((prev) => ({ ...prev, [product.id]: value }))}
-                          />
-                        </div>
-
-                        <div className={'mt-4 grid gap-2 ' + (editing ? 'grid-cols-2' : 'grid-cols-3')}>
-                          {editing ? (
-                            <>
-                              <button
-                                onClick={() => handleSaveClick(product.id)}
-                                disabled={saving}
-                                className={`${btn} bg-[var(--sm-lime)] ` + (saving ? 'cursor-wait opacity-80' : '')}
-                                aria-label={saving ? 'Enregistrement...' : 'Enregistrer'}
-                              >
-                                {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                                {saving ? 'Envoi…' : 'Enregistrer'}
-                              </button>
-                              <button
-                                onClick={handleCancelClick}
-                                className={`${btn} bg-[var(--sm-track)]`}
-                                aria-label="Annuler"
-                              >
-                                <X size={16} />
-                                Annuler
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => onViewHistory(product)}
-                                className={`${btn} ` + (showHistory ? 'bg-[var(--sm-track)] !font-bold' : '')}
-                                aria-label="Historique"
-                                aria-pressed={showHistory}
-                              >
-                                <History size={16} />
-                                Historique
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setExpandedId(product.id);
-                                  handleEditClick(product.id);
-                                }}
-                                className={`${btn} bg-[var(--sm-track)]`}
-                                aria-label="Modifier"
-                              >
-                                <Pencil size={16} />
-                                Modifier
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (window.confirm(`Supprimer « ${product.nom} » ?`)) onDeleteProduct(product);
-                                }}
-                                className={btn}
-                                aria-label="Supprimer"
-                              >
-                                <Trash2 size={16} />
-                                Supprimer
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
+        {/* Mobile list — Material 3: tonal surfaces, state layers, tap to expand */}
+        <div className="space-y-2 pb-24 sm:hidden">
+          {filteredProducts.map((product) => {
+            const soldToday = soldByProductToday[product.id] ?? 0;
+            const restockValue = restockByProduct[product.id] ?? 0;
+            const isLowStock = product.stockFermeture <= product.seuil;
+            const isOutOfStock = product.stockFermeture <= 0;
+            const editing = isEditing(product.id);
+            const saving = isSaving(product.id);
+            const open = editing || expandedId === product.id;
+            const showHistory = selectedHistoryProduct?.id === product.id;
+            const tone = isOutOfStock ? M3_STATUS.out : isLowStock ? M3_STATUS.low : M3_STATUS.ok;
+            const statusLabel = isOutOfStock ? 'Rupture de stock' : isLowStock ? 'Stock bas' : 'En stock';
+            const CategoryIcon = categoryIcon(product.categorie);
+            const btn =
+              `group relative flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full px-2 text-sm font-medium tracking-[0.01em] ${M3_FOCUS}`;
+            return (
+              <div
+                key={product.id}
+                className={
+                  'overflow-hidden transition-[background-color,border-radius] duration-300 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ' +
+                  (open
+                    ? 'rounded-[32px] bg-[var(--m3-surface-container-high)]'
+                    : 'rounded-2xl bg-[var(--m3-surface-container)]') +
+                  (editing ? ' ring-2 ring-[var(--m3-primary)]' : '')
+                }
+              >
+                {/* List item */}
+                {editing ? (
+                  <div className="m3-in space-y-2 p-4 pb-2">
+                    <M3TextField
+                      label="Nom du produit"
+                      value={product.nom}
+                      placeholder="Nom du produit"
+                      onChange={(value) => onUpdateProduct(product.id, { nom: value })}
+                    />
+                    <M3TextField
+                      label="Catégorie"
+                      value={product.categorie}
+                      placeholder="Catégorie"
+                      onChange={(value) => onUpdateProduct(product.id, { categorie: value })}
+                    />
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId((prev) => (prev === product.id ? null : product.id))}
+                    aria-expanded={open}
+                    className={`group relative flex min-h-[72px] w-full items-center gap-4 px-4 py-3 text-left ${M3_FOCUS}`}
+                  >
+                    <M3StateLayer />
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}
+                    >
+                      <CategoryIcon size={20} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-base font-medium leading-6 text-[var(--m3-on-surface)]">
+                        {product.nom}
+                      </span>
+                      <span className="block truncate text-sm leading-5 text-[var(--m3-on-surface-variant)]">
+                        {product.categorie} · Prix {product.prix} · Vendu {soldToday}
+                      </span>
+                    </span>
+                    <span
+                      className={`flex h-8 min-w-[2rem] shrink-0 items-center justify-center gap-1 rounded-full px-3 text-sm font-medium tabular-nums ${tone.bg} ${tone.fg}`}
+                    >
+                      {(isLowStock || isOutOfStock) && <AlertTriangle size={14} aria-hidden="true" />}
+                      <span className="sr-only">{statusLabel} : </span>
+                      {product.stockFermeture}
+                    </span>
+                    <ChevronDown
+                      size={20}
+                      aria-hidden="true"
+                      className={
+                        'shrink-0 text-[var(--m3-on-surface-variant)] transition-transform duration-300 motion-reduce:transition-none ' +
+                        (open ? 'rotate-180' : '')
+                      }
+                    />
+                  </button>
+                )}
+
+                {/* Expanded details */}
+                {open && (
+                  <div className="m3-in px-4 pb-4 pt-1">
+                    {showHistory && !editing && (
+                      <div className="mb-3 grid grid-cols-4 rounded-xl bg-[var(--m3-surface)] py-2 text-center">
+                        {[
+                          ['Vendu', soldToday],
+                          ['Ouv.', product.stockOuverture],
+                          ['Ferm.', product.stockFermeture],
+                          ['Seuil', product.seuil],
+                        ].map(([label, value]) => (
+                          <div key={label}>
+                            <div className="text-xs leading-4 text-[var(--m3-on-surface-variant)]">{label}</div>
+                            <div className="text-base font-medium tabular-nums">{value}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <ProductNumberField
+                        label="Prix vente"
+                        tone="green"
+                        decimal
+                        editing={editing}
+                        value={product.prix}
+                        onChange={(value) => onUpdateProduct(product.id, { prix: value })}
+                      />
+                      <ProductNumberField
+                        label="Prix achat"
+                        tone="steel"
+                        decimal
+                        editing={editing}
+                        value={product.prixAchat}
+                        onChange={(value) => onUpdateProduct(product.id, { prixAchat: value })}
+                      />
+                      <ProductNumberField
+                        label="Seuil"
+                        tone="yellow"
+                        editing={editing}
+                        value={product.seuil}
+                        onChange={(value) => onUpdateProduct(product.id, { seuil: value })}
+                      />
+                      <ProductNumberField
+                        label="Ouverture"
+                        editing={editing}
+                        value={product.stockOuverture}
+                        onChange={(value) => onUpdateProduct(product.id, { stockOuverture: value })}
+                      />
+                      <ProductNumberField
+                        label="Fermeture"
+                        editing={editing}
+                        value={product.stockFermeture}
+                        onChange={(value) => onUpdateProduct(product.id, { stockFermeture: value })}
+                      />
+                      <ProductNumberField
+                        label="Ajout stock"
+                        tone="green"
+                        placeholder="Qté"
+                        editing={editing}
+                        value={restockValue}
+                        onChange={(value) => setRestockByProduct((prev) => ({ ...prev, [product.id]: value }))}
+                      />
+                    </div>
+
+                    <div className={'mt-4 grid gap-2 ' + (editing ? 'grid-cols-2' : 'grid-cols-3')}>
+                      {editing ? (
+                        <>
+                          <button
+                            onClick={() => handleSaveClick(product.id)}
+                            disabled={saving}
+                            className={
+                              `${btn} bg-[var(--m3-primary)] text-[var(--m3-on-primary)] ` +
+                              (saving ? 'cursor-wait opacity-80' : '')
+                            }
+                            aria-label={saving ? 'Enregistrement...' : 'Enregistrer'}
+                          >
+                            <M3StateLayer />
+                            {saving ? <M3Loading size={18} /> : <Check size={18} />}
+                            {saving ? 'Envoi…' : 'Enregistrer'}
+                          </button>
+                          <button
+                            onClick={handleCancelClick}
+                            className={`${btn} border border-[var(--m3-outline)] text-[var(--m3-primary)]`}
+                            aria-label="Annuler"
+                          >
+                            <M3StateLayer />
+                            <X size={18} />
+                            Annuler
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => onViewHistory(product)}
+                            className={
+                              `${btn} ` +
+                              (showHistory
+                                ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
+                                : 'border border-[var(--m3-outline)] text-[var(--m3-primary)]')
+                            }
+                            aria-label="Historique"
+                            aria-pressed={showHistory}
+                          >
+                            <M3StateLayer />
+                            <History size={18} />
+                            Histo.
+                          </button>
+                          <button
+                            onClick={() => {
+                              setExpandedId(product.id);
+                              handleEditClick(product.id);
+                            }}
+                            className={`${btn} bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]`}
+                            aria-label="Modifier"
+                          >
+                            <M3StateLayer />
+                            <Pencil size={18} />
+                            Modifier
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Supprimer « ${product.nom} » ?`)) onDeleteProduct(product);
+                            }}
+                            className={`${btn} text-[#BA1A1A]`}
+                            aria-label="Supprimer"
+                          >
+                            <M3StateLayer />
+                            <Trash2 size={18} />
+                            Suppr.
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {filteredProducts.length === 0 && (
-            <div className="px-6 py-12 text-center">
-              <PackagePlus size={28} aria-hidden="true" className="mx-auto mb-3 text-[color:var(--sm-mu)]" />
-              <p className="text-[15px] font-semibold">Aucun produit ne correspond aux filtres.</p>
-              <p className="mt-1 text-[13px] text-[color:var(--sm-mu)]">Essayez de modifier vos critères de recherche.</p>
+            <div className="rounded-[32px] bg-[var(--m3-surface-container)] px-6 py-10 text-center">
+              <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+                <PackagePlus size={28} />
+              </span>
+              <p className="text-base font-medium">Aucun produit ne correspond aux filtres.</p>
+              <p className="mt-1 text-sm text-[var(--m3-on-surface-variant)]">
+                Essayez de modifier vos critères de recherche.
+              </p>
             </div>
           )}
         </div>
-      </div>
-
-      {/* Fixed action bar (phone only): white, square, hairline on top, one lime primary action */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[color:var(--sm-div)] bg-white px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:hidden">
-        <button
-          type="button"
-          onClick={onAddProduct}
-          className={`flex h-[46px] w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--sm-lime)] px-3 text-[15px] font-semibold text-[color:var(--sm-tx)] transition-transform active:translate-y-px motion-reduce:transition-none ${SM_FOCUS}`}
-        >
-          <Plus size={18} aria-hidden="true" />
-          <span className="truncate">Nouveau produit</span>
-        </button>
       </div>
     </div>
   );
@@ -8174,5 +8253,10 @@ function TerminalPage() {
 
 export default function App() {
   if (window.location.pathname.toLowerCase().replace(/\/+$/, '') === '/terminal') return <TerminalPage />;
-  return <GestionMateriaux />;
+  return (
+    <>
+      <style>{M3_CSS}</style>
+      <GestionMateriaux />
+    </>
+  );
 }
