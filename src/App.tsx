@@ -1864,6 +1864,14 @@ function OwnerBoard({
   const [menuOpen, setMenuOpen] = useState<boolean>(
     () => typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches
   );
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !window.matchMedia('(min-width: 768px)').matches) setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
   const closeMenuOnMobile = () => {
     if (typeof window !== 'undefined' && !window.matchMedia('(min-width: 768px)').matches) setMenuOpen(false);
   };
@@ -2056,7 +2064,17 @@ function OwnerBoard({
         <label className="mb-1 block text-[10px] uppercase tracking-[0.2em] text-[#c7ccd1]" htmlFor="owner-branch-select">
           Succursale
         </label>
-        <div className="relative">
+        <div className="flex items-stretch gap-2">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            className="flex w-11 shrink-0 items-center justify-center border-2 border-[#ECE7DC] text-[#ECE7DC] hover:bg-[#1f2225]"
+            aria-label="Menu de la succursale"
+            aria-expanded={menuOpen}
+          >
+            <Menu size={18} />
+          </button>
+          <div className="relative min-w-0 flex-1">
           <select
             id="owner-branch-select"
             value={activeBranchId}
@@ -2070,6 +2088,7 @@ function OwnerBoard({
             ))}
           </select>
           <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#16181A]" />
+          </div>
         </div>
       </div>
 
@@ -2099,7 +2118,7 @@ function OwnerBoard({
         <div className="mb-4 flex flex-wrap items-center gap-3 border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[3px_3px_0_#16181A] md:shadow-[6px_6px_0_#16181A]">
           <button
             onClick={() => setMenuOpen((prev) => !prev)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31]"
+            className="hidden h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31] md:flex"
             aria-label="Menu de la succursale"
           >
             <Menu size={18} />
@@ -2151,12 +2170,37 @@ function OwnerBoard({
         </div>
 
         <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-start md:gap-4">
+          {menuOpen && (
+            <div
+              className="fixed inset-0 z-[65] bg-black/55 md:hidden"
+              onClick={() => setMenuOpen(false)}
+              aria-hidden="true"
+            />
+          )}
           <nav
+            aria-label="Sections de la succursale"
             className={
-              'border-2 border-[#16181A] bg-[#FBFAF6] p-2 md:shrink-0 md:transition-[width] md:duration-150 ' +
-              (menuOpen ? 'w-full md:w-56' : 'hidden md:block md:w-14')
+              'border-2 border-[#16181A] bg-[#FBFAF6] p-2 ' +
+              'fixed inset-y-0 left-0 z-[70] w-72 max-w-[85vw] overflow-y-auto shadow-[6px_0_0_#16181A] transition-transform duration-200 ' +
+              (menuOpen ? 'translate-x-0 ' : '-translate-x-full ') +
+              'md:static md:z-auto md:max-w-none md:translate-x-0 md:overflow-visible md:shadow-none md:shrink-0 md:transition-[width] md:duration-150 ' +
+              (menuOpen ? 'md:w-56' : 'md:w-14')
             }
           >
+            <div className="mb-2 flex items-center justify-between border-b-2 border-[#16181A] pb-2 md:hidden">
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-[0.24em] text-[#4B5560]">Menu</div>
+                <div className="truncate font-serif text-base leading-tight">{activeBranch.nom}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
+                aria-label="Fermer le menu"
+              >
+                <X size={16} />
+              </button>
+            </div>
             {OWNER_SECTIONS.map(({ id, label, icon: Icon }) => {
               const active = activeSection === id;
               const isReports = id === 'reports';
@@ -2178,7 +2222,7 @@ function OwnerBoard({
                     aria-expanded={isReports ? reportsOpen && active : undefined}
                     className={
                       'flex w-full items-center text-left text-[11px] uppercase tracking-[0.18em] border-2 py-2.5 ' +
-                      (menuOpen ? 'gap-3 px-3' : 'justify-center px-0') +
+                      (menuOpen ? 'gap-3 px-3' : 'gap-3 px-3 md:justify-center md:gap-0 md:px-0') +
                       ' ' +
                       (active
                         ? 'border-[#C1440E] bg-[#C1440E] text-white'
@@ -2186,17 +2230,17 @@ function OwnerBoard({
                     }
                   >
                     <Icon size={15} className="shrink-0" />
-                    {menuOpen && <span>{label}</span>}
-                    {menuOpen && isReports && (
+                    <span className={menuOpen ? '' : 'md:hidden'}>{label}</span>
+                    {isReports && (
                       <ChevronDown
                         size={14}
-                        className={'ml-auto shrink-0 transition-transform ' + (reportsOpen && active ? 'rotate-180' : '')}
+                        className={'ml-auto shrink-0 transition-transform ' + (menuOpen ? '' : 'md:hidden ') + (reportsOpen && active ? 'rotate-180' : '')}
                       />
                     )}
                   </button>
 
                   {isReports && active && reportsOpen && (
-                    <div className={'mt-1 border-l-2 border-[#C1440E] ' + (menuOpen ? 'ml-4 pl-1' : 'ml-0 pl-0')}>
+                    <div className={'mt-1 border-l-2 border-[#C1440E] ' + 'ml-4 pl-1 ' + (menuOpen ? '' : 'md:ml-0 md:pl-0')}>
                       {REPORT_TABS.map((tab) => {
                         const subActive = reportPeriod === tab.id;
                         return (
@@ -2210,14 +2254,15 @@ function OwnerBoard({
                             aria-label={tab.label}
                             className={
                               'mb-0.5 flex w-full items-center border-2 py-2 text-left text-[10px] uppercase tracking-[0.14em] last:mb-0 ' +
-                              (menuOpen ? 'px-3' : 'justify-center px-0') +
+                              (menuOpen ? 'px-3' : 'px-3 md:justify-center md:px-0') +
                               ' ' +
                               (subActive
                                 ? 'border-[#16181A] bg-[#16181A] text-white'
                                 : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
                             }
                           >
-                            {menuOpen ? tab.label : tab.short}
+                            <span className={menuOpen ? '' : 'md:hidden'}>{tab.label}</span>
+                            {!menuOpen && <span className="hidden md:inline">{tab.short}</span>}
                           </button>
                         );
                       })}
