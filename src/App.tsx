@@ -8,7 +8,8 @@ import {
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
   Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown,
-  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt, ExternalLink, Copy, Wrench, CupSoda, Wheat
+  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt, ExternalLink, Copy, Wrench, CupSoda, Wheat,
+  MapPin, UserRound, TrendingUp, type LucideIcon
 } from 'lucide-react';
 
 /* =========================================================================
@@ -1278,8 +1279,78 @@ function GestionMateriaux() {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-4 py-5 md:px-6">
+        {/* Branch header — mobile: separate cards */}
+        {(() => {
+          const ventesDuJour = ventesValides.filter(
+            (v) => v.branchId === selectedBranchId && isSameDay(v.date, selectedDate)
+          );
+          const totalDuJour = ventesDuJour.reduce((s, v) => s + v.total, 0);
+          return (
+            <BranchHeaderCards
+              branch={brancheActuelle}
+              onMenu={() => setMenuOpen((prev) => !prev)}
+              date={
+                isManagementView(view)
+                  ? {
+                      selectedDate,
+                      onSelect: setSelectedDate,
+                      salesDays,
+                      onShift: shiftSelectedDate,
+                      isToday: isCurrentDateSelected,
+                    }
+                  : null
+              }
+              stats={[
+                {
+                  id: 'ventes',
+                  label: 'Ventes',
+                  value: fmtHTG(totalDuJour),
+                  hint: relativeDayLabel(selectedDate),
+                  icon: TrendingUp,
+                  onClick: () => setView('ventes'),
+                },
+                {
+                  id: 'transactions',
+                  label: 'Transactions',
+                  value: String(ventesDuJour.length),
+                  hint: ventesDuJour.length ? 'Panier moyen ' + fmtHTG(totalDuJour / ventesDuJour.length) : 'Aucune vente',
+                  icon: Receipt,
+                  onClick: () => setView('ventes'),
+                },
+                {
+                  id: 'stock',
+                  label: 'Alertes stock',
+                  value: String(produitsStockBas.length),
+                  hint: produitsStockBas.length ? 'À réapprovisionner' : 'Tout est OK',
+                  icon: AlertTriangle,
+                  tone: produitsStockBas.length ? 'warn' : 'default',
+                  onClick: () => setView('produits'),
+                },
+                {
+                  id: 'panier',
+                  label: 'Panier en cours',
+                  value: nbArticlesPanier ? fmtHTG(totalPanier) : '—',
+                  hint: nbArticlesPanier ? nbArticlesPanier + ' article(s)' : 'Vide',
+                  icon: ShoppingCart,
+                  onClick: () => setView('vente'),
+                },
+              ]}
+              shortcuts={NAV_ITEMS.map(({ id, label, icon }) => ({
+                id,
+                label,
+                icon,
+                active: view === id,
+                onClick: () => {
+                  setReportsOpen(id === 'rapports');
+                  setView(id);
+                },
+              }))}
+            />
+          );
+        })()}
+
         {/* Branch header + hamburger menu (same as admin board) */}
-        <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3 rounded-[28px] bg-[var(--m3-surface-container)] p-4 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
+        <div className="mb-4 hidden shrink-0 flex-wrap items-center gap-3 rounded-[28px] bg-[var(--m3-surface-container)] p-4 md:flex md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
           <button
             onClick={() => setMenuOpen((prev) => !prev)}
             className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] transition-transform active:scale-95 motion-reduce:transition-none md:h-10 md:w-10 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#16181A] md:text-[#FBFAF6] md:hover:bg-[#2b2e31] md:active:scale-100 ${M3_FOCUS}`}
@@ -1858,6 +1929,222 @@ function DatePicker({
   );
 }
 
+/* =========================================================================
+   BranchHeaderCards — mobile-only header, split into focused cards:
+   identité · journée · chiffres clés · raccourcis. Desktop keeps the original bar.
+   ========================================================================= */
+type HeaderStat = {
+  id: string;
+  label: string;
+  value: string;
+  hint?: string;
+  icon: LucideIcon;
+  tone?: 'default' | 'warn';
+  onClick?: () => void;
+};
+
+type HeaderShortcut = {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+  onClick: () => void;
+};
+
+function relativeDayLabel(d: Date) {
+  const now = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  if (isSameDay(d, now)) return "Aujourd'hui";
+  if (isSameDay(d, yesterday)) return 'Hier';
+  return d.toLocaleDateString('fr-FR', { weekday: 'long' });
+}
+
+function BranchHeaderCards({
+  branch,
+  onMenu,
+  date,
+  stats,
+  shortcuts,
+}: {
+  branch: Branch;
+  onMenu?: () => void;
+  date: {
+    selectedDate: Date;
+    onSelect: (d: Date) => void;
+    salesDays: Set<string>;
+    onShift: (offset: number) => void;
+    isToday: boolean;
+  } | null;
+  stats: HeaderStat[];
+  shortcuts: HeaderShortcut[];
+}) {
+  const isOpen = branch.statut === 'Ouvert';
+  const shortName = branch.nom.replace('Tchiley Construction', '').trim();
+  const eyebrow = shortName ? 'Tchiley Construction' : 'Succursale';
+  const title = shortName || branch.nom;
+  const shownDate = date ? date.selectedDate : new Date();
+  const navBtn =
+    'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg transition-transform active:scale-95 motion-reduce:transition-none ' +
+    M3_FOCUS;
+
+  return (
+    <div className="mb-4 flex shrink-0 flex-col gap-3 md:hidden">
+      {/* 1 · Identité de la succursale */}
+      <section className="rounded-[28px] bg-[var(--m3-surface-container)] p-4">
+        <div className="flex items-start gap-3">
+          {onMenu && (
+            <button
+              type="button"
+              onClick={onMenu}
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] transition-transform active:scale-95 motion-reduce:transition-none ${M3_FOCUS}`}
+              aria-label="Menu de la succursale"
+            >
+              <Menu size={20} />
+            </button>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="text-xs text-[var(--m3-on-surface-variant)]">{eyebrow}</div>
+            <div className="truncate text-2xl font-medium leading-tight">{title}</div>
+          </div>
+          <span
+            className={
+              'mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ' +
+              (isOpen
+                ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]'
+                : 'bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)]')
+            }
+          >
+            <span className={'h-2 w-2 rounded-full ' + (isOpen ? 'bg-[var(--m3-primary)]' : 'bg-[var(--m3-outline)]')} />
+            {branch.statut}
+          </span>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="flex min-w-0 items-center gap-2 rounded-2xl bg-[var(--m3-surface)] px-3 py-2.5">
+            <MapPin size={16} className="shrink-0 text-[var(--m3-primary)]" />
+            <div className="min-w-0">
+              <div className="text-[11px] text-[var(--m3-on-surface-variant)]">Lieu</div>
+              <div className="truncate text-sm font-medium">{branch.ville} • {branch.adresse}</div>
+            </div>
+          </div>
+          <div className="flex min-w-0 items-center gap-2 rounded-2xl bg-[var(--m3-surface)] px-3 py-2.5">
+            <UserRound size={16} className="shrink-0 text-[var(--m3-primary)]" />
+            <div className="min-w-0">
+              <div className="text-[11px] text-[var(--m3-on-surface-variant)]">Responsable</div>
+              <div className="truncate text-sm font-medium">{branch.gestionnaire}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2 · Journée consultée */}
+      <section className="rounded-[24px] bg-[var(--m3-surface-container)] p-3">
+        <div className="mb-2 flex items-center justify-between gap-2 px-1">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--m3-on-surface-variant)]">
+            <CalendarDays size={14} /> Journée consultée
+          </span>
+          <span className="rounded-full bg-[var(--m3-secondary-container)] px-2.5 py-0.5 text-xs font-medium capitalize text-[var(--m3-on-secondary-container)]">
+            {relativeDayLabel(shownDate)}
+          </span>
+        </div>
+        {date ? (
+          <>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => date.onShift(-1)} className={navBtn} aria-label="Jour précédent">
+                ‹
+              </button>
+              <div className="min-w-0 flex-1">
+                <DatePicker selectedDate={date.selectedDate} onSelect={date.onSelect} salesDays={date.salesDays} block />
+              </div>
+              <button
+                type="button"
+                onClick={() => date.onShift(1)}
+                disabled={date.isToday}
+                className={navBtn + (date.isToday ? ' cursor-not-allowed opacity-40' : '')}
+                aria-label="Jour suivant"
+              >
+                ›
+              </button>
+            </div>
+            {!date.isToday && (
+              <button
+                type="button"
+                onClick={() => date.onSelect(new Date())}
+                className={`mt-2 h-10 w-full rounded-full text-sm font-medium text-[var(--m3-primary)] active:bg-[var(--m3-surface-container-high)] ${M3_FOCUS}`}
+              >
+                Revenir à aujourd'hui
+              </button>
+            )}
+          </>
+        ) : (
+          <div className="flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--m3-surface-container-high)] text-sm">
+            <CalendarDays size={14} />
+            {shownDate.toLocaleDateString('fr-HT', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
+          </div>
+        )}
+      </section>
+
+      {/* 3 · Chiffres clés */}
+      {stats.length > 0 && (
+        <section aria-label="Chiffres clés" className="grid grid-cols-2 gap-2">
+          {stats.map((s) => {
+            const Icon = s.icon;
+            const warn = s.tone === 'warn';
+            const cls =
+              'flex min-w-0 flex-col gap-1 rounded-[20px] p-3 text-left ' +
+              (warn ? 'bg-[#FFE08B] text-[#251A00]' : 'bg-[var(--m3-surface-container)]') +
+              (s.onClick ? ' transition-transform active:scale-[0.98] motion-reduce:transition-none ' + M3_FOCUS : '');
+            const body = (
+              <>
+                <span className="flex items-center gap-1.5 text-xs opacity-80">
+                  <Icon size={14} /> {s.label}
+                </span>
+                <span className="truncate text-lg font-medium leading-tight">{s.value}</span>
+                {s.hint && <span className="truncate text-[11px] opacity-70">{s.hint}</span>}
+              </>
+            );
+            return s.onClick ? (
+              <button key={s.id} type="button" onClick={s.onClick} className={cls}>
+                {body}
+              </button>
+            ) : (
+              <div key={s.id} className={cls}>
+                {body}
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {/* 4 · Raccourcis vers les sections */}
+      {shortcuts.length > 0 && (
+        <nav aria-label="Raccourcis" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {shortcuts.map((s) => {
+            const Icon = s.icon;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={s.onClick}
+                aria-current={s.active ? 'page' : undefined}
+                className={
+                  'flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-transform active:scale-95 motion-reduce:transition-none ' +
+                  (s.active
+                    ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                    : 'bg-[var(--m3-surface-container)] text-[var(--m3-on-surface-variant)]') +
+                  ' ' + M3_FOCUS
+                }
+              >
+                <Icon size={16} /> {s.label}
+              </button>
+            );
+          })}
+        </nav>
+      )}
+    </div>
+  );
+}
+
 function OwnerBoard({
   users,
   setUsers,
@@ -2159,8 +2446,66 @@ function OwnerBoard({
       </div>
 
       <div className="px-4 py-5 md:px-6">
-        {/* Active branch panel header + hamburger menu */}
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[28px] bg-[var(--m3-surface-container)] p-4 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
+        {/* Active branch header — mobile: separate cards */}
+        <BranchHeaderCards
+          branch={activeBranch}
+          date={{
+            selectedDate,
+            onSelect: setSelectedDate,
+            salesDays,
+            onShift: shiftSelectedDate,
+            isToday: isCurrentDateSelected,
+          }}
+          stats={[
+            {
+              id: 'ventes',
+              label: 'Ventes',
+              value: fmtHTG(salesToday.reduce((s, v) => s + v.total, 0)),
+              hint: relativeDayLabel(selectedDate),
+              icon: TrendingUp,
+              onClick: () => selectSection('sales'),
+            },
+            {
+              id: 'transactions',
+              label: 'Transactions',
+              value: String(salesToday.length),
+              hint: salesToday.length
+                ? 'Panier moyen ' + fmtHTG(salesToday.reduce((s, v) => s + v.total, 0) / salesToday.length)
+                : 'Aucune vente',
+              icon: Receipt,
+              onClick: () => selectSection('sales'),
+            },
+            {
+              id: 'stock',
+              label: 'Alertes stock',
+              value: String(stockAlertCount),
+              hint: stockAlertCount ? 'À réapprovisionner' : 'Tout est OK',
+              icon: AlertTriangle,
+              tone: stockAlertCount ? 'warn' : 'default',
+              onClick: () => selectSection('products'),
+            },
+            {
+              id: 'produits',
+              label: 'Produits',
+              value: String(branchProducts.length),
+              hint: 'En catalogue',
+              icon: Boxes,
+              onClick: () => selectSection('products'),
+            },
+          ]}
+          shortcuts={OWNER_SECTIONS.map(({ id, label, icon }) => ({
+            id,
+            label,
+            icon,
+            active: activeSection === id,
+            onClick: () => {
+              setReportsOpen(id === 'reports');
+              selectSection(id);
+            },
+          }))}
+        />
+
+        <div className="mb-4 hidden md:flex flex-wrap items-center gap-3 rounded-[28px] bg-[var(--m3-surface-container)] p-4 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
           <button
             onClick={() => setMenuOpen((prev) => !prev)}
             className="hidden h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31] md:flex"
