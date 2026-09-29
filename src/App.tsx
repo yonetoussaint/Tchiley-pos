@@ -1288,6 +1288,7 @@ function GestionMateriaux() {
           return (
             <BranchHeaderCards
               branch={brancheActuelle}
+              compact={view !== 'dashboard'}
               onMenu={() => setMenuOpen((prev) => !prev)}
               date={
                 isManagementView(view)
@@ -2057,9 +2058,12 @@ function BranchHeaderCards({
   date,
   stats,
   shortcuts,
+  compact = false,
 }: {
   branch: Branch;
   onMenu?: () => void;
+  /** Non-dashboard tabs: only the date navigator (plus the menu button when there is one). */
+  compact?: boolean;
   date: {
     selectedDate: Date;
     onSelect: (d: Date) => void;
@@ -2079,9 +2083,25 @@ function BranchHeaderCards({
     'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg m3-press motion-reduce:transition-none ' +
     M3_FOCUS;
 
+  if (compact && !date) {
+    return onMenu ? (
+      <div className="mb-4 flex shrink-0 md:hidden">
+        <button
+          type="button"
+          onClick={onMenu}
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
+          aria-label="Menu de la succursale"
+        >
+          <Menu size={20} />
+        </button>
+      </div>
+    ) : null;
+  }
+
   return (
     <div className="mb-4 flex shrink-0 flex-col gap-3 md:hidden">
-      {/* 1 · Identité de la succursale */}
+      {/* 1 · Identité de la succursale (dashboard only) */}
+      {!compact && (
       <section className="rounded-[32px] bg-[var(--m3-surface-container)] p-4">
         <div className="flex items-start gap-3">
           {onMenu && (
@@ -2127,11 +2147,22 @@ function BranchHeaderCards({
           </div>
         </div>
       </section>
+      )}
 
       {/* 2 · Journée consultée */}
       <section className="rounded-[28px] bg-[var(--m3-surface-container)] p-3">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
-          <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--m3-on-surface-variant)]">
+          {compact && onMenu && (
+            <button
+              type="button"
+              onClick={onMenu}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
+              aria-label="Menu de la succursale"
+            >
+              <Menu size={18} />
+            </button>
+          )}
+          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-medium text-[var(--m3-on-surface-variant)]">
             <CalendarDays size={14} /> Journée consultée
           </span>
           <span className="rounded-full bg-[var(--m3-secondary-container)] px-2.5 py-0.5 text-xs font-medium capitalize text-[var(--m3-on-secondary-container)]">
@@ -2176,7 +2207,7 @@ function BranchHeaderCards({
       </section>
 
       {/* 3 · Chiffres clés */}
-      {stats.length > 0 && (
+      {!compact && stats.length > 0 && (
         <section aria-label="Chiffres clés" className="grid grid-cols-2 gap-2">
           {stats.map((s) => {
             const Icon = s.icon;
@@ -2208,7 +2239,7 @@ function BranchHeaderCards({
       )}
 
       {/* 4 · Raccourcis vers les sections */}
-      {shortcuts.length > 0 && (
+      {!compact && shortcuts.length > 0 && (
         <nav aria-label="Raccourcis" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {shortcuts.map((s) => {
             const Icon = s.icon;
@@ -2540,6 +2571,7 @@ function OwnerBoard({
         {/* Active branch header — mobile: separate cards */}
         <BranchHeaderCards
           branch={activeBranch}
+          compact={activeSection !== 'dashboard'}
           date={{
             selectedDate,
             onSelect: setSelectedDate,
