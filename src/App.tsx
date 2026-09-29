@@ -2742,6 +2742,56 @@ function BranchDashboardSection({
   );
 }
 
+type ProductFieldTone = 'green' | 'ink' | 'steel' | 'yellow';
+
+const PRODUCT_FIELD_TONES: Record<ProductFieldTone, { text: string; edit: string }> = {
+  green: { text: 'text-[#2F6B4F]', edit: 'border-[#2F6B4F] bg-[#E9F5EF]' },
+  steel: { text: 'text-[#4B5560]', edit: 'border-[#4B5560] bg-[#F3F4F6]' },
+  ink: { text: 'text-[#16181A]', edit: 'border-[#16181A] bg-[#F3F4F6]' },
+  yellow: { text: 'text-[#8a6d00]', edit: 'border-[#F2B705] bg-[#FDF6DC]' },
+};
+
+/* Large, thumb-friendly numeric field used by the phone card layout of the Products tab.
+   16px text avoids the iOS zoom-on-focus; read-only until the card is in edit mode. */
+function ProductNumberField({
+  label,
+  value,
+  onChange,
+  editing,
+  tone = 'ink',
+  placeholder,
+  decimal = false,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  editing: boolean;
+  tone?: ProductFieldTone;
+  placeholder?: string;
+  decimal?: boolean;
+}) {
+  const t = PRODUCT_FIELD_TONES[tone];
+  return (
+    <label className="block min-w-0">
+      <span className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#4B5560]">{label}</span>
+      <input
+        type="number"
+        min="0"
+        inputMode={decimal ? 'decimal' : 'numeric'}
+        value={value}
+        placeholder={placeholder}
+        readOnly={!editing}
+        tabIndex={editing ? 0 : -1}
+        onFocus={(event) => event.target.select()}
+        onChange={(event) => onChange(Number(event.target.value) || 0)}
+        className={`h-11 w-full border-2 px-3 text-right text-base font-medium tabular-nums outline-none transition-colors ${t.text} ${
+          editing ? t.edit : 'border-transparent bg-[#F3EFE3]'
+        }`}
+      />
+    </label>
+  );
+}
+
 function BranchProductsSection({
   branchProducts,
   inventorySearch,
@@ -2808,27 +2858,27 @@ function BranchProductsSection({
 
   return (
     <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#2F6B4F] sm:p-5 sm:shadow-[8px_8px_0_#2F6B4F]">
-      <div className="mb-5 flex items-center justify-between">
-        <h2 className="font-serif text-2xl">Produits</h2>
+      <div className="mb-3 flex items-center justify-between sm:mb-5">
+        <h2 className="font-serif text-xl sm:text-2xl">Produits</h2>
         <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em]">
           {branchProducts.length} produits
         </span>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-[220px] flex-1 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 transition-shadow focus-within:shadow-[4px_4px_0_#C1440E]">
+      <div className="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+        <div className="flex w-full min-w-0 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2.5 transition-shadow sm:min-w-[220px] sm:flex-1 sm:py-2 focus-within:shadow-[4px_4px_0_#C1440E]">
           <Search className="h-4 w-4 shrink-0 text-[#4B5560]" />
           <input
             type="text"
             value={inventorySearch}
             onChange={(event) => setInventorySearch(event.target.value)}
             placeholder="Rechercher un produit..."
-            className="w-full border-none bg-transparent text-sm text-[#16181A] outline-none placeholder:text-[#4B5560]"
+            className="w-full min-w-0 border-none bg-transparent text-base text-[#16181A] outline-none placeholder:text-[#4B5560] sm:text-sm"
           />
           <select
             value={inventoryCategoryFilter}
             onChange={(event) => setInventoryCategoryFilter(event.target.value)}
-            className="shrink-0 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-[#16181A] outline-none"
+            className="hidden shrink-0 border-2 sm:block border-[#16181A] bg-[#F3F4F6] px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-[#16181A] outline-none"
             aria-label="Filtrer par catégorie"
           >
             {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
@@ -2838,16 +2888,30 @@ function BranchProductsSection({
             ))}
           </select>
         </div>
+        <div className="flex gap-2 sm:contents">
+            <select
+              value={inventoryCategoryFilter}
+              onChange={(event) => setInventoryCategoryFilter(event.target.value)}
+              className="h-11 min-w-0 flex-1 border-2 border-[#16181A] bg-white px-3 text-base uppercase tracking-wide text-[#16181A] outline-none sm:hidden"
+              aria-label="Filtrer par catégorie"
+            >
+              {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
         <button
           onClick={onAddProduct}
-          className="flex shrink-0 items-center gap-2 border-2 border-[#16181A] bg-[#16181A] px-3 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2b2e31]"
+          className="flex h-11 shrink-0 items-center justify-center gap-2 border-2 border-[#16181A] bg-[#16181A] px-4 sm:h-auto sm:px-3 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2b2e31]"
         >
           <Plus size={14} />
           Nouveau
         </button>
+        </div>
       </div>
 
-      <div className="mb-5 flex flex-wrap gap-2">
+      <div className="mb-4 grid grid-cols-3 gap-2 sm:mb-5 sm:flex sm:flex-wrap">
         {[
           { id: 'all', label: 'Tous' },
           { id: 'low', label: 'En stock bas' },
@@ -2857,7 +2921,7 @@ function BranchProductsSection({
             key={status.id}
             onClick={() => setInventoryStatusFilter(status.id as 'all' | 'low' | 'normal')}
             className={
-              'border-2 px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] transition-colors ' +
+              'border-2 px-1 py-2.5 text-center text-[10px] font-medium uppercase tracking-[0.1em] transition-colors sm:px-2.5 sm:py-1.5 sm:tracking-[0.16em] ' +
               (inventoryStatusFilter === status.id
                 ? 'border-[#C1440E] bg-[#C1440E] text-white'
                 : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
@@ -2869,7 +2933,7 @@ function BranchProductsSection({
       </div>
 
       {selectedHistoryProduct && (
-        <div className="mb-4 border-2 border-[#16181A] bg-[#F0F8FF] p-3">
+        <div className="mb-4 hidden border-2 border-[#16181A] bg-[#F0F8FF] p-3 sm:block">
           <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Historique produit</div>
           <div className="flex flex-wrap items-center gap-3 text-[12px] text-[#16181A]">
             <span className="font-serif text-lg">{selectedHistoryProduct.nom}</span>
@@ -2881,8 +2945,8 @@ function BranchProductsSection({
         </div>
       )}
 
-      <div className="overflow-hidden border-2 border-[#16181A] bg-white">
-        <div className="max-h-[65vh] overflow-auto">
+      <div className="sm:overflow-hidden sm:border-2 sm:border-[#16181A] sm:bg-white">
+        <div className="hidden max-h-[65vh] overflow-auto sm:block">
           <table className="w-full min-w-[900px] border-collapse text-left" role="grid">
             <thead className="sticky top-0 z-10 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
               <tr className="divide-x divide-[#d3cbb6]">
@@ -3120,7 +3184,7 @@ function BranchProductsSection({
         </div>
 
         {/* Mobile Card View */}
-        <div className="sm:hidden p-3 space-y-3 border-t-2 border-[#e4ded0]">
+        <div className="space-y-3 sm:hidden">
           {filteredProducts.map((product) => {
             const soldToday = soldByProductToday[product.id] ?? 0;
             const restockValue = restockByProduct[product.id] ?? 0;
@@ -3128,219 +3192,213 @@ function BranchProductsSection({
             const isOutOfStock = product.stockFermeture <= 0;
             const editing = isEditing(product.id);
             const saving = isSaving(product.id);
+            const showHistory = selectedHistoryProduct?.id === product.id;
+            const statusLabel = isOutOfStock ? 'Rupture' : isLowStock ? 'Stock bas' : 'En stock';
+            const statusColor = isOutOfStock ? '#C1440E' : isLowStock ? '#F2B705' : '#2F6B4F';
             return (
               <div
                 key={product.id}
                 className={
-                  'border-2 p-3 rounded-none transition-all duration-150 ' +
-                  (isOutOfStock
+                  'border-2 p-3 transition-colors duration-150 ' +
+                  (editing
+                    ? 'border-[#C1440E] bg-white shadow-[3px_3px_0_#C1440E]'
+                    : isOutOfStock
                     ? 'border-[#C1440E] bg-[#FDF1EC]'
                     : isLowStock
                     ? 'border-[#F2B705] bg-[#FDF6DC]'
                     : 'border-[#16181A] bg-white')
                 }
               >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{
-                        backgroundColor: isOutOfStock ? '#C1440E' : isLowStock ? '#F2B705' : '#2F6B4F'
-                      }}
+                {/* Identity + stock */}
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <input
+                      value={product.nom}
+                      onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
+                      readOnly={!editing}
+                      tabIndex={editing ? 0 : -1}
+                      placeholder="Nom du produit"
+                      className={`w-full px-1 font-serif font-semibold leading-tight outline-none transition-colors ${
+                        editing
+                          ? 'h-11 border-2 border-[#C1440E] bg-white text-base'
+                          : 'h-auto border-2 border-transparent bg-transparent text-[17px]'
+                      }`}
                     />
-                    <div className="min-w-0">
-                      <input
-                        value={product.nom}
-                        onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
-                        disabled={!editing}
-                        className={`text-[14px] font-medium px-1 outline-none transition-all duration-150 ${
-                          editing
-                            ? 'border-2 border-[#C1440E] bg-white focus:border-[#C1440E] focus:bg-white'
-                            : 'border-2 border-transparent bg-transparent'
-                        }`}
-                      />
-                      <input
-                        value={product.categorie}
-                        onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
-                        disabled={!editing}
-                        className={`text-[11px] uppercase tracking-[0.16em] text-[#4B5560] px-1 outline-none transition-all duration-150 ${
-                          editing
-                            ? 'border-2 border-[#C1440E] bg-white focus:border-[#C1440E] focus:bg-white'
-                            : 'border-2 border-transparent bg-transparent'
-                        }`}
-                      />
-                    </div>
+                    <input
+                      value={product.categorie}
+                      onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
+                      readOnly={!editing}
+                      tabIndex={editing ? 0 : -1}
+                      placeholder="Catégorie"
+                      className={`mt-0.5 w-full px-1 uppercase tracking-[0.14em] text-[#4B5560] outline-none transition-colors ${
+                        editing
+                          ? 'h-11 border-2 border-[#C1440E] bg-white text-base'
+                          : 'h-auto border-2 border-transparent bg-transparent text-[11px]'
+                      }`}
+                    />
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      onClick={() => onViewHistory(product)}
-                      disabled={editing}
-                      className={`p-2 transition-all duration-150 ${
-                        editing
-                          ? 'border-2 border-transparent bg-transparent text-[#8b929a] cursor-not-allowed'
-                          : 'border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A]'
-                      }`}
-                      aria-label="Historique"
+                  <div className="shrink-0 text-right">
+                    <div className="text-[9px] uppercase tracking-[0.18em] text-[#4B5560]">Stock</div>
+                    <div
+                      className="font-serif text-3xl leading-none tabular-nums"
+                      style={{ color: isOutOfStock ? '#C1440E' : isLowStock ? '#8a6d00' : '#16181A' }}
                     >
-                      <History size={14} />
-                    </button>
-                    {!editing ? (
-                      <button
-                        onClick={() => handleEditClick(product.id)}
-                        className="p-2 border-2 border-transparent bg-transparent text-[#16181A] transition-all duration-150 hover:bg-[#ECE7DC] hover:border-[#16181A]"
-                        aria-label="Modifier"
-                        title="Modifier"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => handleSaveClick(product.id)}
-                          disabled={saving}
-                          className={`p-2 border-2 transition-all duration-150 ${
-                            saving
-                              ? 'border-[#2F6B4F] bg-[#2F6B4F] text-white cursor-wait'
-                              : 'border-[#2F6B4F] bg-transparent text-[#2F6B4F] hover:bg-[#E9F5EF] hover:border-[#2F6B4F]'
-                          }`}
-                          aria-label={saving ? 'Enregistrement...' : 'Enregistrer'}
-                          title={saving ? 'Enregistrement...' : 'Enregistrer'}
-                        >
-                          {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                        </button>
-                        <button
-                          onClick={handleCancelClick}
-                          className="p-2 border-2 border-transparent bg-transparent text-[#C1440E] transition-all duration-150 hover:bg-[#FDF1EC] hover:border-[#C1440E]"
-                          aria-label="Annuler"
-                          title="Annuler"
-                        >
-                          <X size={14} />
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => onDeleteProduct(product)}
-                      disabled={editing}
-                      className={`p-2 transition-all duration-150 ${
-                        editing
-                          ? 'border-2 border-transparent bg-transparent text-[#8b929a] cursor-not-allowed'
-                          : 'border-2 border-transparent bg-transparent text-[#C1440E] hover:bg-[#FDF1EC] hover:border-[#C1440E]'
-                      }`}
-                      aria-label="Supprimer"
-                      title="Supprimer"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                      {product.stockFermeture}
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 text-[11px]">
-                  <div className="col-span-2">
-                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Vendu aujourd'hui</span>
-                    <div className="font-medium tabular-nums">{soldToday}</div>
-                  </div>
-                  <div>
-                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Prix Vente</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={product.prix}
-                      onChange={(event) => onUpdateProduct(product.id, { prix: Number(event.target.value) || 0 })}
-                      disabled={!editing}
-                      className={`w-full text-right font-medium tabular-nums text-[#2F6B4F] px-1 outline-none transition-all duration-150 ${
-                        editing
-                          ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF]'
-                          : 'border-2 border-transparent bg-transparent'
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Prix Achat</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={product.prixAchat}
-                      onChange={(event) => onUpdateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
-                      disabled={!editing}
-                      className={`w-full text-right font-medium tabular-nums text-[#4B5560] px-1 outline-none transition-all duration-150 ${
-                        editing
-                          ? 'border-2 border-[#4B5560] bg-[#F3F4F6] focus:border-[#4B5560] focus:bg-[#F3F4F6]'
-                          : 'border-2 border-transparent bg-transparent'
-                      }`}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Stock Ouverture</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={product.stockOuverture}
-                      onChange={(event) => onUpdateProduct(product.id, { stockOuverture: Number(event.target.value) || 0 })}
-                      disabled={!editing}
-                      className={`w-full text-right font-medium tabular-nums text-[#16181A] px-1 outline-none transition-all duration-150 ${
-                        editing
-                          ? 'border-2 border-[#16181A] bg-[#F3F4F6] focus:border-[#16181A] focus:bg-[#F3F4F6]'
-                          : 'border-2 border-transparent bg-transparent'
-                      }`}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Stock Fermeture</span>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={
-                          'inline-flex h-8 min-w-[3rem] items-center justify-center border-2 px-2 font-medium tabular-nums ' +
-                          (isOutOfStock
-                            ? 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E]'
-                            : isLowStock
-                            ? 'border-[#F2B705] bg-[#FDF6DC] text-[#8a6d00]'
-                            : 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]')
-                        }
-                      >
-                        {product.stockFermeture}
-                      </span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={product.seuil}
-                        onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
-                        disabled={!editing}
-                        className={`w-16 h-8 px-1 text-right font-medium tabular-nums text-[#8a6d00] outline-none transition-all duration-150 ${
-                          editing
-                            ? 'border-2 border-[#F2B705] bg-[#FDF6DC] focus:border-[#F2B705] focus:bg-[#FDF6DC]'
-                            : 'border-2 border-transparent bg-transparent'
-                        }`}
-                        placeholder="Seuil"
-                      />
+                {/* Status chips */}
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                  <span className="inline-flex items-center gap-1.5 border-2 border-[#16181A] bg-white px-2 py-1 uppercase tracking-[0.08em]">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusColor }} />
+                    {statusLabel}
+                  </span>
+                  <span className="border-2 border-[#16181A] bg-white px-2 py-1 uppercase tracking-[0.08em]">
+                    Vendu auj.: <span className="font-bold tabular-nums">{soldToday}</span>
+                  </span>
+                </div>
+
+                {/* Inline history (phones) */}
+                {showHistory && (
+                  <div className="mt-3 border-2 border-[#16181A] bg-[#F0F8FF] p-2.5">
+                    <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Historique produit</div>
+                    <div className="grid grid-cols-2 gap-2 text-[12px]">
+                      <div className="border-2 border-[#16181A] bg-white px-2 py-1.5">
+                        <div className="text-[9px] uppercase tracking-[0.14em] text-[#4B5560]">Vendu</div>
+                        <div className="font-bold tabular-nums">{soldToday}</div>
+                      </div>
+                      <div className="border-2 border-[#16181A] bg-white px-2 py-1.5">
+                        <div className="text-[9px] uppercase tracking-[0.14em] text-[#4B5560]">Seuil alerte</div>
+                        <div className="font-bold tabular-nums">{product.seuil}</div>
+                      </div>
+                      <div className="border-2 border-[#16181A] bg-white px-2 py-1.5">
+                        <div className="text-[9px] uppercase tracking-[0.14em] text-[#4B5560]">Stock ouverture</div>
+                        <div className="font-bold tabular-nums">{product.stockOuverture}</div>
+                      </div>
+                      <div className="border-2 border-[#16181A] bg-white px-2 py-1.5">
+                        <div className="text-[9px] uppercase tracking-[0.14em] text-[#4B5560]">Stock fermeture</div>
+                        <div className="font-bold tabular-nums">{product.stockFermeture}</div>
+                      </div>
                     </div>
                   </div>
-                  <div className="col-span-2">
-                    <span className="uppercase tracking-[0.16em] text-[#4B5560]">Ajout Stock</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={restockValue}
-                      placeholder="Qté"
-                      onChange={(event) =>
-                        setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
-                      }
-                      disabled={!editing}
-                      className={`h-8 w-full px-2 text-right font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
-                        editing
-                          ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF]'
-                          : 'border-2 border-transparent bg-transparent'
-                      }`}
-                    />
-                  </div>
+                )}
+
+                {/* Fields */}
+                <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5">
+                  <ProductNumberField
+                    label="Prix vente"
+                    tone="green"
+                    decimal
+                    editing={editing}
+                    value={product.prix}
+                    onChange={(value) => onUpdateProduct(product.id, { prix: value })}
+                  />
+                  <ProductNumberField
+                    label="Prix achat"
+                    tone="steel"
+                    decimal
+                    editing={editing}
+                    value={product.prixAchat}
+                    onChange={(value) => onUpdateProduct(product.id, { prixAchat: value })}
+                  />
+                  <ProductNumberField
+                    label="Stock ouverture"
+                    editing={editing}
+                    value={product.stockOuverture}
+                    onChange={(value) => onUpdateProduct(product.id, { stockOuverture: value })}
+                  />
+                  <ProductNumberField
+                    label="Stock fermeture"
+                    editing={editing}
+                    value={product.stockFermeture}
+                    onChange={(value) => onUpdateProduct(product.id, { stockFermeture: value })}
+                  />
+                  <ProductNumberField
+                    label="Seuil alerte"
+                    tone="yellow"
+                    editing={editing}
+                    value={product.seuil}
+                    onChange={(value) => onUpdateProduct(product.id, { seuil: value })}
+                  />
+                  <ProductNumberField
+                    label="Ajout stock"
+                    tone="green"
+                    placeholder="Qté"
+                    editing={editing}
+                    value={restockValue}
+                    onChange={(value) => setRestockByProduct((prev) => ({ ...prev, [product.id]: value }))}
+                  />
+                </div>
+
+                {/* Actions — full-width touch targets */}
+                <div className={'mt-3 grid gap-2 ' + (editing ? 'grid-cols-2' : 'grid-cols-3')}>
+                  {editing ? (
+                    <>
+                      <button
+                        onClick={() => handleSaveClick(product.id)}
+                        disabled={saving}
+                        className={
+                          'flex h-11 items-center justify-center gap-1.5 border-2 border-[#2F6B4F] bg-[#2F6B4F] text-[11px] font-medium uppercase tracking-[0.12em] text-white ' +
+                          (saving ? 'cursor-wait opacity-80' : 'active:bg-[#255640]')
+                        }
+                        aria-label={saving ? 'Enregistrement...' : 'Enregistrer'}
+                      >
+                        {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+                        {saving ? 'Envoi…' : 'Enregistrer'}
+                      </button>
+                      <button
+                        onClick={handleCancelClick}
+                        className="flex h-11 items-center justify-center gap-1.5 border-2 border-[#C1440E] bg-white text-[11px] font-medium uppercase tracking-[0.12em] text-[#C1440E] active:bg-[#FDF1EC]"
+                        aria-label="Annuler"
+                      >
+                        <X size={15} />
+                        Annuler
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => onViewHistory(product)}
+                        className={
+                          'flex h-11 items-center justify-center gap-1.5 border-2 border-[#16181A] text-[11px] font-medium uppercase tracking-[0.1em] active:bg-[#ECE7DC] ' +
+                          (showHistory ? 'bg-[#16181A] text-white active:bg-[#2b2e31]' : 'bg-white text-[#16181A]')
+                        }
+                        aria-label="Historique"
+                        aria-pressed={showHistory}
+                      >
+                        <History size={15} />
+                        Histo.
+                      </button>
+                      <button
+                        onClick={() => handleEditClick(product.id)}
+                        className="flex h-11 items-center justify-center gap-1.5 border-2 border-[#16181A] bg-white text-[11px] font-medium uppercase tracking-[0.1em] text-[#16181A] active:bg-[#ECE7DC]"
+                        aria-label="Modifier"
+                      >
+                        <Pencil size={15} />
+                        Modifier
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Supprimer « ${product.nom} » ?`)) onDeleteProduct(product);
+                        }}
+                        className="flex h-11 items-center justify-center gap-1.5 border-2 border-[#C1440E] bg-white text-[11px] font-medium uppercase tracking-[0.1em] text-[#C1440E] active:bg-[#FDF1EC]"
+                        aria-label="Supprimer"
+                      >
+                        <Trash2 size={15} />
+                        Suppr.
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             );
           })}
           {filteredProducts.length === 0 && (
-            <div className="py-12 text-center text-[#4B5560]">
+            <div className="border-2 border-dashed border-[#16181A] bg-white py-12 text-center text-[#4B5560]">
               <PackagePlus size={32} className="mx-auto mb-3 opacity-40" />
               <p className="text-[13px]">Aucun produit ne correspond aux filtres.</p>
-              <p className="text-[11px] uppercase tracking-[0.16em]">Essayez de modifier vos critères de recherche</p>
+              <p className="mt-1 text-[11px] uppercase tracking-[0.16em]">Essayez de modifier vos critères de recherche</p>
             </div>
           )}
         </div>
