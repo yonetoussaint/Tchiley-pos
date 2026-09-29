@@ -9,7 +9,7 @@ import {
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
   Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown,
   Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt, ExternalLink, Copy, Wrench, CupSoda, Wheat,
-  MapPin, UserRound, TrendingUp, MoreHorizontal, LogOut, RotateCcw, type LucideIcon
+  MapPin, UserRound, TrendingUp, MoreHorizontal, LogOut, RotateCcw, KeyRound, Lock, Store, type LucideIcon
 } from 'lucide-react';
 
 /* =========================================================================
@@ -9136,6 +9136,111 @@ function BranchUsersSection({
   );
 }
 
+/* Password dialog shared by the owner and branch entrances.
+   Phone (< sm): Material 3 Expressive dialog — tonal surface, XL corners, icon badge, filled field, pill actions.
+   Desktop (≥ sm): the original hard-bordered house style, unchanged. */
+function AccessDialog({
+  eyebrow,
+  title,
+  description,
+  fieldLabel,
+  accent,
+  passwordValue,
+  setPasswordValue,
+  errorMessage,
+  onClose,
+  onConfirm,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  fieldLabel: string;
+  accent: 'ink' | 'rust';
+  passwordValue: string;
+  setPasswordValue: Dispatch<SetStateAction<string>>;
+  errorMessage: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const confirmDesktop =
+    accent === 'rust'
+      ? 'sm:border-[#16181A] sm:bg-[#C1440E] sm:hover:bg-[#a83a0c]'
+      : 'sm:border-[#16181A] sm:bg-[#16181A] sm:hover:bg-[#2b2e31]';
+  return (
+    <div className="m3-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 sm:bg-black/60">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        style={M3_VARS}
+        className="m3-pop w-full max-w-md rounded-[32px] bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)] shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14)] sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:text-[#16181A] sm:shadow-none"
+      >
+        <div className="flex items-start justify-between gap-3 px-6 pb-2 pt-6 sm:items-center sm:border-b-2 sm:border-[#16181A] sm:px-5 sm:py-4">
+          <div className="min-w-0">
+            <span className="mb-4 flex h-14 w-14 -rotate-6 items-center justify-center rounded-[20px] bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] sm:hidden">
+              <Lock size={26} />
+            </span>
+            <div className="text-sm font-medium text-[var(--m3-on-surface-variant)] sm:text-[11px] sm:font-normal sm:uppercase sm:tracking-[0.2em] sm:text-[#4B5560]">{eyebrow}</div>
+            <div className="mt-1 text-2xl font-bold leading-8 sm:font-serif sm:font-normal sm:leading-normal">{title}</div>
+          </div>
+          <button
+            onClick={onClose}
+            className={`group relative -mr-2 -mt-1 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] sm:mr-0 sm:mt-0 sm:h-auto sm:w-auto sm:overflow-visible sm:rounded-none sm:text-[#4B5560] sm:hover:text-[#C1440E] ${M3_FOCUS}`}
+            aria-label="Fermer"
+          >
+            <M3StateLayer className="sm:hidden" />
+            <X size={20} className="sm:h-[18px] sm:w-[18px]" />
+          </button>
+        </div>
+
+        <div className="px-6 pb-6 pt-2 sm:px-5 sm:py-5">
+          <div className="mb-4 text-sm leading-5 text-[var(--m3-on-surface-variant)] sm:mb-3 sm:text-[13px] sm:leading-normal sm:text-[#4B5560]">
+            {description}
+          </div>
+          <label className="mb-1.5 block px-1 text-xs font-medium text-[var(--m3-on-surface-variant)] sm:mb-1 sm:px-0 sm:text-[12px] sm:font-normal sm:uppercase sm:tracking-wide sm:text-[#4B5560]">
+            {fieldLabel}
+          </label>
+          <input
+            type="password"
+            value={passwordValue}
+            onChange={(e) => setPasswordValue(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
+            placeholder="••••••••"
+            autoFocus
+            className="h-14 w-full rounded-2xl bg-[var(--m3-surface-container-highest)] px-4 text-base outline-none focus:ring-2 focus:ring-[var(--m3-primary)] sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:px-3 sm:py-2 sm:text-sm sm:focus:border-[#C1440E] sm:focus:ring-0"
+          />
+
+          {errorMessage && (
+            <div
+              role="alert"
+              className="mt-3 rounded-2xl bg-[#FFDAD6] px-4 py-3 text-sm font-medium text-[#410002] sm:rounded-none sm:border-2 sm:border-[#C1440E] sm:bg-[#FDF1EC] sm:px-3 sm:py-2 sm:text-[12px] sm:font-normal sm:text-[#C1440E]"
+            >
+              {errorMessage}
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-col-reverse gap-2 sm:mt-5 sm:flex-row">
+            <button
+              onClick={onClose}
+              className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-sm font-semibold text-[var(--m3-on-secondary-container)] m3-press motion-reduce:transition-none sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:py-2.5 sm:text-[14px] sm:font-normal sm:text-[#16181A] sm:hover:bg-[#ECE7DC] ${M3_FOCUS}`}
+            >
+              <M3StateLayer className="sm:hidden" />
+              Annuler
+            </button>
+            <button
+              onClick={onConfirm}
+              className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-primary)] text-sm font-semibold text-[var(--m3-on-primary)] m3-press motion-reduce:transition-none sm:h-auto sm:rounded-none sm:border-2 sm:py-2.5 sm:text-[14px] sm:font-medium sm:text-white ${confirmDesktop} ${M3_FOCUS}`}
+            >
+              <M3StateLayer className="sm:hidden" />
+              Ouvrir
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OwnerAccessModal({
   passwordValue,
   setPasswordValue,
@@ -9150,58 +9255,18 @@ function OwnerAccessModal({
   onConfirm: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md border-2 border-[#16181A] bg-[#FBFAF6]">
-        <div className="flex items-center justify-between border-b-2 border-[#16181A] px-5 py-4">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Accès propriétaire</div>
-            <div className="mt-1 font-serif text-2xl">Panneau principal</div>
-          </div>
-          <button onClick={onClose} className="text-[#4B5560] hover:text-[#C1440E]" aria-label="Fermer">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="px-5 py-5">
-          <div className="mb-3 text-[13px] text-[#4B5560]">
-            Entrez le mot de passe du propriétaire pour accéder à l’ensemble du système.
-          </div>
-          <label className="mb-1 block text-[12px] uppercase tracking-wide text-[#4B5560]">
-            Mot de passe propriétaire
-          </label>
-          <input
-            type="password"
-            value={passwordValue}
-            onChange={(e) => setPasswordValue(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
-            placeholder="••••••••"
-            autoFocus
-            className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
-          />
-
-          {errorMessage && (
-            <div className="mt-3 border-2 border-[#C1440E] bg-[#FDF1EC] px-3 py-2 text-[12px] text-[#C1440E]">
-              {errorMessage}
-            </div>
-          )}
-
-          <div className="mt-5 flex gap-2">
-            <button
-              onClick={onClose}
-              className="flex-1 border-2 border-[#16181A] bg-white py-2.5 text-[14px] hover:bg-[#ECE7DC]"
-            >
-              Annuler
-            </button>
-            <button
-              onClick={onConfirm}
-              className="flex-1 border-2 border-[#16181A] bg-[#16181A] py-2.5 text-[14px] font-medium text-white hover:bg-[#2b2e31]"
-            >
-              Ouvrir
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AccessDialog
+      eyebrow="Accès propriétaire"
+      title="Panneau principal"
+      description="Entrez le mot de passe du propriétaire pour accéder à l’ensemble du système."
+      fieldLabel="Mot de passe propriétaire"
+      accent="ink"
+      passwordValue={passwordValue}
+      setPasswordValue={setPasswordValue}
+      errorMessage={errorMessage}
+      onClose={onClose}
+      onConfirm={onConfirm}
+    />
   );
 }
 
@@ -9221,58 +9286,18 @@ function BranchAccessModal({
   onConfirm: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md border-2 border-[#16181A] bg-[#FBFAF6]">
-        <div className="flex items-center justify-between border-b-2 border-[#16181A] px-5 py-4">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Accès sécurisé</div>
-            <div className="mt-1 font-serif text-2xl">{branch.nom}</div>
-          </div>
-          <button onClick={onClose} className="text-[#4B5560] hover:text-[#C1440E]" aria-label="Fermer">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="px-5 py-5">
-          <div className="mb-3 text-[13px] text-[#4B5560]">
-            Entrez le mot de passe pour accéder à cette succursale.
-          </div>
-          <label className="mb-1 block text-[12px] uppercase tracking-wide text-[#4B5560]">
-            Mot de passe
-          </label>
-          <input
-            type="password"
-            value={passwordValue}
-            onChange={(e) => setPasswordValue(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
-            placeholder="••••••••"
-            autoFocus
-            className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
-          />
-
-          {errorMessage && (
-            <div className="mt-3 border-2 border-[#C1440E] bg-[#FDF1EC] px-3 py-2 text-[12px] text-[#C1440E]">
-              {errorMessage}
-            </div>
-          )}
-
-          <div className="mt-5 flex gap-2">
-            <button
-              onClick={onClose}
-              className="flex-1 border-2 border-[#16181A] bg-white py-2.5 text-[14px] hover:bg-[#ECE7DC]"
-            >
-              Annuler
-            </button>
-            <button
-              onClick={onConfirm}
-              className="flex-1 border-2 border-[#16181A] bg-[#C1440E] py-2.5 text-[14px] font-medium text-white hover:bg-[#a83a0c]"
-            >
-              Ouvrir
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AccessDialog
+      eyebrow="Accès sécurisé"
+      title={branch.nom}
+      description="Entrez le mot de passe pour accéder à cette succursale."
+      fieldLabel="Mot de passe"
+      accent="rust"
+      passwordValue={passwordValue}
+      setPasswordValue={setPasswordValue}
+      errorMessage={errorMessage}
+      onClose={onClose}
+      onConfirm={onConfirm}
+    />
   );
 }
 
@@ -9289,6 +9314,18 @@ function BranchSelectionView({
   onOwnerLogin: () => void;
   onOwnerLogout: () => void;
 }) {
+  const phone = useIsPhone();
+  if (phone) {
+    return (
+      <BranchSelectionPhone
+        branches={branches}
+        onSelect={onSelect}
+        ownerAccess={ownerAccess}
+        onOwnerLogin={onOwnerLogin}
+        onOwnerLogout={onOwnerLogout}
+      />
+    );
+  }
   return (
     <div className="branch-page min-h-screen w-full px-6 py-8 text-[#16181A]">
       <div className="w-full">
@@ -9371,6 +9408,132 @@ function BranchSelectionView({
             </button>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* Phone entrance (< sm): Material 3 Expressive.
+   Rendered instead of the desktop layout so none of the hard-bordered `branch-*` styles leak onto the phone. */
+function BranchSelectionPhone({
+  branches,
+  onSelect,
+  ownerAccess,
+  onOwnerLogin,
+  onOwnerLogout,
+}: {
+  branches: Branch[];
+  onSelect: (id: string) => void;
+  ownerAccess: boolean;
+  onOwnerLogin: () => void;
+  onOwnerLogout: () => void;
+}) {
+  return (
+    <div
+      style={M3_VARS}
+      className="min-h-screen w-full bg-[var(--m3-surface)] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-[var(--m3-on-surface)]"
+    >
+      <header className="m3-in mb-6">
+        <div className="flex items-start justify-between gap-3">
+          <span className="flex h-14 w-14 -rotate-6 items-center justify-center rounded-[20px] bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+            <Store size={26} />
+          </span>
+          <button
+            onClick={ownerAccess ? onOwnerLogout : onOwnerLogin}
+            aria-pressed={ownerAccess}
+            className={
+              `group relative flex h-10 items-center gap-2 overflow-hidden rounded-full px-4 text-sm font-semibold m3-press motion-reduce:transition-none ${M3_FOCUS} ` +
+              (ownerAccess
+                ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]'
+                : 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]')
+            }
+          >
+            <M3StateLayer />
+            {ownerAccess ? <Check size={18} /> : <KeyRound size={18} />}
+            {ownerAccess ? 'Propriétaire actif' : 'Accès propriétaire'}
+          </button>
+        </div>
+
+        <div className="mt-6 text-sm font-medium text-[var(--m3-on-surface-variant)]">Plateforme de gestion</div>
+        <h1 className="mt-1 text-[32px] font-bold leading-10">Choisir une succursale</h1>
+        <p className="mt-2 text-sm leading-5 text-[var(--m3-on-surface-variant)]">
+          Sélectionnez le point de vente Tchiley pour ouvrir la caisse, gérer le stock et suivre les ventes.
+        </p>
+
+        <div className="mt-4 inline-flex items-baseline gap-2 rounded-full bg-[var(--m3-tertiary-container)] px-4 py-2 text-[var(--m3-on-tertiary-container)]">
+          <span className="text-xl font-bold tabular-nums">{branches.length}</span>
+          <span className="text-sm font-medium">succursales actives</span>
+        </div>
+      </header>
+
+      <div className="grid gap-3">
+        {branches.map((branch, index) => {
+          const open = branch.statut === 'Ouvert';
+          const alerts = branch.alertesStock > 0;
+          return (
+            <button
+              key={branch.id}
+              onClick={() => onSelect(branch.id)}
+              style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'both' }}
+              className={`m3-in m3-press-card group relative flex w-full flex-col overflow-hidden rounded-[28px] bg-[var(--m3-surface-container-low)] p-5 text-left ${M3_FOCUS}`}
+            >
+              <M3StateLayer />
+              <div className="flex items-start justify-between gap-3">
+                <div className="text-xl font-bold leading-7">{branch.nom}</div>
+                <span
+                  className={
+                    'shrink-0 rounded-full px-3 py-1 text-xs font-semibold ' +
+                    (open
+                      ? `${M3_STATUS.ok.bg} ${M3_STATUS.ok.fg}`
+                      : 'bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)]')
+                  }
+                >
+                  {branch.statut}
+                </span>
+              </div>
+
+              <div className="mt-3 flex items-start gap-2 text-sm text-[var(--m3-on-surface-variant)]">
+                <MapPin size={16} className="mt-0.5 shrink-0" />
+                <div>
+                  <div className="font-semibold text-[var(--m3-on-surface)]">{branch.ville}</div>
+                  <div>{branch.adresse}</div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-[20px] bg-[var(--m3-secondary-container)] px-4 py-3 text-[var(--m3-on-secondary-container)]">
+                  <div className="text-xs font-medium">Ventes</div>
+                  <div className="mt-0.5 text-2xl font-bold tabular-nums">{branch.ventesDuJour}</div>
+                </div>
+                <div
+                  className={
+                    'rounded-[20px] px-4 py-3 ' +
+                    (alerts
+                      ? `${M3_STATUS.low.bg} ${M3_STATUS.low.fg}`
+                      : 'bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface)]')
+                  }
+                >
+                  <div className="flex items-center gap-1 text-xs font-medium">
+                    {alerts && <AlertTriangle size={12} />}
+                    Alertes
+                  </div>
+                  <div className="mt-0.5 text-2xl font-bold tabular-nums">{branch.alertesStock}</div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2 text-sm text-[var(--m3-on-surface-variant)]">
+                  <UserRound size={16} className="shrink-0" />
+                  <span className="truncate font-medium text-[var(--m3-on-surface)]">{branch.gestionnaire}</span>
+                </div>
+                <span className="flex h-10 shrink-0 items-center gap-1 rounded-full bg-[var(--m3-primary)] pl-4 pr-3 text-sm font-semibold text-[var(--m3-on-primary)]">
+                  Ouvrir
+                  <ChevronRight size={18} />
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
