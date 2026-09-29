@@ -3842,37 +3842,34 @@ function BranchProductsSection({
   return (
     <div
       style={M3_VARS}
-      className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-28 pt-4 font-sans text-[var(--m3-on-surface)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#2F6B4F]"
+      className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-28 pt-4 font-sans text-[var(--m3-on-surface)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:rounded-[32px] sm:p-6 sm:pb-6"
     >
-      <div className="mb-4 flex items-center gap-2 sm:mb-5 sm:justify-between">
-        <div className="min-w-0 flex-1 sm:flex-none">
-          <h2 className="text-[32px] font-bold leading-10 tracking-tight sm:font-serif sm:text-2xl sm:font-normal sm:leading-normal sm:tracking-normal">Produits</h2>
-          <p className="truncate text-sm leading-5 text-[var(--m3-on-surface-variant)] sm:hidden">
+      <div className="mb-4 flex items-center gap-2 sm:mb-5">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[32px] font-bold leading-10 tracking-tight">Produits</h2>
+          <p className="truncate text-sm leading-5 text-[var(--m3-on-surface-variant)]">
             {branchProducts.length} article{branchProducts.length !== 1 ? 's' : ''}
             {lowStockCount > 0 ? ` · ${lowStockCount} en stock bas` : ''}
           </p>
         </div>
-        <span className="hidden font-medium uppercase tracking-[0.2em] sm:inline-block sm:border-2 sm:border-[#16181A] sm:bg-[#ECE7DC] sm:px-2.5 sm:py-1 sm:text-[10px]">
-          {branchProducts.length} produits
-        </span>
       </div>
 
       <div className="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
-        <div className="flex h-14 w-full min-w-0 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none sm:h-auto sm:min-w-[220px] sm:flex-1 sm:gap-2 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:px-3 sm:py-2 sm:focus-within:shadow-[4px_4px_0_#C1440E] sm:focus-within:ring-0">
-          <Search className="h-6 w-6 shrink-0 text-[var(--m3-on-surface-variant)] sm:h-4 sm:w-4 sm:text-[#4B5560]" />
+        <div className="flex h-14 w-full min-w-0 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none sm:min-w-[220px] sm:flex-1">
+          <Search className="h-6 w-6 shrink-0 text-[var(--m3-on-surface-variant)]" />
           <input
             type="text"
             value={inventorySearch}
             onChange={(event) => setInventorySearch(event.target.value)}
             placeholder="Rechercher un produit..."
-            className="w-full min-w-0 border-none bg-transparent text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)] sm:text-sm sm:text-[#16181A] sm:placeholder:text-[#4B5560]"
+            className="w-full min-w-0 border-none bg-transparent text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
           />
           {inventorySearch && (
             <button
               type="button"
               onClick={() => setInventorySearch('')}
               aria-label="Effacer la recherche"
-              className={`group relative -mr-2 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] sm:hidden ${M3_FOCUS}`}
+              className={`group relative -mr-2 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
             >
               <M3StateLayer />
               <X size={20} />
@@ -3881,7 +3878,7 @@ function BranchProductsSection({
           <select
             value={inventoryCategoryFilter}
             onChange={(event) => setInventoryCategoryFilter(event.target.value)}
-            className="hidden shrink-0 border-2 sm:block border-[#16181A] bg-[#F3F4F6] px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-[#16181A] outline-none"
+            className={`hidden h-10 shrink-0 cursor-pointer rounded-full bg-[var(--m3-secondary-container)] px-4 text-sm font-medium text-[var(--m3-on-secondary-container)] outline-none sm:block ${M3_FOCUS}`}
             aria-label="Filtrer par catégorie"
           >
             {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
@@ -3895,10 +3892,10 @@ function BranchProductsSection({
         <div className="contents">
           <button
             onClick={onAddProduct}
-            className={`group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS} sm:static sm:z-auto sm:h-auto sm:gap-2 sm:overflow-visible sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#16181A] sm:px-3 sm:py-2 sm:text-[11px] sm:uppercase sm:tracking-[0.18em] sm:text-white sm:shadow-none sm:transition-colors sm:hover:bg-[#2b2e31] sm:active:scale-100`}
+            className={`group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS} sm:relative sm:z-auto sm:shadow-[0_1px_3px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.15)] sm:transition-[box-shadow,transform] sm:hover:shadow-[0_2px_6px_2px_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.3)] sm:active:scale-[0.96]`}
           >
-            <M3StateLayer className="sm:hidden" />
-            <Plus className="h-6 w-6 sm:h-3.5 sm:w-3.5" />
+            <M3StateLayer />
+            <Plus className="h-6 w-6" />
             Nouveau
           </button>
         </div>
@@ -3939,7 +3936,7 @@ function BranchProductsSection({
       </div>
 
       {/* Stock status — segmented button on phone, original pills on desktop */}
-      <div className="mb-4 grid h-14 grid-cols-3 gap-0.5 sm:mb-5 sm:flex sm:h-auto sm:flex-wrap sm:gap-2">
+      <div className="mb-4 grid h-14 grid-cols-3 gap-0.5 sm:mb-5 sm:h-12 sm:max-w-md">
         {[
           { id: 'all', label: 'Tous' },
           { id: 'low', label: 'En stock bas' },
@@ -3961,14 +3958,13 @@ function BranchProductsSection({
               aria-pressed={selected}
               className={
                 `group relative flex items-center justify-center gap-1.5 overflow-hidden px-1 text-sm font-semibold m3-morph ${shape} ${M3_FOCUS} ` +
-                'sm:rounded-none sm:border-2 sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:uppercase sm:tracking-[0.16em] ' +
                 (selected
-                  ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)] sm:border-[#C1440E] sm:bg-[#C1440E] sm:text-white'
-                  : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)] sm:border-[#16181A] sm:bg-white sm:text-[#16181A] sm:hover:bg-[#ECE7DC]')
+                  ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
+                  : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]')
               }
             >
-              <M3StateLayer className="sm:hidden" />
-              {selected && <Check size={16} className="sm:hidden" />}
+              <M3StateLayer />
+              {selected && <Check size={16} />}
               {status.label}
             </button>
           );
@@ -3976,23 +3972,23 @@ function BranchProductsSection({
       </div>
 
       {selectedHistoryProduct && (
-        <div className="mb-4 hidden border-2 border-[#16181A] bg-[#F0F8FF] p-3 sm:block">
-          <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-[#4B5560]">Historique produit</div>
-          <div className="flex flex-wrap items-center gap-3 text-[12px] text-[#16181A]">
-            <span className="font-serif text-lg">{selectedHistoryProduct.nom}</span>
-            <span className="border-2 border-[#16181A] bg-white px-2 py-1">Vendu: {soldByProductToday[selectedHistoryProduct.id] ?? 0}</span>
-            <span className="border-2 border-[#16181A] bg-white px-2 py-1">Stock Ouverture: {selectedHistoryProduct.stockOuverture}</span>
-            <span className="border-2 border-[#16181A] bg-white px-2 py-1">Stock Fermeture: {selectedHistoryProduct.stockFermeture}</span>
-            <span className="border-2 border-[#16181A] bg-white px-2 py-1" title="Niveau de stock en dessous duquel une alerte apparaît">Seuil Alerte: {selectedHistoryProduct.seuil}</span>
+        <div className="m3-in mb-4 hidden rounded-[24px] bg-[var(--m3-surface-container-high)] p-4 sm:block">
+          <div className="mb-2 text-xs font-medium tracking-[0.03em] text-[var(--m3-on-surface-variant)]">Historique produit</div>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--m3-on-surface)]">
+            <span className="mr-1 text-lg font-medium">{selectedHistoryProduct.nom}</span>
+            <span className="rounded-full bg-[var(--m3-surface)] px-3 py-1">Vendu: {soldByProductToday[selectedHistoryProduct.id] ?? 0}</span>
+            <span className="rounded-full bg-[var(--m3-surface)] px-3 py-1">Stock Ouverture: {selectedHistoryProduct.stockOuverture}</span>
+            <span className="rounded-full bg-[var(--m3-surface)] px-3 py-1">Stock Fermeture: {selectedHistoryProduct.stockFermeture}</span>
+            <span className="rounded-full bg-[var(--m3-surface)] px-3 py-1" title="Niveau de stock en dessous duquel une alerte apparaît">Seuil Alerte: {selectedHistoryProduct.seuil}</span>
           </div>
         </div>
       )}
 
-      <div className="sm:overflow-hidden sm:border-2 sm:border-[#16181A] sm:bg-white">
+      <div className="sm:overflow-hidden sm:rounded-[28px] sm:bg-[var(--m3-surface-container)]">
         <div className="hidden max-h-[65vh] overflow-auto sm:block">
           <table className="w-full min-w-[900px] border-collapse text-left" role="grid">
-            <thead className="sticky top-0 z-10 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
-              <tr className="divide-x divide-[#d3cbb6]">
+            <thead className="sticky top-0 z-10 bg-[var(--m3-surface-container-high)] text-xs font-medium tracking-[0.03em] text-[var(--m3-on-surface-variant)] shadow-[0_1px_0_var(--m3-outline-variant)]">
+              <tr>
                 <th className="px-3 py-3 text-center" title="Produit et catégorie">Produit</th>
                 <th className="px-3 py-3 text-center" title="Catégorie du produit">Catégorie</th>
                 <th className="px-3 py-3 text-center" title="Unités vendues à la date sélectionnée uniquement">Vendu Auj.</th>
@@ -4011,33 +4007,40 @@ function BranchProductsSection({
                 const restockValue = restockByProduct[product.id] ?? 0;
                 const isLowStock = product.stockFermeture <= product.seuil;
                 const isOutOfStock = product.stockFermeture <= 0;
+                const showHistory = selectedHistoryProduct?.id === product.id;
+                const tone = isOutOfStock ? M3_STATUS.out : isLowStock ? M3_STATUS.low : M3_STATUS.ok;
+                const CategoryIcon = categoryIcon(product.categorie);
+                const iconBtn = `group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full disabled:cursor-not-allowed disabled:opacity-40 ${M3_FOCUS}`;
                 return (
                   <tr
                     key={product.id}
                     className={
-                      'divide-x divide-[#e4ded0] border-b border-[#e4ded0] align-middle text-[13px] transition-all duration-150 ' +
-                      (isOutOfStock ? 'bg-[#FDF1EC] opacity-75' : 'odd:bg-white even:bg-[#FBFAF6] hover:bg-[#F3EFE3]')
+                      'border-b border-[var(--m3-outline-variant)]/60 align-middle text-sm text-[var(--m3-on-surface)] transition-colors duration-150 last:border-b-0 ' +
+                      (isEditing(product.id)
+                        ? 'bg-[var(--m3-surface-container-high)]'
+                        : isOutOfStock
+                          ? 'bg-[#FFDAD6]/40'
+                          : 'hover:bg-[var(--m3-surface-container-high)]')
                     }
                     style={{ opacity: isOutOfStock ? 0.7 : 1 }}
                   >
                     <td className="px-3 py-2.5 font-medium">
                       <div className="flex items-center gap-2">
-                        <div
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{
-                            backgroundColor: isOutOfStock ? '#C1440E' : isLowStock ? '#F2B705' : '#2F6B4F'
-                          }}
+                        <span
                           title={isOutOfStock ? 'Rupture de stock' : isLowStock ? 'Stock bas' : 'En stock'}
-                        />
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}
+                        >
+                          <CategoryIcon size={16} aria-hidden="true" />
+                        </span>
                         <input
                           value={product.nom}
                           onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
                           disabled={!isEditing(product.id)}
-                          className={`h-9 w-full px-2 outline-none transition-all duration-150 ${
-                            isEditing(product.id)
-                              ? 'border-2 border-[#C1440E] bg-white focus:border-[#C1440E] focus:bg-white focus:shadow-[0_0_0_2px_rgba(193,68,14,0.15)]'
-                              : 'border-2 border-transparent bg-transparent'
-                          }`}
+                          className={`h-9 w-full px-2 outline-none transition-shadow duration-150 ${
+                          isEditing(product.id)
+                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
+                            : 'rounded-xl bg-transparent'
+                        }`}
                           placeholder="Nom du produit"
                         />
                       </div>
@@ -4047,15 +4050,15 @@ function BranchProductsSection({
                         value={product.categorie}
                         onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
                         disabled={!isEditing(product.id)}
-                        className={`h-9 w-full px-2 outline-none transition-all duration-150 ${
+                        className={`h-9 w-full px-2 outline-none transition-shadow duration-150 ${
                           isEditing(product.id)
-                            ? 'border-2 border-[#C1440E] bg-white text-[#16181A] focus:border-[#C1440E] focus:bg-white focus:shadow-[0_0_0_2px_rgba(193,68,14,0.15)]'
-                            : 'border-2 border-transparent bg-transparent text-[#4B5560]'
+                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)] text-[var(--m3-on-surface)]'
+                            : 'rounded-xl bg-transparent text-[var(--m3-on-surface-variant)]'
                         }`}
                       />
                     </td>
                     <td className="px-3 py-2.5 text-center">
-                      <span className="inline-flex h-9 min-w-[3rem] items-center justify-center border-2 border-transparent bg-transparent px-2 tabular-nums text-[#4B5560] font-medium">{soldToday}</span>
+                      <span className="inline-flex h-9 min-w-[3rem] items-center justify-center rounded-xl px-2 tabular-nums text-[var(--m3-on-surface-variant)] font-medium">{soldToday}</span>
                     </td>
                     <td className="px-3 py-2.5 text-center">
                       <input
@@ -4064,10 +4067,10 @@ function BranchProductsSection({
                         value={product.prix}
                         onChange={(event) => onUpdateProduct(product.id, { prix: Number(event.target.value) || 0 })}
                         disabled={!isEditing(product.id)}
-                        className={`h-9 w-24 px-2 text-center font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
+                        className={`h-9 w-24 px-2 text-center font-medium tabular-nums text-[var(--m3-primary)] outline-none transition-shadow duration-150 ${
                           isEditing(product.id)
-                            ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF] focus:shadow-[0_0_0_2px_rgba(47,107,79,0.15)]'
-                            : 'border-2 border-transparent bg-transparent'
+                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
+                            : 'rounded-xl bg-transparent'
                         }`}
                       />
                     </td>
@@ -4078,10 +4081,10 @@ function BranchProductsSection({
                         value={product.prixAchat}
                         onChange={(event) => onUpdateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
                         disabled={!isEditing(product.id)}
-                        className={`h-9 w-24 px-2 text-center font-medium tabular-nums text-[#4B5560] outline-none transition-all duration-150 ${
+                        className={`h-9 w-24 px-2 text-center font-medium tabular-nums text-[var(--m3-on-surface-variant)] outline-none transition-shadow duration-150 ${
                           isEditing(product.id)
-                            ? 'border-2 border-[#4B5560] bg-[#F3F4F6] focus:border-[#4B5560] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(75,85,96,0.15)]'
-                            : 'border-2 border-transparent bg-transparent'
+                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
+                            : 'rounded-xl bg-transparent'
                         }`}
                       />
                     </td>
@@ -4092,10 +4095,10 @@ function BranchProductsSection({
                         value={product.stockOuverture}
                         onChange={(event) => onUpdateProduct(product.id, { stockOuverture: Number(event.target.value) || 0 })}
                         disabled={!isEditing(product.id)}
-                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[#16181A] outline-none transition-all duration-150 ${
+                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[var(--m3-on-surface)] outline-none transition-shadow duration-150 ${
                           isEditing(product.id)
-                            ? 'border-2 border-[#16181A] bg-[#F3F4F6] focus:border-[#16181A] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(22,24,26,0.15)]'
-                            : 'border-2 border-transparent bg-transparent'
+                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
+                            : 'rounded-xl bg-transparent'
                         }`}
                       />
                     </td>
@@ -4106,10 +4109,10 @@ function BranchProductsSection({
                         value={product.stockFermeture}
                         onChange={(event) => onUpdateProduct(product.id, { stockFermeture: Number(event.target.value) || 0 })}
                         disabled={!isEditing(product.id)}
-                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[#16181A] outline-none transition-all duration-150 ${
+                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[var(--m3-on-surface)] outline-none transition-shadow duration-150 ${
                           isEditing(product.id)
-                            ? 'border-2 border-[#16181A] bg-[#F3F4F6] focus:border-[#16181A] focus:bg-[#F3F4F6] focus:shadow-[0_0_0_2px_rgba(22,24,26,0.15)]'
-                            : 'border-2 border-transparent bg-transparent'
+                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
+                            : 'rounded-xl bg-transparent'
                         }`}
                       />
                     </td>
@@ -4120,10 +4123,10 @@ function BranchProductsSection({
                         value={product.seuil}
                         onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
                         disabled={!isEditing(product.id)}
-                        className={`h-9 w-20 px-2 text-center font-medium tabular-nums text-[#8a6d00] outline-none transition-all duration-150 ${
+                        className={`h-9 w-20 px-2 text-center font-medium tabular-nums text-[#7A5900] outline-none transition-shadow duration-150 ${
                           isEditing(product.id)
-                            ? 'border-2 border-[#F2B705] bg-[#FDF6DC] focus:border-[#F2B705] focus:bg-[#FDF6DC] focus:shadow-[0_0_0_2px_rgba(242,183,5,0.15)]'
-                            : 'border-2 border-transparent bg-transparent'
+                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
+                            : 'rounded-xl bg-transparent'
                         }`}
                       />
                     </td>
@@ -4137,74 +4140,76 @@ function BranchProductsSection({
                           setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
                         }
                         disabled={!isEditing(product.id)}
-                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[#2F6B4F] outline-none transition-all duration-150 ${
+                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[var(--m3-primary)] outline-none transition-shadow duration-150 ${
                           isEditing(product.id)
-                            ? 'border-2 border-[#2F6B4F] bg-[#E9F5EF] focus:border-[#2F6B4F] focus:bg-[#E9F5EF] focus:shadow-[0_0_0_2px_rgba(47,107,79,0.15)]'
-                            : 'border-2 border-transparent bg-transparent'
+                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
+                            : 'rounded-xl bg-transparent'
                         }`}
                       />
                     </td>
                     <td className="px-3 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => onViewHistory(product)}
                           disabled={isEditing(product.id)}
-                          className={`flex h-9 w-9 items-center justify-center transition-all duration-150 ${
-                            isEditing(product.id)
-                              ? 'border-2 border-transparent bg-transparent text-[#8b929a] cursor-not-allowed'
-                              : 'border-2 border-transparent bg-transparent text-[#4B5560] hover:bg-[#ECE7DC] hover:border-[#16181A] hover:text-[#16181A]'
-                          }`}
+                          className={
+                            `${iconBtn} ` +
+                            (showHistory
+                              ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
+                              : 'text-[var(--m3-on-surface-variant)]')
+                          }
                           aria-label="Historique"
+                          aria-pressed={showHistory}
                           title="Historique"
                         >
-                          <History size={14} />
+                          <M3StateLayer />
+                          <History size={18} />
                         </button>
                         {!isEditing(product.id) ? (
                           <button
                             onClick={() => handleEditClick(product.id)}
-                            className="flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#16181A] transition-all duration-150 hover:bg-[#ECE7DC] hover:border-[#16181A]"
+                            className={`${iconBtn} bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]`}
                             aria-label="Modifier"
                             title="Modifier"
                           >
-                            <Pencil size={14} />
+                            <M3StateLayer />
+                            <Pencil size={18} />
                           </button>
                         ) : (
                           <>
                             <button
                               onClick={() => handleSaveClick(product.id)}
                               disabled={isSaving(product.id)}
-                              className={`flex h-9 w-9 items-center justify-center border-2 transition-all duration-150 ${
-                                isSaving(product.id)
-                                  ? 'border-[#2F6B4F] bg-[#2F6B4F] text-white cursor-wait'
-                                  : 'border-[#2F6B4F] bg-transparent text-[#2F6B4F] hover:bg-[#E9F5EF] hover:border-[#2F6B4F]'
-                              }`}
+                              className={
+                                `${iconBtn} bg-[var(--m3-primary)] text-[var(--m3-on-primary)] ` +
+                                (isSaving(product.id) ? 'cursor-wait opacity-80' : '')
+                              }
                               aria-label={isSaving(product.id) ? 'Enregistrement...' : 'Enregistrer'}
                               title={isSaving(product.id) ? 'Enregistrement...' : 'Enregistrer'}
                             >
-                              {isSaving(product.id) ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                              <M3StateLayer />
+                              {isSaving(product.id) ? <M3Loading size={18} /> : <Check size={18} />}
                             </button>
                             <button
                               onClick={handleCancelClick}
-                              className="flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#C1440E] transition-all duration-150 hover:bg-[#FDF1EC] hover:border-[#C1440E]"
+                              className={`${iconBtn} border border-[var(--m3-outline)] text-[var(--m3-primary)]`}
                               aria-label="Annuler"
                               title="Annuler"
                             >
-                              <X size={14} />
+                              <M3StateLayer />
+                              <X size={18} />
                             </button>
                           </>
                         )}
                         <button
                           onClick={() => onDeleteProduct(product)}
                           disabled={isEditing(product.id)}
-                          className={`flex h-9 w-9 items-center justify-center transition-all duration-150 ${
-                            isEditing(product.id)
-                              ? 'border-2 border-transparent bg-transparent text-[#8b929a] cursor-not-allowed'
-                              : 'border-2 border-transparent bg-transparent text-[#C1440E] hover:bg-[#FDF1EC] hover:border-[#C1440E]'
-                          }`}
+                          className={`${iconBtn} text-[#BA1A1A]`}
                           aria-label="Supprimer"
                           title="Supprimer"
                         >
-                          <Trash2 size={14} />
+                          <M3StateLayer />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </td>
@@ -4214,10 +4219,12 @@ function BranchProductsSection({
               {filteredProducts.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-3 py-16 text-center">
-                    <div className="flex flex-col items-center gap-3 text-[#4B5560]">
-                      <PackagePlus size={32} className="opacity-40" />
-                      <span className="text-[13px]">Aucun produit ne correspond aux filtres.</span>
-                      <span className="text-[11px] uppercase tracking-[0.16em]">Essayez de modifier vos critères de recherche</span>
+                    <div className="flex flex-col items-center gap-1 text-[var(--m3-on-surface)]">
+                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+                        <PackagePlus size={28} />
+                      </span>
+                      <span className="text-base font-medium">Aucun produit ne correspond aux filtres.</span>
+                      <span className="text-sm text-[var(--m3-on-surface-variant)]">Essayez de modifier vos critères de recherche.</span>
                     </div>
                   </td>
                 </tr>
