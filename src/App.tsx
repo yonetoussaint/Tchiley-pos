@@ -2046,7 +2046,7 @@ function OwnerBoard({
 
   return (
     <div className="min-h-screen w-full bg-[#ECE7DC] text-[#16181A]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#16181A] bg-[#FBFAF6] px-4 py-4 md:px-6">
+      <div className="hidden flex-wrap items-center justify-between gap-3 border-b-2 border-[#16181A] bg-[#FBFAF6] px-4 py-4 md:flex md:px-6">
         <div>
           <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Panneau propriétaire</div>
           <h1 className="mt-1 font-serif text-2xl md:text-3xl">Administration centrale</h1>
