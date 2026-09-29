@@ -4674,106 +4674,143 @@ function CreditPaymentModal({
   const history = sales.length === 1 ? sales[0].paiementsCredit ?? [] : [];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
-      <div className="max-h-[92vh] w-full max-w-sm overflow-y-auto border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#2F6B4F]">
-        <div className="flex items-start justify-between border-b-2 border-[#16181A] px-5 py-4">
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.24em] text-[#4B5560]">Encaisser un paiement</div>
-            <div className="mt-1 font-serif text-xl leading-tight">{title}</div>
+    <div className="m3-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 sm:bg-black/55">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Encaisser un paiement"
+        style={M3_VARS}
+        className="m3-pop max-h-[92vh] w-full max-w-sm overflow-y-auto rounded-[32px] bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)] shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14)] sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:text-[#16181A] sm:shadow-[8px_8px_0_#2F6B4F]"
+      >
+        <div className="flex items-start justify-between gap-3 px-6 pb-2 pt-6 sm:border-b-2 sm:border-[#16181A] sm:px-5 sm:py-4">
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-[var(--m3-on-surface-variant)] sm:text-[10px] sm:font-normal sm:uppercase sm:tracking-[0.24em] sm:text-[#4B5560]">Encaisser un paiement</div>
+            <div className="mt-1 truncate text-2xl font-bold leading-8 sm:font-serif sm:text-xl sm:font-normal sm:leading-tight">{title}</div>
           </div>
-          <button onClick={onClose} className="mt-1 text-[#4B5560] hover:text-[#C1440E]" aria-label="Fermer">
-            <X size={18} />
+          <button
+            onClick={onClose}
+            className={`group relative -mr-2 -mt-1 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] sm:mr-0 sm:mt-1 sm:h-auto sm:w-auto sm:overflow-visible sm:rounded-none sm:text-[#4B5560] sm:hover:text-[#C1440E] ${M3_FOCUS}`}
+            aria-label="Fermer"
+          >
+            <M3StateLayer className="sm:hidden" />
+            <X size={20} />
           </button>
         </div>
 
-        <div className="space-y-4 px-5 py-4">
-          <div className="flex items-baseline justify-between">
-            <span className="text-[13px] text-[#4B5560]">Solde dû</span>
-            <span className="font-serif text-2xl text-[#C1440E]">{fmtHTG(balance)}</span>
+        <div className="space-y-4 px-6 py-4 sm:px-5">
+          <div className="flex items-baseline justify-between rounded-[24px] bg-[var(--m3-tertiary-container)] px-4 py-3 text-[var(--m3-on-tertiary-container)] sm:rounded-none sm:bg-transparent sm:p-0 sm:text-inherit">
+            <span className="text-sm font-medium sm:text-[13px] sm:font-normal sm:text-[#4B5560]">Solde dû</span>
+            <span className="text-3xl font-bold tabular-nums sm:font-serif sm:text-2xl sm:font-normal sm:text-[#C1440E]">{fmtHTG(balance)}</span>
           </div>
 
           <div>
-            <label className="mb-1 block text-[12px] text-[#4B5560]">Montant reçu (HTG)</label>
+            <label className="mb-1.5 block px-1 text-xs font-medium text-[var(--m3-on-surface-variant)] sm:mb-1 sm:px-0 sm:text-[12px] sm:font-normal sm:text-[#4B5560]">Montant reçu (HTG)</label>
             <input
               type="number"
+              inputMode="numeric"
               min="0"
               max={balance}
               value={montant}
               onChange={(event) => setMontant(event.target.value)}
-              className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+              className="h-14 w-full rounded-2xl bg-[var(--m3-surface-container-highest)] px-4 text-lg font-semibold tabular-nums outline-none focus:ring-2 focus:ring-[var(--m3-primary)] sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:px-3 sm:py-2 sm:text-sm sm:font-normal sm:focus:border-[#C1440E] sm:focus:ring-0"
             />
-            <div className="mt-1.5 flex gap-1.5">
+            <div className="mt-2 flex gap-2 sm:mt-1.5 sm:gap-1.5">
               <button
                 type="button"
                 onClick={() => setMontant(String(balance))}
-                className="border-2 border-[#16181A] bg-white px-2 py-0.5 text-[11px] hover:bg-[#ECE7DC]"
+                className={`group relative h-9 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] px-4 text-sm font-medium text-[var(--m3-on-secondary-container)] m3-press motion-reduce:transition-none sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:px-2 sm:py-0.5 sm:text-[11px] sm:font-normal sm:text-[#16181A] sm:hover:bg-[#ECE7DC] ${M3_FOCUS}`}
               >
+                <M3StateLayer className="sm:hidden" />
                 Tout payer
               </button>
               <button
                 type="button"
                 onClick={() => setMontant(String(Math.round(balance / 2)))}
-                className="border-2 border-[#16181A] bg-white px-2 py-0.5 text-[11px] hover:bg-[#ECE7DC]"
+                className={`group relative h-9 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] px-4 text-sm font-medium text-[var(--m3-on-secondary-container)] m3-press motion-reduce:transition-none sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:px-2 sm:py-0.5 sm:text-[11px] sm:font-normal sm:text-[#16181A] sm:hover:bg-[#ECE7DC] ${M3_FOCUS}`}
               >
+                <M3StateLayer className="sm:hidden" />
                 Moitié
               </button>
             </div>
-            {value > balance && <div className="mt-1 text-[12px] text-[#C1440E]">Le montant dépasse le solde dû.</div>}
+            {value > balance && <div className="mt-1.5 px-1 text-xs font-medium text-[#BA1A1A] sm:mt-1 sm:px-0 sm:text-[12px] sm:font-normal sm:text-[#C1440E]">Le montant dépasse le solde dû.</div>}
           </div>
 
           <div>
-            <div className="mb-1 text-[12px] text-[#4B5560]">Mode de paiement</div>
-            <div className="grid grid-cols-3 gap-2">
-              {PAYMENT_METHODS.filter((m) => m.id !== 'credit').map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setMode(m.id)}
-                  className={
-                    'border-2 border-[#16181A] px-2 py-2 text-[12px] ' +
-                    (mode === m.id ? 'bg-[#16181A] text-white' : 'bg-white hover:bg-[#ECE7DC]')
-                  }
-                >
-                  {m.label}
-                </button>
-              ))}
+            <div className="mb-1.5 px-1 text-xs font-medium text-[var(--m3-on-surface-variant)] sm:mb-1 sm:px-0 sm:text-[12px] sm:font-normal sm:text-[#4B5560]">Mode de paiement</div>
+            <div className="grid grid-cols-3 gap-0.5 sm:gap-2">
+              {PAYMENT_METHODS.filter((m) => m.id !== 'credit').map((m, idx, arr) => {
+                const selected = mode === m.id;
+                /* Connected button group: selected = full pill, others = small inner corners. */
+                const shape = selected
+                  ? 'rounded-full'
+                  : idx === 0
+                    ? 'rounded-l-full rounded-r-lg'
+                    : idx === arr.length - 1
+                      ? 'rounded-r-full rounded-l-lg'
+                      : 'rounded-lg';
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setMode(m.id)}
+                    className={
+                      `group relative h-12 overflow-hidden px-1 text-sm font-semibold m3-morph ${shape} ${M3_FOCUS} ` +
+                      'sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:px-2 sm:py-2 sm:text-[12px] sm:font-normal ' +
+                      (selected
+                        ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)] sm:bg-[#16181A] sm:text-white'
+                        : 'bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface)] sm:bg-white sm:text-[#16181A] sm:hover:bg-[#ECE7DC]')
+                    }
+                  >
+                    <M3StateLayer className="sm:hidden" />
+                    {m.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {sales.length > 1 && (
-            <div className="text-[12px] text-[#4B5560]">
+            <div className="text-xs text-[var(--m3-on-surface-variant)] sm:text-[12px] sm:text-[#4B5560]">
               Le paiement est appliqué d'abord aux ventes les plus anciennes ({sales.length} ventes impayées).
             </div>
           )}
 
           {history.length > 0 && (
-            <div className="border-t-2 border-[#e4ded0] pt-3">
-              <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-[#4B5560]">Paiements déjà reçus</div>
+            <div className="border-t border-[var(--m3-outline-variant)] pt-3 sm:border-t-2 sm:border-[#e4ded0]">
+              <div className="mb-1 text-xs font-medium text-[var(--m3-on-surface-variant)] sm:text-[11px] sm:font-normal sm:uppercase sm:tracking-[0.18em] sm:text-[#4B5560]">Paiements déjà reçus</div>
               {history.map((payment) => (
-                <div key={payment.id} className="flex justify-between text-[12px]">
+                <div key={payment.id} className="flex justify-between text-sm sm:text-[12px]">
                   <span>
                     {payment.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} •{' '}
                     {PAYMENT_METHODS.find((m) => m.id === payment.mode)?.label}
                   </span>
-                  <span className="tabular-nums text-[#2F6B4F]">{fmtHTG(payment.montant)}</span>
+                  <span className="tabular-nums text-[var(--m3-primary)] sm:text-[#2F6B4F]">{fmtHTG(payment.montant)}</span>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        <div className="flex gap-2 border-t-2 border-[#16181A] px-5 py-4">
-          <button onClick={onClose} className="flex-1 border-2 border-[#16181A] bg-white py-2.5 text-[14px] hover:bg-[#ECE7DC]">
+        <div className="flex gap-2 px-6 pb-6 pt-2 sm:border-t-2 sm:border-[#16181A] sm:px-5 sm:py-4">
+          <button
+            onClick={onClose}
+            className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-sm font-semibold text-[var(--m3-on-secondary-container)] m3-press motion-reduce:transition-none sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:py-2.5 sm:text-[14px] sm:font-normal sm:text-[#16181A] sm:hover:bg-[#ECE7DC] ${M3_FOCUS}`}
+          >
+            <M3StateLayer className="sm:hidden" />
             Annuler
           </button>
           <button
             disabled={!valid}
             onClick={() => onConfirm(value, mode)}
             className={
-              'flex-1 border-2 border-[#16181A] py-2.5 text-[14px] font-medium ' +
-              (valid ? 'bg-[#2F6B4F] text-white hover:bg-[#255a40]' : 'cursor-not-allowed bg-[#d8d3c6] text-[#8b8f87]')
+              `group relative h-12 flex-1 overflow-hidden rounded-full text-sm font-semibold m3-press motion-reduce:transition-none sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:py-2.5 sm:text-[14px] sm:font-medium ${M3_FOCUS} ` +
+              (valid
+                ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)] sm:bg-[#2F6B4F] sm:text-white sm:hover:bg-[#255a40]'
+                : 'cursor-not-allowed bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)] opacity-60 sm:bg-[#d8d3c6] sm:text-[#8b8f87] sm:opacity-100')
             }
           >
+            <M3StateLayer className="sm:hidden" />
             Enregistrer
           </button>
         </div>
@@ -4848,6 +4885,18 @@ function BranchCreditsSection({
   };
   const fmtDate = (date: Date) => date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
+  const plural = (n: number, word: string) => `${n} ${word}${n !== 1 ? 's' : ''}`;
+  const saleStatus = (sale: SaleRecord) => {
+    const paid = creditPaid(sale);
+    return creditBalance(sale) <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
+  };
+  const statusChip = {
+    paid: { label: 'Payé', cls: 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]' },
+    partial: { label: 'Partiel', cls: 'bg-[var(--m3-tertiary-container)] text-[var(--m3-on-tertiary-container)]' },
+    unpaid: { label: 'Impayé', cls: 'bg-[#FFDAD6] text-[#410002]' },
+  } as const;
+  const mBtn = `group relative flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full text-sm font-semibold m3-press motion-reduce:transition-none ${M3_FOCUS}`;
+
   const cellBase = 'px-3 py-2.5 text-center';
   const iconButton =
     'flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#4B5560] transition-all duration-150 hover:border-[#16181A] hover:bg-[#ECE7DC] hover:text-[#16181A]';
@@ -4860,8 +4909,29 @@ function BranchCreditsSection({
   };
 
   return (
-    <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-3">
+    <div
+      style={M3_VARS}
+      className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] space-y-4 bg-[var(--m3-surface)] px-4 pb-8 pt-4 font-sans text-[var(--m3-on-surface)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:space-y-5 sm:bg-transparent sm:p-0 sm:text-[#16181A]"
+    >
+      {/* Phone (M3 Expressive): amount-due hero + two tonal stat cards */}
+      <section aria-label="Résumé des crédits" className="space-y-2 sm:hidden">
+        <div className="m3-in overflow-hidden rounded-[32px] bg-[var(--m3-tertiary-container)] p-5 text-[var(--m3-on-tertiary-container)]">
+          <div className="text-sm font-medium opacity-80">Total dû</div>
+          <div className="mt-1 break-words text-[40px] font-bold leading-[48px] tracking-tight tabular-nums">{fmtHTG(totalDue)}</div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-[28px] bg-[var(--m3-surface-container)] p-4">
+            <div className="text-xs font-medium text-[var(--m3-on-surface-variant)]">Clients débiteurs</div>
+            <div className="mt-1 text-3xl font-bold tabular-nums">{debtorCount}</div>
+          </div>
+          <div className="rounded-[28px] bg-[var(--m3-secondary-container)] p-4 text-[var(--m3-on-secondary-container)]">
+            <div className="text-xs font-medium opacity-80">Ventes impayées</div>
+            <div className="mt-1 text-3xl font-bold tabular-nums">{openSalesCount}</div>
+          </div>
+        </div>
+      </section>
+
+      <div className="hidden gap-4 sm:grid md:grid-cols-3">
         <div className="border-2 border-[#16181A] bg-white p-3 shadow-[3px_3px_0_#C1440E] sm:p-4 sm:shadow-[6px_6px_0_#C1440E]">
           <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Total dû</div>
           <div className="mt-2 break-words font-serif text-2xl sm:text-3xl text-[#C1440E]">{fmtHTG(totalDue)}</div>
@@ -4876,13 +4946,13 @@ function BranchCreditsSection({
         </div>
       </div>
 
-      <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#F2B705] sm:p-5 sm:shadow-[8px_8px_0_#F2B705]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:p-5 sm:shadow-[8px_8px_0_#F2B705]">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
           <div>
-            <h2 className="font-serif text-2xl">Ventes à crédit</h2>
-            <div className="text-[12px] text-[#4B5560]">Toutes les dates • ceux qui doivent de l'argent</div>
+            <h2 className="text-[28px] font-bold leading-9 tracking-tight sm:font-serif sm:text-2xl sm:font-normal sm:leading-normal sm:tracking-normal">Ventes à crédit</h2>
+            <div className="text-sm text-[var(--m3-on-surface-variant)] sm:text-[12px] sm:text-[#4B5560]">Toutes les dates • ceux qui doivent de l'argent</div>
           </div>
-          <div className="flex">
+          <div className="hidden sm:flex">
             {(
               [
                 ['clients', 'Par client'],
@@ -4904,7 +4974,88 @@ function BranchCreditsSection({
           </div>
         </div>
 
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        {/* Phone: view toggle (connected button group), search, status chips */}
+        <div className="mb-3 grid h-14 grid-cols-2 gap-0.5 sm:hidden" role="group" aria-label="Affichage">
+          {(
+            [
+              ['clients', 'Par client'],
+              ['sales', 'Par vente'],
+            ] as const
+          ).map(([id, label], idx) => {
+            const selected = view === id;
+            const shape = selected ? 'rounded-full' : idx === 0 ? 'rounded-l-full rounded-r-lg' : 'rounded-r-full rounded-l-lg';
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setView(id)}
+                className={`group relative flex items-center justify-center gap-1.5 overflow-hidden text-sm font-semibold m3-morph ${shape} ${M3_FOCUS} ${
+                  selected
+                    ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
+                    : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]'
+                }`}
+              >
+                <M3StateLayer />
+                {selected && <Check size={16} />}
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mb-3 flex h-14 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 focus-within:ring-2 focus-within:ring-[var(--m3-primary)] sm:hidden">
+          <Search className="h-6 w-6 shrink-0 text-[var(--m3-on-surface-variant)]" />
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Rechercher un client, un article..."
+            aria-label="Rechercher un client ou un article"
+            className="w-full min-w-0 border-none bg-transparent text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Effacer la recherche"
+              className={`group relative -mr-2 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+            >
+              <M3StateLayer />
+              <X size={20} />
+            </button>
+          )}
+        </div>
+
+        <div role="group" aria-label="Filtrer par statut" className="mb-4 flex gap-2 sm:hidden">
+          {(
+            [
+              ['open', 'Impayés'],
+              ['all', 'Tous'],
+            ] as const
+          ).map(([id, label]) => {
+            const selected = statusFilter === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setStatusFilter(id)}
+                className={`group relative flex h-10 items-center gap-2 overflow-hidden px-4 text-sm font-medium m3-morph ${selected ? 'rounded-full' : 'rounded-xl'} ${M3_FOCUS} ${
+                  selected
+                    ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                    : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+                }`}
+              >
+                <M3StateLayer />
+                {selected && <Check size={16} />}
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mb-4 hidden flex-wrap items-center justify-between gap-3 sm:flex">
           <div className="flex min-w-[220px] flex-1 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 transition-shadow focus-within:shadow-[4px_4px_0_#C1440E]">
             <Search className="h-4 w-4 shrink-0 text-[#4B5560]" />
             <input
@@ -4926,7 +5077,173 @@ function BranchCreditsSection({
           </div>
         </div>
 
-        <div className="overflow-hidden border-2 border-[#16181A] bg-white">
+        {/* Phone: cards */}
+        <ul className="space-y-3 sm:hidden" aria-label={view === 'clients' ? 'Liste des clients' : 'Liste des ventes à crédit'}>
+          {view === 'clients'
+            ? clientRows.map((client) => {
+                const pct = client.total > 0 ? Math.min(100, Math.round((client.paid / client.total) * 100)) : 0;
+                const owes = client.balance > 0;
+                return (
+                  <li key={client.nom.toLowerCase()} className="m3-in overflow-hidden rounded-[28px] bg-[var(--m3-surface-container)] p-4">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[var(--m3-tertiary-container)] text-lg font-bold text-[var(--m3-on-tertiary-container)]"
+                        aria-hidden="true"
+                      >
+                        {client.nom.trim().charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-base font-semibold">{client.nom}</div>
+                        <div className="mt-0.5 text-xs text-[var(--m3-on-surface-variant)]">
+                          {plural(client.sales.length, 'vente')} · {ageLabel(client.last)}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className={'text-xl font-bold tabular-nums ' + (owes ? 'text-[#BA1A1A]' : 'text-[var(--m3-primary)]')}>
+                          {owes ? fmtHTG(client.balance) : 'Soldé'}
+                        </div>
+                        {owes && <div className="text-xs text-[var(--m3-on-surface-variant)]">Solde dû</div>}
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <div
+                        role="progressbar"
+                        aria-label="Part déjà payée"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={pct}
+                        className="h-2 overflow-hidden rounded-full bg-[var(--m3-surface-container-highest)]"
+                      >
+                        <div className="h-full rounded-full bg-[var(--m3-primary)]" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="mt-1.5 flex justify-between text-xs tabular-nums text-[var(--m3-on-surface-variant)]">
+                        <span>Payé {fmtHTG(client.paid)}</span>
+                        <span>Total {fmtHTG(client.total)}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openPayment(client.nom, client.sales)}
+                        disabled={!owes}
+                        className={`${mBtn} flex-1 ${
+                          owes
+                            ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
+                            : 'cursor-not-allowed bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)] opacity-60'
+                        }`}
+                      >
+                        <M3StateLayer />
+                        <Banknote size={18} />
+                        Encaisser
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearch(client.nom);
+                          setView('sales');
+                        }}
+                        aria-label="Voir les ventes du client"
+                        className={`${mBtn} w-12 shrink-0 bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]`}
+                      >
+                        <M3StateLayer />
+                        <Eye size={18} />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })
+            : saleRows.map((sale) => {
+                const paid = creditPaid(sale);
+                const balance = creditBalance(sale);
+                const chip = statusChip[saleStatus(sale)];
+                return (
+                  <li key={sale.id} className="m3-in overflow-hidden rounded-[28px] bg-[var(--m3-surface-container)] p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-base font-semibold">{clientName(sale)}</div>
+                        <div className="mt-0.5 text-xs tabular-nums text-[var(--m3-on-surface-variant)]">
+                          {fmtDate(sale.date)} · {fmtTime12(sale.date)} · {ageLabel(sale.date)}
+                        </div>
+                      </div>
+                      <span className={'shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ' + chip.cls}>{chip.label}</span>
+                    </div>
+
+                    <div className="mt-3 space-y-1.5 rounded-[20px] bg-[var(--m3-surface)] p-3 text-sm">
+                      {sale.lignes.map((ligne, index) => (
+                        <div key={index}>
+                          <span className="font-semibold tabular-nums text-[var(--m3-on-surface-variant)]">{ligne.qte} ×</span> {ligne.nom}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-2xl bg-[var(--m3-surface-container-high)] px-2 py-2">
+                        <div className="text-[11px] text-[var(--m3-on-surface-variant)]">Total</div>
+                        <div className="text-sm font-semibold tabular-nums">{fmtHTG(sale.total)}</div>
+                      </div>
+                      <div className="rounded-2xl bg-[var(--m3-surface-container-high)] px-2 py-2">
+                        <div className="text-[11px] text-[var(--m3-on-surface-variant)]">Payé</div>
+                        <div className="text-sm font-semibold tabular-nums text-[var(--m3-primary)]">{paid > 0 ? fmtHTG(paid) : '—'}</div>
+                      </div>
+                      <div className="rounded-2xl bg-[var(--m3-surface-container-high)] px-2 py-2">
+                        <div className="text-[11px] text-[var(--m3-on-surface-variant)]">Solde dû</div>
+                        <div className={'text-sm font-bold tabular-nums ' + (balance > 0 ? 'text-[#BA1A1A]' : 'text-[var(--m3-primary)]')}>
+                          {balance > 0 ? fmtHTG(balance) : '—'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openPayment(clientName(sale), [sale])}
+                        disabled={balance <= 0}
+                        className={`${mBtn} flex-1 ${
+                          balance > 0
+                            ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
+                            : 'cursor-not-allowed bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)] opacity-60'
+                        }`}
+                      >
+                        <M3StateLayer />
+                        <Banknote size={18} />
+                        Encaisser
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReceiptSale(sale)}
+                        aria-label="Voir le reçu"
+                        className={`${mBtn} w-12 shrink-0 bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]`}
+                      >
+                        <M3StateLayer />
+                        <Eye size={18} />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+        </ul>
+
+        {(view === 'clients' ? clientRows.length : saleRows.length) === 0 && (
+          <div className="m3-in flex flex-col items-center rounded-[32px] bg-[var(--m3-surface-container-low)] px-6 py-12 text-center sm:hidden">
+            <span className="mb-4 flex h-20 w-20 -rotate-6 items-center justify-center rounded-[32px] bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+              <FileClock size={36} />
+            </span>
+            <div className="text-lg font-semibold">
+              {view === 'clients'
+                ? query || statusFilter === 'all'
+                  ? 'Aucun client trouvé'
+                  : "Personne ne doit d'argent 🎉"
+                : query || statusFilter === 'all'
+                  ? 'Aucune vente trouvée'
+                  : 'Aucune vente impayée'}
+            </div>
+          </div>
+        )}
+
+        {/* Desktop (≥ sm): original table */}
+        <div className="hidden overflow-hidden border-2 border-[#16181A] bg-white sm:block">
           <div className="max-h-[65vh] overflow-auto">
             {view === 'clients' ? (
               <table className="w-full min-w-[820px] border-collapse text-left" role="grid">
