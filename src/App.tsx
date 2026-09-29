@@ -890,7 +890,20 @@ const INITIAL_USERS: User[] = [
 
 function GestionMateriaux() {
   const [view, setView] = useState<View>('vente');
-  const [menuOpen, setMenuOpen] = useState<boolean>(true);
+  const [menuOpen, setMenuOpen] = useState<boolean>(
+    () => typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches
+  );
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !window.matchMedia('(min-width: 768px)').matches) setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+  const closeMenuOnMobile = () => {
+    if (typeof window !== 'undefined' && !window.matchMedia('(min-width: 768px)').matches) setMenuOpen(false);
+  };
   const [appRoute, setAppRoute] = useState<'admin' | 'user' | 'sellerBoard'>('admin');
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [pendingBranchId, setPendingBranchId] = useState<string | null>(null);
@@ -1250,15 +1263,15 @@ function GestionMateriaux() {
   }
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-[#ECE7DC] font-sans text-[#16181A]">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-[#16181A] bg-[#FBFAF6] px-4 py-4 md:px-6">
+    <div style={M3_VARS} className="flex h-screen w-full flex-col overflow-hidden bg-[var(--m3-surface)] font-sans text-[var(--m3-on-surface)] md:bg-[#ECE7DC] md:text-[#16181A]">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--m3-outline-variant)] bg-[var(--m3-surface)] px-4 py-3 md:border-b-2 md:border-[#16181A] md:bg-[#FBFAF6] md:py-4 md:px-6">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Espace vendeur</div>
-          <h1 className="mt-1 font-serif text-2xl md:text-3xl">Gestion de Magasin</h1>
+          <div className="text-xs text-[var(--m3-on-surface-variant)] md:text-[11px] md:uppercase md:tracking-[0.28em] md:text-[#4B5560]">Espace vendeur</div>
+          <h1 className="mt-1 font-sans font-medium md:font-serif md:font-normal text-2xl md:text-3xl">Gestion de Magasin</h1>
         </div>
         <button
           onClick={() => setSelectedBranchId(null)}
-          className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
+          className={`h-10 rounded-full bg-[var(--m3-secondary-container)] px-4 text-sm font-medium text-[var(--m3-on-secondary-container)] transition-transform active:scale-95 motion-reduce:transition-none md:h-auto md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:px-3 md:py-2 md:text-[11px] md:font-normal md:uppercase md:tracking-[0.18em] md:text-[#16181A] md:hover:bg-[#ECE7DC] md:active:scale-100 ${M3_FOCUS}`}
         >
           Changer de succursale
         </button>
@@ -1266,10 +1279,10 @@ function GestionMateriaux() {
 
       <div className="flex min-h-0 flex-1 flex-col px-4 py-5 md:px-6">
         {/* Branch header + hamburger menu (same as admin board) */}
-        <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3 border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[6px_6px_0_#16181A]">
+        <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3 rounded-[28px] bg-[var(--m3-surface-container)] p-4 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
           <button
             onClick={() => setMenuOpen((prev) => !prev)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31]"
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] transition-transform active:scale-95 motion-reduce:transition-none md:h-10 md:w-10 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#16181A] md:text-[#FBFAF6] md:hover:bg-[#2b2e31] md:active:scale-100 ${M3_FOCUS}`}
             aria-label="Menu de la succursale"
           >
             <Menu size={18} />
@@ -1277,13 +1290,13 @@ function GestionMateriaux() {
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-serif text-xl leading-tight">{brancheActuelle.nom}</span>
+              <span className="font-sans font-medium md:font-serif md:font-normal text-xl leading-tight">{brancheActuelle.nom}</span>
               <span
                 className={
-                  'border-2 px-2 py-0.5 text-[9px] uppercase tracking-wide ' +
+                  'rounded-full px-3 py-1 text-xs font-medium md:rounded-none md:border-2 md:px-2 md:py-0.5 md:text-[9px] md:font-normal md:uppercase md:tracking-wide ' +
                   (brancheActuelle.statut === 'Ouvert'
-                    ? 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]'
-                    : 'border-[#4B5560] bg-[#F3F4F6] text-[#4B5560]')
+                    ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] md:border-[#2F6B4F] md:bg-[#E9F5EF] md:text-[#2F6B4F]'
+                    : 'bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)] md:border-[#4B5560] md:bg-[#F3F4F6] md:text-[#4B5560]')
                 }
               >
                 {brancheActuelle.statut}
@@ -1298,7 +1311,7 @@ function GestionMateriaux() {
             <div className="ml-auto flex shrink-0 items-center gap-1">
               <button
                 onClick={() => shiftSelectedDate(-1)}
-                className="flex h-8 w-8 items-center justify-center border-2 border-[#16181A] bg-white text-sm hover:bg-[#ECE7DC]"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg hover:bg-[var(--m3-surface-container-highest)] md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:text-sm md:hover:bg-[#ECE7DC]"
                 aria-label="Jour précédent"
               >
                 ‹
@@ -1308,8 +1321,9 @@ function GestionMateriaux() {
                 onClick={() => shiftSelectedDate(1)}
                 disabled={isCurrentDateSelected}
                 className={
-                  'flex h-8 w-8 items-center justify-center border-2 border-[#16181A] text-sm ' +
-                  (isCurrentDateSelected ? 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]' : 'bg-white hover:bg-[#ECE7DC]')
+                  isCurrentDateSelected
+                    ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg cursor-not-allowed opacity-40 md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#E5E7EB] md:text-sm md:text-[#6B7280] md:opacity-100'
+                    : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg hover:bg-[var(--m3-surface-container-highest)] md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:text-sm md:hover:bg-[#ECE7DC]'
                 }
                 aria-label="Jour suivant"
               >
@@ -1317,7 +1331,7 @@ function GestionMateriaux() {
               </button>
             </div>
           ) : (
-            <div className="ml-auto flex shrink-0 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-1.5 text-[12px]">
+            <div className="ml-auto flex shrink-0 items-center gap-2 rounded-full bg-[var(--m3-surface-container-high)] px-4 py-2 text-sm md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:px-3 md:py-1.5 md:text-[12px]">
               <CalendarDays size={14} />
               {new Date().toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
             </div>
@@ -1325,12 +1339,36 @@ function GestionMateriaux() {
         </div>
 
         <div className="flex min-h-0 flex-1 items-start gap-4">
+          {menuOpen && (
+            <div
+              className="fixed inset-0 z-[65] bg-black/40 md:hidden"
+              onClick={() => setMenuOpen(false)}
+              aria-hidden="true"
+            />
+          )}
           <nav
+            aria-label="Sections du magasin"
             className={
-              'shrink-0 self-start border-2 border-[#16181A] bg-[#FBFAF6] p-2 transition-[width] duration-150 ' +
-              (menuOpen ? 'w-56' : 'w-14')
+              'fixed inset-y-0 left-0 z-[70] w-72 max-w-[85vw] overflow-y-auto rounded-r-[28px] bg-[var(--m3-surface-container)] p-3 shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14)] transition-transform duration-200 motion-reduce:transition-none ' +
+              (menuOpen ? 'translate-x-0 ' : '-translate-x-full ') +
+              'md:static md:z-auto md:max-w-none md:shrink-0 md:translate-x-0 md:self-start md:overflow-visible md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-2 md:shadow-none md:transition-[width] md:duration-150 ' +
+              (menuOpen ? 'md:w-56' : 'md:w-14')
             }
           >
+            <div className="mb-2 flex items-center justify-between border-b border-[var(--m3-outline-variant)] px-2 pb-3 md:hidden">
+              <div className="min-w-0">
+                <div className="text-xs text-[var(--m3-on-surface-variant)]">Menu</div>
+                <div className="truncate text-lg font-medium leading-tight">{brancheActuelle.nom}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] ${M3_FOCUS}`}
+                aria-label="Fermer le menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
             {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
               const actif = view === id;
               const isReports = id === 'rapports';
@@ -1342,22 +1380,26 @@ function GestionMateriaux() {
                   <button
                     onClick={() => {
                       if (isReports) setReportsOpen(actif ? !reportsOpen : true);
-                      else setReportsOpen(false);
+                      else {
+                        setReportsOpen(false);
+                        closeMenuOnMobile();
+                      }
                       setView(id);
                     }}
                     title={menuOpen ? undefined : label}
                     aria-label={label}
                     aria-expanded={isReports ? reportsOpen && actif : undefined}
                     className={
-                      'relative flex w-full items-center border-2 py-2.5 text-left text-[11px] uppercase tracking-[0.18em] ' +
-                      (menuOpen ? 'gap-3 px-3' : 'justify-center px-0') +
+                      'relative flex h-14 w-full items-center rounded-full text-left text-sm font-medium tracking-[0.01em] md:h-auto md:rounded-none md:border-2 md:py-2.5 md:text-[11px] md:font-normal md:uppercase md:tracking-[0.18em] ' +
+                      (menuOpen ? 'gap-3 px-4 md:px-3' : 'justify-center px-0') +
                       ' ' +
                       (actif
-                        ? 'border-[#C1440E] bg-[#C1440E] text-white'
-                        : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                        ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] md:border-[#C1440E] md:bg-[#C1440E] md:text-white'
+                        : 'text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] md:border-transparent md:text-[#16181A] md:hover:border-[#16181A] md:hover:bg-[#ECE7DC]') +
+                      ' ' + M3_FOCUS
                     }
                   >
-                    <Icon size={15} className="shrink-0" />
+                    <Icon size={15} className="h-6 w-6 shrink-0 md:h-[15px] md:w-[15px]" />
                     {menuOpen && <span>{label}</span>}
                     {menuOpen && isReports && (
                       <ChevronDown
@@ -1377,22 +1419,25 @@ function GestionMateriaux() {
                   </button>
 
                   {isReports && actif && reportsOpen && (
-                    <div className={'mt-1 border-l-2 border-[#C1440E] ' + (menuOpen ? 'ml-4 pl-1' : 'ml-0 pl-0')}>
+                    <div className={'mt-1 border-l-2 border-[var(--m3-outline-variant)] md:border-[#C1440E] ' + (menuOpen ? 'ml-6 pl-2 md:ml-4 md:pl-1' : 'ml-0 pl-0')}>
                       {REPORT_TABS.map((tab) => {
                         const subActive = reportPeriod === tab.id;
                         return (
                           <button
                             key={tab.id}
-                            onClick={() => setReportPeriod(tab.id)}
+                            onClick={() => {
+                              setReportPeriod(tab.id);
+                              closeMenuOnMobile();
+                            }}
                             title={menuOpen ? undefined : tab.label}
                             aria-label={tab.label}
                             className={
-                              'mb-0.5 flex w-full items-center border-2 py-2 text-left text-[10px] uppercase tracking-[0.14em] last:mb-0 ' +
-                              (menuOpen ? 'px-3' : 'justify-center px-0') +
+                              'mb-0.5 flex h-12 w-full items-center rounded-full text-left text-sm last:mb-0 md:h-auto md:rounded-none md:border-2 md:py-2 md:text-[10px] md:uppercase md:tracking-[0.14em] ' +
+                              (menuOpen ? 'px-4 md:px-3' : 'justify-center px-0') +
                               ' ' +
                               (subActive
-                                ? 'border-[#16181A] bg-[#16181A] text-white'
-                                : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                                ? 'bg-[var(--m3-secondary-container)] font-medium text-[var(--m3-on-secondary-container)] md:border-[#16181A] md:bg-[#16181A] md:font-normal md:text-white'
+                                : 'text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] md:border-transparent md:text-[#16181A] md:hover:border-[#16181A] md:hover:bg-[#ECE7DC]')
                             }
                           >
                             {menuOpen ? tab.label : tab.short}
@@ -2045,7 +2090,7 @@ function OwnerBoard({
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#ECE7DC] text-[#16181A]">
+    <div style={M3_VARS} className="min-h-screen w-full bg-[var(--m3-surface)] text-[var(--m3-on-surface)] md:bg-[#ECE7DC] md:text-[#16181A]">
       <div className="hidden flex-wrap items-center justify-between gap-3 border-b-2 border-[#16181A] bg-[#FBFAF6] px-4 py-4 md:flex md:px-6">
         <div>
           <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Panneau propriétaire</div>
@@ -2060,26 +2105,26 @@ function OwnerBoard({
       </div>
 
       {/* Sucursales — dropdown on phones */}
-      <div className="border-b-2 border-[#16181A] bg-[#16181A] px-3 py-3 md:hidden">
-        <label className="mb-1 block text-[10px] uppercase tracking-[0.2em] text-[#c7ccd1]" htmlFor="owner-branch-select">
+      <div className="border-b border-[var(--m3-outline-variant)] bg-[var(--m3-surface)] px-3 py-2 md:hidden">
+        <label className="mb-1 block px-1 text-xs text-[var(--m3-on-surface-variant)]" htmlFor="owner-branch-select">
           Succursale
         </label>
-        <div className="flex items-stretch gap-2">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
-            className="flex w-11 shrink-0 items-center justify-center border-2 border-[#ECE7DC] text-[#ECE7DC] hover:bg-[#1f2225]"
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] transition-transform active:scale-95 motion-reduce:transition-none ${M3_FOCUS}`}
             aria-label="Menu de la succursale"
             aria-expanded={menuOpen}
           >
-            <Menu size={18} />
+            <Menu size={22} />
           </button>
           <div className="relative min-w-0 flex-1">
           <select
             id="owner-branch-select"
             value={activeBranchId}
             onChange={(event) => selectBranchTab(event.target.value)}
-            className="w-full appearance-none border-2 border-[#ECE7DC] bg-[#ECE7DC] py-2.5 pl-3 pr-10 text-[13px] font-medium uppercase tracking-wide text-[#16181A] outline-none focus:border-[#C1440E]"
+            className="h-12 w-full appearance-none rounded-full bg-[var(--m3-surface-container-high)] pl-5 pr-12 text-base font-medium text-[var(--m3-on-surface)] outline-none focus:ring-2 focus:ring-[var(--m3-primary)]"
           >
             {branches.map((branch) => (
               <option key={branch.id} value={branch.id}>
@@ -2087,7 +2132,7 @@ function OwnerBoard({
               </option>
             ))}
           </select>
-          <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#16181A]" />
+          <ChevronDown size={20} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[var(--m3-on-surface-variant)]" />
           </div>
         </div>
       </div>
@@ -2115,7 +2160,7 @@ function OwnerBoard({
 
       <div className="px-4 py-5 md:px-6">
         {/* Active branch panel header + hamburger menu */}
-        <div className="mb-4 flex flex-wrap items-center gap-3 border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[3px_3px_0_#16181A] md:shadow-[6px_6px_0_#16181A]">
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[28px] bg-[var(--m3-surface-container)] p-4 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
           <button
             onClick={() => setMenuOpen((prev) => !prev)}
             className="hidden h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31] md:flex"
@@ -2126,13 +2171,13 @@ function OwnerBoard({
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-serif text-lg leading-tight sm:text-xl">{activeBranch.nom}</span>
+              <span className="font-sans font-medium md:font-serif md:font-normal text-lg leading-tight sm:text-xl">{activeBranch.nom}</span>
               <span
                 className={
-                  'border-2 px-2 py-0.5 text-[9px] uppercase tracking-wide ' +
+                  'rounded-full px-3 py-1 text-xs font-medium md:rounded-none md:border-2 md:px-2 md:py-0.5 md:text-[9px] md:font-normal md:uppercase md:tracking-wide ' +
                   (activeBranch.statut === 'Ouvert'
-                    ? 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]'
-                    : 'border-[#4B5560] bg-[#F3F4F6] text-[#4B5560]')
+                    ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] md:border-[#2F6B4F] md:bg-[#E9F5EF] md:text-[#2F6B4F]'
+                    : 'bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)] md:border-[#4B5560] md:bg-[#F3F4F6] md:text-[#4B5560]')
                 }
               >
                 {activeBranch.statut}
@@ -2146,10 +2191,10 @@ function OwnerBoard({
             </div>
           </div>
 
-          <div className="flex w-full items-center gap-1 border-t-2 border-dashed border-[#d3cbb6] pt-3 md:ml-auto md:w-auto md:shrink-0 md:border-t-0 md:pt-0">
+          <div className="flex w-full items-center gap-1 border-t border-[var(--m3-outline-variant)] pt-3 md:ml-auto md:w-auto md:shrink-0 md:border-t-0 md:pt-0">
             <button
               onClick={() => shiftSelectedDate(-1)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-white text-lg hover:bg-[#ECE7DC] md:h-8 md:w-8 md:text-sm"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg hover:bg-[var(--m3-surface-container-highest)] md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:text-sm md:hover:bg-[#ECE7DC]"
               aria-label="Jour précédent"
             >
               ‹
@@ -2159,8 +2204,9 @@ function OwnerBoard({
               onClick={() => shiftSelectedDate(1)}
               disabled={isCurrentDateSelected}
               className={
-                'flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] text-lg md:h-8 md:w-8 md:text-sm ' +
-                (isCurrentDateSelected ? 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]' : 'bg-white hover:bg-[#ECE7DC]')
+                isCurrentDateSelected
+                  ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg cursor-not-allowed opacity-40 md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#E5E7EB] md:text-sm md:text-[#6B7280] md:opacity-100'
+                  : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg hover:bg-[var(--m3-surface-container-highest)] md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:text-sm md:hover:bg-[#ECE7DC]'
               }
               aria-label="Jour suivant"
             >
@@ -2172,7 +2218,7 @@ function OwnerBoard({
         <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-start md:gap-4">
           {menuOpen && (
             <div
-              className="fixed inset-0 z-[65] bg-black/55 md:hidden"
+              className="fixed inset-0 z-[65] bg-black/40 md:hidden"
               onClick={() => setMenuOpen(false)}
               aria-hidden="true"
             />
@@ -2180,25 +2226,25 @@ function OwnerBoard({
           <nav
             aria-label="Sections de la succursale"
             className={
-              'border-2 border-[#16181A] bg-[#FBFAF6] p-2 ' +
-              'fixed inset-y-0 left-0 z-[70] w-72 max-w-[85vw] overflow-y-auto shadow-[6px_0_0_#16181A] transition-transform duration-200 ' +
+              'rounded-r-[28px] bg-[var(--m3-surface-container)] p-3 ' +
+              'fixed inset-y-0 left-0 z-[70] w-72 max-w-[85vw] overflow-y-auto shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14)] transition-transform duration-200 motion-reduce:transition-none ' +
               (menuOpen ? 'translate-x-0 ' : '-translate-x-full ') +
-              'md:static md:z-auto md:max-w-none md:translate-x-0 md:overflow-visible md:shadow-none md:shrink-0 md:transition-[width] md:duration-150 ' +
+              'md:static md:z-auto md:max-w-none md:translate-x-0 md:overflow-visible md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-2 md:shadow-none md:shrink-0 md:transition-[width] md:duration-150 ' +
               (menuOpen ? 'md:w-56' : 'md:w-14')
             }
           >
-            <div className="mb-2 flex items-center justify-between border-b-2 border-[#16181A] pb-2 md:hidden">
+            <div className="mb-2 flex items-center justify-between border-b border-[var(--m3-outline-variant)] px-2 pb-3 md:hidden">
               <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-[0.24em] text-[#4B5560]">Menu</div>
-                <div className="truncate font-serif text-base leading-tight">{activeBranch.nom}</div>
+                <div className="text-xs text-[var(--m3-on-surface-variant)]">Menu</div>
+                <div className="truncate text-lg font-medium leading-tight">{activeBranch.nom}</div>
               </div>
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] ${M3_FOCUS}`}
                 aria-label="Fermer le menu"
               >
-                <X size={16} />
+                <X size={20} />
               </button>
             </div>
             {OWNER_SECTIONS.map(({ id, label, icon: Icon }) => {
@@ -2221,15 +2267,16 @@ function OwnerBoard({
                     aria-label={label}
                     aria-expanded={isReports ? reportsOpen && active : undefined}
                     className={
-                      'flex w-full items-center text-left text-[11px] uppercase tracking-[0.18em] border-2 py-2.5 ' +
-                      (menuOpen ? 'gap-3 px-3' : 'gap-3 px-3 md:justify-center md:gap-0 md:px-0') +
+                      'flex h-14 w-full items-center rounded-full text-left text-sm font-medium tracking-[0.01em] md:h-auto md:rounded-none md:border-2 md:py-2.5 md:text-[11px] md:font-normal md:uppercase md:tracking-[0.18em] ' +
+                      (menuOpen ? 'gap-3 px-4 md:px-3' : 'gap-3 px-4 md:justify-center md:gap-0 md:px-0') +
                       ' ' +
                       (active
-                        ? 'border-[#C1440E] bg-[#C1440E] text-white'
-                        : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                        ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] md:border-[#C1440E] md:bg-[#C1440E] md:text-white'
+                        : 'text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] md:border-transparent md:text-[#16181A] md:hover:border-[#16181A] md:hover:bg-[#ECE7DC]') +
+                      ' ' + M3_FOCUS
                     }
                   >
-                    <Icon size={15} className="shrink-0" />
+                    <Icon size={15} className="h-6 w-6 shrink-0 md:h-[15px] md:w-[15px]" />
                     <span className={menuOpen ? '' : 'md:hidden'}>{label}</span>
                     {isReports && (
                       <ChevronDown
@@ -2240,7 +2287,7 @@ function OwnerBoard({
                   </button>
 
                   {isReports && active && reportsOpen && (
-                    <div className={'mt-1 border-l-2 border-[#C1440E] ' + 'ml-4 pl-1 ' + (menuOpen ? '' : 'md:ml-0 md:pl-0')}>
+                    <div className={'mt-1 ml-6 border-l-2 border-[var(--m3-outline-variant)] pl-2 md:ml-4 md:border-[#C1440E] md:pl-1 ' + (menuOpen ? '' : 'md:ml-0 md:pl-0')}>
                       {REPORT_TABS.map((tab) => {
                         const subActive = reportPeriod === tab.id;
                         return (
@@ -2253,12 +2300,12 @@ function OwnerBoard({
                             title={menuOpen ? undefined : tab.label}
                             aria-label={tab.label}
                             className={
-                              'mb-0.5 flex w-full items-center border-2 py-2 text-left text-[10px] uppercase tracking-[0.14em] last:mb-0 ' +
-                              (menuOpen ? 'px-3' : 'px-3 md:justify-center md:px-0') +
+                              'mb-0.5 flex h-12 w-full items-center rounded-full text-left text-sm last:mb-0 md:h-auto md:rounded-none md:border-2 md:py-2 md:text-[10px] md:uppercase md:tracking-[0.14em] ' +
+                              (menuOpen ? 'px-4 md:px-3' : 'px-4 md:justify-center md:px-0') +
                               ' ' +
                               (subActive
-                                ? 'border-[#16181A] bg-[#16181A] text-white'
-                                : 'border-transparent text-[#16181A] hover:border-[#16181A] hover:bg-[#ECE7DC]')
+                                ? 'bg-[var(--m3-secondary-container)] font-medium text-[var(--m3-on-secondary-container)] md:border-[#16181A] md:bg-[#16181A] md:font-normal md:text-white'
+                                : 'text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] md:border-transparent md:text-[#16181A] md:hover:border-[#16181A] md:hover:bg-[#ECE7DC]')
                             }
                           >
                             <span className={menuOpen ? '' : 'md:hidden'}>{tab.label}</span>
