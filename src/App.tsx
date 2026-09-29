@@ -2773,7 +2773,7 @@ function ProductNumberField({
   const t = PRODUCT_FIELD_TONES[tone];
   return (
     <label className="block min-w-0">
-      <span className="mb-0.5 block truncate text-[9px] uppercase tracking-[0.12em] text-[#4B5560]">{label}</span>
+      <span className="mb-0.5 block truncate px-1 text-[9px] uppercase tracking-[0.12em] text-[#4B5560]">{label}</span>
       <input
         type="number"
         min="0"
@@ -2784,8 +2784,8 @@ function ProductNumberField({
         tabIndex={editing ? 0 : -1}
         onFocus={(event) => event.target.select()}
         onChange={(event) => onChange(Number(event.target.value) || 0)}
-        className={`h-10 w-full min-w-0 border-2 px-2 text-right text-base font-medium tabular-nums outline-none transition-colors ${t.text} ${
-          editing ? t.edit : 'border-transparent bg-[#F3EFE3]'
+        className={`h-10 w-full min-w-0 rounded-xl border-2 px-2 text-right text-base font-medium tabular-nums outline-none transition-colors ${t.text} ${
+          editing ? t.edit : 'border-transparent bg-white'
         }`}
       />
     </label>
@@ -2858,16 +2858,16 @@ function BranchProductsSection({
   };
 
   return (
-    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#2F6B4F] sm:p-5 sm:shadow-[8px_8px_0_#2F6B4F]">
+    <div className="border-0 border-[#16181A] bg-transparent p-1 shadow-none sm:border-2 sm:bg-[#FBFAF6] sm:p-5 sm:shadow-[8px_8px_0_#2F6B4F]">
       <div className="mb-3 flex items-center justify-between sm:mb-5">
         <h2 className="font-serif text-xl sm:text-2xl">Produits</h2>
-        <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em]">
+        <span className="rounded-full bg-[#E8EAED] px-3 py-1 text-[10px] sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#ECE7DC] sm:px-2.5 font-medium uppercase tracking-[0.2em]">
           {branchProducts.length} produits
         </span>
       </div>
 
       <div className="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
-        <div className="flex w-full min-w-0 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2.5 transition-shadow sm:min-w-[220px] sm:flex-1 sm:py-2 focus-within:shadow-[4px_4px_0_#C1440E]">
+        <div className="flex w-full min-w-0 items-center gap-2 rounded-full bg-[#F1F3F4] px-4 py-3 transition-shadow sm:min-w-[220px] sm:flex-1 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:px-3 sm:py-2 sm:focus-within:shadow-[4px_4px_0_#C1440E]">
           <Search className="h-4 w-4 shrink-0 text-[#4B5560]" />
           <input
             type="text"
@@ -2893,7 +2893,7 @@ function BranchProductsSection({
             <select
               value={inventoryCategoryFilter}
               onChange={(event) => setInventoryCategoryFilter(event.target.value)}
-              className="h-11 min-w-0 flex-1 border-2 border-[#16181A] bg-white px-3 text-base uppercase tracking-wide text-[#16181A] outline-none sm:hidden"
+              className="h-11 min-w-0 flex-1 rounded-full border-0 bg-[#F1F3F4] px-4 text-base uppercase tracking-wide text-[#16181A] outline-none sm:hidden"
               aria-label="Filtrer par catégorie"
             >
               {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
@@ -2904,7 +2904,7 @@ function BranchProductsSection({
             </select>
         <button
           onClick={onAddProduct}
-          className="flex h-11 shrink-0 items-center justify-center gap-2 border-2 border-[#16181A] bg-[#16181A] px-4 sm:h-auto sm:px-3 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2b2e31]"
+          className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border-0 bg-[#16181A] px-5 sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:px-3 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2b2e31]"
         >
           <Plus size={14} />
           Nouveau
@@ -2922,10 +2922,10 @@ function BranchProductsSection({
             key={status.id}
             onClick={() => setInventoryStatusFilter(status.id as 'all' | 'low' | 'normal')}
             className={
-              'border-2 px-1 py-2.5 text-center text-[10px] font-medium uppercase tracking-[0.1em] transition-colors sm:px-2.5 sm:py-1.5 sm:tracking-[0.16em] ' +
+              'rounded-full px-1 py-2.5 text-center text-[10px] sm:rounded-none sm:border-2 font-medium uppercase tracking-[0.1em] transition-colors sm:px-2.5 sm:py-1.5 sm:tracking-[0.16em] ' +
               (inventoryStatusFilter === status.id
-                ? 'border-[#C1440E] bg-[#C1440E] text-white'
-                : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
+                ? 'sm:border-[#C1440E] bg-[#C1440E] text-white'
+                : 'sm:border-[#16181A] bg-[#F1F3F4] text-[#16181A] hover:bg-[#E8EAED] sm:bg-white sm:hover:bg-[#ECE7DC]')
             }
           >
             {status.label}
@@ -3185,7 +3185,7 @@ function BranchProductsSection({
         </div>
 
         {/* Mobile Card View — compact rows, tap to expand */}
-        <div className="space-y-1.5 sm:hidden">
+        <div className="space-y-2.5 sm:hidden">
           {filteredProducts.map((product) => {
             const soldToday = soldByProductToday[product.id] ?? 0;
             const restockValue = restockByProduct[product.id] ?? 0;
@@ -3197,33 +3197,32 @@ function BranchProductsSection({
             const showHistory = selectedHistoryProduct?.id === product.id;
             const statusColor = isOutOfStock ? '#C1440E' : isLowStock ? '#F2B705' : '#2F6B4F';
             const stockTone = isOutOfStock
-              ? 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E]'
+              ? 'bg-[#FCE8E6] text-[#C5221F]'
               : isLowStock
-              ? 'border-[#F2B705] bg-[#FDF6DC] text-[#8a6d00]'
-              : 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]';
+              ? 'bg-[#FEF3C7] text-[#8a6d00]'
+              : 'bg-white text-[#16181A]';
             return (
               <div
                 key={product.id}
-                style={{ borderLeftColor: statusColor }}
                 className={
-                  'border-2 border-l-[6px] bg-white transition-colors duration-150 ' +
-                  (editing ? 'border-[#C1440E] shadow-[3px_3px_0_#C1440E]' : 'border-[#16181A]')
+                  'overflow-hidden rounded-3xl transition-colors duration-150 ' +
+                  (editing ? 'bg-[#F1F3F4] ring-2 ring-[#C1440E]/50' : 'bg-[#F1F3F4]')
                 }
               >
                 {/* Compact row */}
                 {editing ? (
-                  <div className="space-y-1.5 p-2">
+                  <div className="space-y-2 p-3">
                     <input
                       value={product.nom}
                       onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
                       placeholder="Nom du produit"
-                      className="h-10 w-full border-2 border-[#C1440E] bg-white px-2 font-serif text-base font-semibold outline-none"
+                      className="h-11 w-full rounded-2xl bg-white px-3 font-serif text-base font-semibold outline-none ring-1 ring-[#DADCE0] focus:ring-2 focus:ring-[#C1440E]"
                     />
                     <input
                       value={product.categorie}
                       onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
                       placeholder="Catégorie"
-                      className="h-10 w-full border-2 border-[#C1440E] bg-white px-2 text-base uppercase tracking-[0.08em] text-[#4B5560] outline-none"
+                      className="h-11 w-full rounded-2xl bg-white px-3 text-base uppercase tracking-[0.08em] text-[#4B5560] outline-none ring-1 ring-[#DADCE0] focus:ring-2 focus:ring-[#C1440E]"
                     />
                   </div>
                 ) : (
@@ -3231,8 +3230,13 @@ function BranchProductsSection({
                     type="button"
                     onClick={() => setExpandedId((prev) => (prev === product.id ? null : product.id))}
                     aria-expanded={open}
-                    className="flex w-full items-center gap-2 px-2.5 py-2 text-left active:bg-[#F3EFE3]"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-[#E8EAED]"
                   >
+                    <span
+                      aria-hidden="true"
+                      style={{ backgroundColor: statusColor }}
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-serif text-[15px] font-semibold leading-tight">{product.nom}</span>
                       <span className="block truncate text-[10.5px] uppercase tracking-[0.08em] text-[#4B5560]">
@@ -3240,7 +3244,7 @@ function BranchProductsSection({
                       </span>
                     </span>
                     <span
-                      className={`flex h-9 min-w-[2.5rem] shrink-0 items-center justify-center border-2 px-1.5 font-serif text-lg font-semibold leading-none tabular-nums ${stockTone}`}
+                      className={`flex h-9 min-w-[2.5rem] shrink-0 items-center justify-center rounded-full px-3 font-serif text-lg font-semibold leading-none tabular-nums ${stockTone}`}
                     >
                       {product.stockFermeture}
                     </span>
@@ -3253,9 +3257,9 @@ function BranchProductsSection({
 
                 {/* Expanded details */}
                 {open && (
-                  <div className="border-t-2 border-dashed border-[#d3cbb6] p-2">
+                  <div className="px-3 pb-3 pt-0.5">
                     {showHistory && !editing && (
-                      <div className="mb-2 grid grid-cols-4 gap-1 border-2 border-[#16181A] bg-[#F0F8FF] p-1.5 text-center">
+                      <div className="mb-2 grid grid-cols-4 gap-1 rounded-2xl bg-white p-2 text-center">
                         {[
                           ['Vendu', soldToday],
                           ['Ouv.', product.stockOuverture],
@@ -3270,7 +3274,7 @@ function BranchProductsSection({
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-3 gap-2">
                       <ProductNumberField
                         label="Prix vente"
                         tone="green"
@@ -3316,14 +3320,14 @@ function BranchProductsSection({
                       />
                     </div>
 
-                    <div className={'mt-2 grid gap-1.5 ' + (editing ? 'grid-cols-2' : 'grid-cols-3')}>
+                    <div className={'mt-3 grid gap-2 ' + (editing ? 'grid-cols-2' : 'grid-cols-3')}>
                       {editing ? (
                         <>
                           <button
                             onClick={() => handleSaveClick(product.id)}
                             disabled={saving}
                             className={
-                              'flex h-10 items-center justify-center gap-1.5 border-2 border-[#2F6B4F] bg-[#2F6B4F] text-[11px] font-medium uppercase tracking-[0.1em] text-white ' +
+                              'flex h-11 items-center justify-center gap-1.5 rounded-full bg-[#2F6B4F] text-[11px] font-medium uppercase tracking-[0.1em] text-white ' +
                               (saving ? 'cursor-wait opacity-80' : 'active:bg-[#255640]')
                             }
                             aria-label={saving ? 'Enregistrement...' : 'Enregistrer'}
@@ -3333,7 +3337,7 @@ function BranchProductsSection({
                           </button>
                           <button
                             onClick={handleCancelClick}
-                            className="flex h-10 items-center justify-center gap-1.5 border-2 border-[#C1440E] bg-white text-[11px] font-medium uppercase tracking-[0.1em] text-[#C1440E] active:bg-[#FDF1EC]"
+                            className="flex h-11 items-center justify-center gap-1.5 rounded-full bg-white text-[11px] font-medium uppercase tracking-[0.1em] text-[#C1440E] active:bg-[#FCE8E6]"
                             aria-label="Annuler"
                           >
                             <X size={14} />
@@ -3345,7 +3349,7 @@ function BranchProductsSection({
                           <button
                             onClick={() => onViewHistory(product)}
                             className={
-                              'flex h-10 items-center justify-center gap-1.5 border-2 border-[#16181A] text-[11px] font-medium uppercase tracking-[0.08em] active:bg-[#ECE7DC] ' +
+                              'flex h-11 items-center justify-center gap-1.5 rounded-full text-[11px] font-medium uppercase tracking-[0.08em] active:bg-[#E8EAED] ' +
                               (showHistory ? 'bg-[#16181A] text-white active:bg-[#2b2e31]' : 'bg-white text-[#16181A]')
                             }
                             aria-label="Historique"
@@ -3359,7 +3363,7 @@ function BranchProductsSection({
                               setExpandedId(product.id);
                               handleEditClick(product.id);
                             }}
-                            className="flex h-10 items-center justify-center gap-1.5 border-2 border-[#16181A] bg-white text-[11px] font-medium uppercase tracking-[0.08em] text-[#16181A] active:bg-[#ECE7DC]"
+                            className="flex h-11 items-center justify-center gap-1.5 rounded-full bg-white text-[11px] font-medium uppercase tracking-[0.08em] text-[#16181A] active:bg-[#E8EAED]"
                             aria-label="Modifier"
                           >
                             <Pencil size={14} />
@@ -3369,7 +3373,7 @@ function BranchProductsSection({
                             onClick={() => {
                               if (window.confirm(`Supprimer « ${product.nom} » ?`)) onDeleteProduct(product);
                             }}
-                            className="flex h-10 items-center justify-center gap-1.5 border-2 border-[#C1440E] bg-white text-[11px] font-medium uppercase tracking-[0.08em] text-[#C1440E] active:bg-[#FDF1EC]"
+                            className="flex h-11 items-center justify-center gap-1.5 rounded-full bg-white text-[11px] font-medium uppercase tracking-[0.08em] text-[#C1440E] active:bg-[#FCE8E6]"
                             aria-label="Supprimer"
                           >
                             <Trash2 size={14} />
@@ -3384,7 +3388,7 @@ function BranchProductsSection({
             );
           })}
           {filteredProducts.length === 0 && (
-            <div className="border-2 border-dashed border-[#16181A] bg-white py-10 text-center text-[#4B5560]">
+            <div className="rounded-3xl bg-[#F1F3F4] py-10 text-center text-[#4B5560]">
               <PackagePlus size={28} className="mx-auto mb-2 opacity-40" />
               <p className="text-[13px]">Aucun produit ne correspond aux filtres.</p>
               <p className="mt-1 text-[11px] uppercase tracking-[0.16em]">Essayez de modifier vos critères de recherche</p>
