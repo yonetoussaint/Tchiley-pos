@@ -1855,7 +1855,12 @@ function OwnerBoard({
   const [reportPeriod, setReportPeriod] = useState<ReportPeriod>('daily');
   const [reportsOpen, setReportsOpen] = useState<boolean>(false);
   const [activeBranchId, setActiveBranchId] = useState<string>(selectedBranchId ?? branches[0]?.id ?? '');
-  const [menuOpen, setMenuOpen] = useState<boolean>(true);
+  const [menuOpen, setMenuOpen] = useState<boolean>(
+    () => typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches
+  );
+  const closeMenuOnMobile = () => {
+    if (typeof window !== 'undefined' && !window.matchMedia('(min-width: 768px)').matches) setMenuOpen(false);
+  };
   const [activeSection, setActiveSection] = useState<OwnerSection>('dashboard');
 
   const [inventorySearch, setInventorySearch] = useState<string>('');
@@ -2063,7 +2068,7 @@ function OwnerBoard({
 
       <div className="px-4 py-5 md:px-6">
         {/* Active branch panel header + hamburger menu */}
-        <div className="mb-4 flex flex-wrap items-center gap-3 border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[6px_6px_0_#16181A]">
+        <div className="mb-4 flex flex-wrap items-center gap-3 border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[3px_3px_0_#16181A] md:shadow-[6px_6px_0_#16181A]">
           <button
             onClick={() => setMenuOpen((prev) => !prev)}
             className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31]"
@@ -2086,7 +2091,7 @@ function OwnerBoard({
                 {activeBranch.statut}
               </span>
             </div>
-            <div className="text-[12px] text-[#4B5560]">
+            <div className="break-words text-[12px] text-[#4B5560]">
               {activeBranch.ville} • {activeBranch.adresse} • Responsable: {activeBranch.gestionnaire}
             </div>
           </div>
@@ -2114,11 +2119,11 @@ function OwnerBoard({
           </div>
         </div>
 
-        <div className="flex items-start gap-4">
+        <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-start md:gap-4">
           <nav
             className={
-              'shrink-0 border-2 border-[#16181A] bg-[#FBFAF6] p-2 transition-[width] duration-150 ' +
-              (menuOpen ? 'w-56' : 'w-14')
+              'border-2 border-[#16181A] bg-[#FBFAF6] p-2 md:shrink-0 md:transition-[width] md:duration-150 ' +
+              (menuOpen ? 'w-full md:w-56' : 'hidden md:block md:w-14')
             }
           >
             {OWNER_SECTIONS.map(({ id, label, icon: Icon }) => {
@@ -2133,6 +2138,7 @@ function OwnerBoard({
                         else setReportsOpen(true);
                       } else {
                         setReportsOpen(false);
+                        closeMenuOnMobile();
                       }
                       selectSection(id);
                     }}
@@ -2165,7 +2171,10 @@ function OwnerBoard({
                         return (
                           <button
                             key={tab.id}
-                            onClick={() => setReportPeriod(tab.id)}
+                            onClick={() => {
+                              setReportPeriod(tab.id);
+                              closeMenuOnMobile();
+                            }}
                             title={menuOpen ? undefined : tab.label}
                             aria-label={tab.label}
                             className={
@@ -2188,7 +2197,7 @@ function OwnerBoard({
             })}
           </nav>
 
-          <main className="min-w-0 flex-1 space-y-5">
+          <main className="w-full min-w-0 flex-1 space-y-5">
             {activeSection === 'dashboard' && (
               <BranchDashboardSection
                 branch={activeBranch}
@@ -2596,17 +2605,17 @@ function BranchDashboardSection({
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#16181A]">
+        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[3px_3px_0_#16181A] sm:p-4 sm:shadow-[6px_6px_0_#16181A]">
           <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Ventes du jour</div>
-          <div className="mt-2 font-serif text-3xl">{salesToday.length}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{salesToday.length}</div>
         </div>
-        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#C1440E]">
+        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[3px_3px_0_#C1440E] sm:p-4 sm:shadow-[6px_6px_0_#C1440E]">
           <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Revenu total</div>
-          <div className="mt-2 font-serif text-3xl">{fmtHTG(totalRevenue)}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{fmtHTG(totalRevenue)}</div>
         </div>
-        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#2F6B4F]">
+        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[3px_3px_0_#2F6B4F] sm:p-4 sm:shadow-[6px_6px_0_#2F6B4F]">
           <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Articles en stock bas</div>
-          <div className="mt-2 font-serif text-3xl text-[#C1440E]">{stockAlertCount}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl text-[#C1440E]">{stockAlertCount}</div>
         </div>
       </div>
 
@@ -2618,7 +2627,7 @@ function BranchDashboardSection({
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
+        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#C1440E] sm:p-5 sm:shadow-[8px_8px_0_#C1440E]">
           <h3 className="mb-3 font-serif text-2xl">Alertes Stock Bas</h3>
           {lowStockProducts.length === 0 ? (
             <div className="text-[13px] text-[#4B5560]">Tous les stocks sont à un niveau sain.</div>
@@ -2634,7 +2643,7 @@ function BranchDashboardSection({
           )}
         </div>
 
-        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#2F6B4F] sm:p-5 sm:shadow-[8px_8px_0_#2F6B4F]">
           <h3 className="mb-3 font-serif text-2xl">Ventes récentes</h3>
           {recentSales.length === 0 ? (
             <div className="text-[13px] text-[#4B5560]">Aucune vente enregistrée pour l'instant.</div>
@@ -2722,7 +2731,7 @@ function BranchProductsSection({
   };
 
   return (
-    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#2F6B4F] sm:p-5 sm:shadow-[8px_8px_0_#2F6B4F]">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="font-serif text-2xl">Produits</h2>
         <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em]">
@@ -3326,7 +3335,7 @@ function BranchSalesSection({
     'flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#4B5560] transition-all duration-150 hover:border-[#16181A] hover:bg-[#ECE7DC] hover:text-[#16181A]';
 
   return (
-    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#C1440E]">
+    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#C1440E] sm:p-5 sm:shadow-[8px_8px_0_#C1440E]">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-serif text-2xl">Ventes</h2>
@@ -3512,7 +3521,7 @@ function BranchSalesSection({
 
       {saleToCancel && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
-          <div className="w-full max-w-sm border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
+          <div className="w-full max-w-sm border-2 border-[#16181A] bg-white p-3 shadow-[4px_4px_0_#C1440E] sm:p-5 sm:shadow-[8px_8px_0_#C1440E]">
             <div className="font-serif text-xl">Annuler la vente n° {saleToCancel.number} ?</div>
             <p className="mt-2 text-[13px] text-[#4B5560]">
               {fmtHTG(saleToCancel.sale.total)} • {qtyOf(saleToCancel.sale)} article{qtyOf(saleToCancel.sale) !== 1 ? 's' : ''}.
@@ -3567,7 +3576,7 @@ function CreditPaymentModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
-      <div className="w-full max-w-sm border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#2F6B4F]">
+      <div className="max-h-[92vh] w-full max-w-sm overflow-y-auto border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#2F6B4F]">
         <div className="flex items-start justify-between border-b-2 border-[#16181A] px-5 py-4">
           <div>
             <div className="text-[10px] uppercase tracking-[0.24em] text-[#4B5560]">Encaisser un paiement</div>
@@ -3754,21 +3763,21 @@ function BranchCreditsSection({
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#C1440E]">
+        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[3px_3px_0_#C1440E] sm:p-4 sm:shadow-[6px_6px_0_#C1440E]">
           <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Total dû</div>
-          <div className="mt-2 font-serif text-3xl text-[#C1440E]">{fmtHTG(totalDue)}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl text-[#C1440E]">{fmtHTG(totalDue)}</div>
         </div>
-        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#16181A]">
+        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[3px_3px_0_#16181A] sm:p-4 sm:shadow-[6px_6px_0_#16181A]">
           <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Clients débiteurs</div>
-          <div className="mt-2 font-serif text-3xl">{debtorCount}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{debtorCount}</div>
         </div>
-        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[6px_6px_0_#F2B705]">
+        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[3px_3px_0_#F2B705] sm:p-4 sm:shadow-[6px_6px_0_#F2B705]">
           <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Ventes impayées</div>
-          <div className="mt-2 font-serif text-3xl">{openSalesCount}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{openSalesCount}</div>
         </div>
       </div>
 
-      <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#F2B705]">
+      <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#F2B705] sm:p-5 sm:shadow-[8px_8px_0_#F2B705]">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-serif text-2xl">Ventes à crédit</h2>
@@ -4070,20 +4079,20 @@ function BranchAnalyticsSection({
       <div className="grid gap-4 md:grid-cols-3">
         <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
           <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Revenu Total</div>
-          <div className="mt-2 font-serif text-3xl">{fmtHTG(totalRevenue)}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{fmtHTG(totalRevenue)}</div>
         </div>
         <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
           <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Profit Net Estimé</div>
-          <div className="mt-2 font-serif text-3xl text-[#2F6B4F]">{fmtHTG(totalProfit)}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl text-[#2F6B4F]">{fmtHTG(totalProfit)}</div>
         </div>
         <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
           <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Nombre de Ventes</div>
-          <div className="mt-2 font-serif text-3xl">{ventes.length}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{ventes.length}</div>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
+        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[4px_4px_0_#C1440E] sm:p-5 sm:shadow-[8px_8px_0_#C1440E]">
           <h2 className="mb-6 font-serif text-2xl">Revenus — 7 derniers jours</h2>
           <div className="flex h-48 items-end gap-3 px-2">
             {revenueByDay.map((d, i) => (
@@ -4098,7 +4107,7 @@ function BranchAnalyticsSection({
           </div>
         </div>
 
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[8px_8px_0_#C1440E]">
+        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[4px_4px_0_#C1440E] sm:p-5 sm:shadow-[8px_8px_0_#C1440E]">
           <h2 className="mb-6 font-serif text-2xl">Performance — {branch.nom.split(' ').pop()}</h2>
           <div className="grid grid-cols-2 gap-6">
             <div>
@@ -4502,15 +4511,15 @@ function PeriodReport({
       <div className="grid gap-4 md:grid-cols-3">
         <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
           <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Total brut — {title}</div>
-          <div className="mt-2 font-serif text-3xl">{fmtHTG(total.brut)}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{fmtHTG(total.brut)}</div>
         </div>
         <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
           <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Cash net</div>
-          <div className="mt-2 font-serif text-3xl">{fmtHTG(total.cashNet)}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{fmtHTG(total.cashNet)}</div>
         </div>
         <div className="border-2 border-[#2F6B4F] bg-[#E9F5EF] p-5 shadow-[4px_4px_0_#2F6B4F]">
           <div className="text-[11px] uppercase tracking-wide text-[#2F6B4F]">Cash en main</div>
-          <div className="mt-2 font-serif text-3xl text-[#2F6B4F]">{fmtHTG(total.cashEnMain)}</div>
+          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl text-[#2F6B4F]">{fmtHTG(total.cashEnMain)}</div>
         </div>
       </div>
 
@@ -6119,7 +6128,7 @@ function BranchUsersSection({
   onUpdateUser: (userId: string, patch: Partial<User>) => void;
 }) {
   return (
-    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-5 shadow-[8px_8px_0_#2F6B4F]">
+    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#2F6B4F] sm:p-5 sm:shadow-[8px_8px_0_#2F6B4F]">
       <h2 className="mb-4 font-serif text-2xl">Utilisateurs de la succursale</h2>
       {branchUsers.length === 0 ? (
         <div className="text-[13px] text-[#4B5560]">Aucun vendeur assigné à cette succursale.</div>
