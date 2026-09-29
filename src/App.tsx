@@ -2045,8 +2045,30 @@ function OwnerBoard({
         </button>
       </div>
 
-      {/* Sucursales — top-level tab bar */}
-      <div className="flex gap-1 overflow-x-auto border-b-2 border-[#16181A] bg-[#16181A] px-3 pt-2">
+      {/* Sucursales — dropdown on phones */}
+      <div className="border-b-2 border-[#16181A] bg-[#16181A] px-3 py-3 md:hidden">
+        <label className="mb-1 block text-[10px] uppercase tracking-[0.2em] text-[#c7ccd1]" htmlFor="owner-branch-select">
+          Succursale
+        </label>
+        <div className="relative">
+          <select
+            id="owner-branch-select"
+            value={activeBranchId}
+            onChange={(event) => selectBranchTab(event.target.value)}
+            className="w-full appearance-none border-2 border-[#ECE7DC] bg-[#ECE7DC] py-2.5 pl-3 pr-10 text-[13px] font-medium uppercase tracking-wide text-[#16181A] outline-none focus:border-[#C1440E]"
+          >
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.nom.replace('Tchiley Construction', '').trim() || branch.nom}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#16181A]" />
+        </div>
+      </div>
+
+      {/* Sucursales — top-level tab bar (desktop) */}
+      <div className="hidden gap-1 overflow-x-auto border-b-2 border-[#16181A] bg-[#16181A] px-3 pt-2 md:flex">
         {branches.map((branch) => {
           const actif = branch.id === activeBranchId;
           return (
