@@ -3831,6 +3831,8 @@ function BranchProductsSection({
 
 
   const lowStockCount = branchProducts.filter((product) => product.stockFermeture <= product.seuil).length;
+  const outOfStockCount = branchProducts.filter((product) => product.stockFermeture <= 0).length;
+  const lowOnlyCount = lowStockCount - outOfStockCount;
   const presentCategories = Array.from(new Set(branchProducts.map((product) => product.categorie))).sort(
     (a, b) => {
       const ia = (CATEGORIES as readonly string[]).indexOf(a);
@@ -3844,7 +3846,7 @@ function BranchProductsSection({
       style={M3_VARS}
       className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-28 pt-4 font-sans text-[var(--m3-on-surface)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:rounded-[32px] sm:p-6 sm:pb-6"
     >
-      <div className="mb-4 flex items-center gap-2 sm:mb-5">
+      <div className="mb-4 flex items-center gap-2 sm:mb-6 sm:gap-4">
         <div className="min-w-0 flex-1">
           <h2 className="text-[32px] font-bold leading-10 tracking-tight">Produits</h2>
           <p className="truncate text-sm leading-5 text-[var(--m3-on-surface-variant)]">
@@ -3852,10 +3854,38 @@ function BranchProductsSection({
             {lowStockCount > 0 ? ` · ${lowStockCount} en stock bas` : ''}
           </p>
         </div>
+        <button
+            onClick={onAddProduct}
+            className={`group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS} sm:relative sm:z-auto sm:h-12 sm:shadow-[0_1px_3px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.15)] sm:transition-[box-shadow,transform] sm:hover:shadow-[0_2px_6px_2px_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.3)] sm:active:scale-[0.96]`}
+          >
+            <M3StateLayer />
+            <Plus className="h-6 w-6" />
+            Nouveau
+          </button>
       </div>
 
-      <div className="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
-        <div className="flex h-14 w-full min-w-0 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none sm:min-w-[220px] sm:flex-1">
+      {/* Stat tiles (desktop) */}
+      <div className="mb-6 hidden grid-cols-3 gap-3 sm:grid">
+        {[
+          { label: 'Articles', value: branchProducts.length, Icon: Package, tone: 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]' },
+          { label: 'Stock bas', value: lowOnlyCount, Icon: AlertTriangle, tone: `${M3_STATUS.low.bg} ${M3_STATUS.low.fg}` },
+          { label: 'Ruptures', value: outOfStockCount, Icon: X, tone: `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}` },
+        ].map(({ label, value, Icon, tone }) => (
+          <div key={label} className={`flex items-center gap-4 rounded-[24px] px-5 py-4 ${tone}`}>
+            <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/50">
+              <Icon size={22} />
+            </span>
+            <div>
+              <div className="text-3xl font-semibold leading-none tabular-nums">{value}</div>
+              <div className="mt-1 text-sm">{label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar: search + stock status on one row (desktop), category chips underneath */}
+      <div className="sm:mb-5 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-4 sm:gap-y-3">
+        <div className="mb-3 flex h-14 w-full min-w-0 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none sm:mb-0 sm:h-12 sm:min-w-[220px]">
           <Search className="h-6 w-6 shrink-0 text-[var(--m3-on-surface-variant)]" />
           <input
             type="text"
@@ -3869,43 +3899,19 @@ function BranchProductsSection({
               type="button"
               onClick={() => setInventorySearch('')}
               aria-label="Effacer la recherche"
-              className={`group relative -mr-2 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+              className={`group relative -mr-2 flex h-12 w-12 shrink-0 sm:h-10 sm:w-10 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
             >
               <M3StateLayer />
               <X size={20} />
             </button>
           )}
-          <select
-            value={inventoryCategoryFilter}
-            onChange={(event) => setInventoryCategoryFilter(event.target.value)}
-            className={`hidden h-10 shrink-0 cursor-pointer rounded-full bg-[var(--m3-secondary-container)] px-4 text-sm font-medium text-[var(--m3-on-secondary-container)] outline-none sm:block ${M3_FOCUS}`}
-            aria-label="Filtrer par catégorie"
-          >
-            {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
         </div>
 
-        <div className="contents">
-          <button
-            onClick={onAddProduct}
-            className={`group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS} sm:relative sm:z-auto sm:shadow-[0_1px_3px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.15)] sm:transition-[box-shadow,transform] sm:hover:shadow-[0_2px_6px_2px_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.3)] sm:active:scale-[0.96]`}
-          >
-            <M3StateLayer />
-            <Plus className="h-6 w-6" />
-            Nouveau
-          </button>
-        </div>
-      </div>
-
-      {/* Category filter chips (phone only) — only categories present in this branch */}
+      {/* Category filter chips — only categories present in this branch */}
       <div
         role="group"
         aria-label="Filtrer par catégorie"
-        className="-mx-3 mb-2 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden"
+        className="-mx-3 mb-2 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:order-3 sm:col-span-2 sm:mx-0 sm:mb-0 sm:flex-wrap sm:overflow-visible sm:px-0"
       >
         {['Tout', ...presentCategories].map((category) => {
           const selected = inventoryCategoryFilter === category;
@@ -3915,7 +3921,7 @@ function BranchProductsSection({
               type="button"
               aria-pressed={selected}
               onClick={() => setInventoryCategoryFilter(category)}
-              className={`group relative shrink-0 before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] ${M3_FOCUS}`}
+              className={`group relative shrink-0 before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] sm:before:hidden ${M3_FOCUS}`}
             >
               <span
                 className={`relative flex h-9 items-center gap-2 overflow-hidden px-3.5 text-sm font-medium m3-morph ${
@@ -3935,8 +3941,8 @@ function BranchProductsSection({
         })}
       </div>
 
-      {/* Stock status — segmented button on phone, original pills on desktop */}
-      <div className="mb-4 grid h-14 grid-cols-3 gap-0.5 sm:mb-5 sm:h-12 sm:max-w-md">
+      {/* Stock status — connected segmented button */}
+      <div className="mb-4 grid h-14 grid-cols-3 gap-0.5 sm:order-2 sm:mb-0 sm:h-12 sm:w-[380px]">
         {[
           { id: 'all', label: 'Tous' },
           { id: 'low', label: 'En stock bas' },
@@ -3971,270 +3977,10 @@ function BranchProductsSection({
         })}
       </div>
 
-      {selectedHistoryProduct && (
-        <div className="m3-in mb-4 hidden rounded-[24px] bg-[var(--m3-surface-container-high)] p-4 sm:block">
-          <div className="mb-2 text-xs font-medium tracking-[0.03em] text-[var(--m3-on-surface-variant)]">Historique produit</div>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--m3-on-surface)]">
-            <span className="mr-1 text-lg font-medium">{selectedHistoryProduct.nom}</span>
-            <span className="rounded-full bg-[var(--m3-surface)] px-3 py-1">Vendu: {soldByProductToday[selectedHistoryProduct.id] ?? 0}</span>
-            <span className="rounded-full bg-[var(--m3-surface)] px-3 py-1">Stock Ouverture: {selectedHistoryProduct.stockOuverture}</span>
-            <span className="rounded-full bg-[var(--m3-surface)] px-3 py-1">Stock Fermeture: {selectedHistoryProduct.stockFermeture}</span>
-            <span className="rounded-full bg-[var(--m3-surface)] px-3 py-1" title="Niveau de stock en dessous duquel une alerte apparaît">Seuil Alerte: {selectedHistoryProduct.seuil}</span>
-          </div>
-        </div>
-      )}
+      </div>
 
-      <div className="sm:overflow-hidden sm:rounded-[28px] sm:bg-[var(--m3-surface-container)]">
-        <div className="hidden max-h-[65vh] overflow-auto sm:block">
-          <table className="w-full min-w-[900px] border-collapse text-left" role="grid">
-            <thead className="sticky top-0 z-10 bg-[var(--m3-surface-container-high)] text-xs font-medium tracking-[0.03em] text-[var(--m3-on-surface-variant)] shadow-[0_1px_0_var(--m3-outline-variant)]">
-              <tr>
-                <th className="px-3 py-3 text-center" title="Produit et catégorie">Produit</th>
-                <th className="px-3 py-3 text-center" title="Catégorie du produit">Catégorie</th>
-                <th className="px-3 py-3 text-center" title="Unités vendues à la date sélectionnée uniquement">Vendu Auj.</th>
-                <th className="px-3 py-3 text-center" title="Prix de vente au client">Prix Vente</th>
-                <th className="px-3 py-3 text-center" title="Prix d'achat / coût pour la succursale">Prix Achat</th>
-                <th className="px-3 py-3 text-center" title="Stock d'ouverture">Stock Ouverture</th>
-                <th className="px-3 py-3 text-center" title="Stock de fermeture">Stock Fermeture</th>
-                <th className="px-3 py-3 text-center" title="Niveau de stock en dessous duquel une alerte apparaît">Seuil Alerte</th>
-                <th className="px-3 py-3 text-center" title="Quantité à ajouter au stock existant">Ajout Stock</th>
-                <th className="px-3 py-3 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProducts.map((product) => {
-                const soldToday = soldByProductToday[product.id] ?? 0;
-                const restockValue = restockByProduct[product.id] ?? 0;
-                const isLowStock = product.stockFermeture <= product.seuil;
-                const isOutOfStock = product.stockFermeture <= 0;
-                const showHistory = selectedHistoryProduct?.id === product.id;
-                const tone = isOutOfStock ? M3_STATUS.out : isLowStock ? M3_STATUS.low : M3_STATUS.ok;
-                const CategoryIcon = categoryIcon(product.categorie);
-                const iconBtn = `group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full disabled:cursor-not-allowed disabled:opacity-40 ${M3_FOCUS}`;
-                return (
-                  <tr
-                    key={product.id}
-                    className={
-                      'border-b border-[var(--m3-outline-variant)]/60 align-middle text-sm text-[var(--m3-on-surface)] transition-colors duration-150 last:border-b-0 ' +
-                      (isEditing(product.id)
-                        ? 'bg-[var(--m3-surface-container-high)]'
-                        : isOutOfStock
-                          ? 'bg-[#FFDAD6]/40'
-                          : 'hover:bg-[var(--m3-surface-container-high)]')
-                    }
-                    style={{ opacity: isOutOfStock ? 0.7 : 1 }}
-                  >
-                    <td className="px-3 py-2.5 font-medium">
-                      <div className="flex items-center gap-2">
-                        <span
-                          title={isOutOfStock ? 'Rupture de stock' : isLowStock ? 'Stock bas' : 'En stock'}
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}
-                        >
-                          <CategoryIcon size={16} aria-hidden="true" />
-                        </span>
-                        <input
-                          value={product.nom}
-                          onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
-                          disabled={!isEditing(product.id)}
-                          className={`h-9 w-full px-2 outline-none transition-shadow duration-150 ${
-                          isEditing(product.id)
-                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
-                            : 'rounded-xl bg-transparent'
-                        }`}
-                          placeholder="Nom du produit"
-                        />
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <input
-                        value={product.categorie}
-                        onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
-                        disabled={!isEditing(product.id)}
-                        className={`h-9 w-full px-2 outline-none transition-shadow duration-150 ${
-                          isEditing(product.id)
-                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)] text-[var(--m3-on-surface)]'
-                            : 'rounded-xl bg-transparent text-[var(--m3-on-surface-variant)]'
-                        }`}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className="inline-flex h-9 min-w-[3rem] items-center justify-center rounded-xl px-2 tabular-nums text-[var(--m3-on-surface-variant)] font-medium">{soldToday}</span>
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        value={product.prix}
-                        onChange={(event) => onUpdateProduct(product.id, { prix: Number(event.target.value) || 0 })}
-                        disabled={!isEditing(product.id)}
-                        className={`h-9 w-24 px-2 text-center font-medium tabular-nums text-[var(--m3-primary)] outline-none transition-shadow duration-150 ${
-                          isEditing(product.id)
-                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
-                            : 'rounded-xl bg-transparent'
-                        }`}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        value={product.prixAchat}
-                        onChange={(event) => onUpdateProduct(product.id, { prixAchat: Number(event.target.value) || 0 })}
-                        disabled={!isEditing(product.id)}
-                        className={`h-9 w-24 px-2 text-center font-medium tabular-nums text-[var(--m3-on-surface-variant)] outline-none transition-shadow duration-150 ${
-                          isEditing(product.id)
-                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
-                            : 'rounded-xl bg-transparent'
-                        }`}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        value={product.stockOuverture}
-                        onChange={(event) => onUpdateProduct(product.id, { stockOuverture: Number(event.target.value) || 0 })}
-                        disabled={!isEditing(product.id)}
-                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[var(--m3-on-surface)] outline-none transition-shadow duration-150 ${
-                          isEditing(product.id)
-                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
-                            : 'rounded-xl bg-transparent'
-                        }`}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        value={product.stockFermeture}
-                        onChange={(event) => onUpdateProduct(product.id, { stockFermeture: Number(event.target.value) || 0 })}
-                        disabled={!isEditing(product.id)}
-                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[var(--m3-on-surface)] outline-none transition-shadow duration-150 ${
-                          isEditing(product.id)
-                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
-                            : 'rounded-xl bg-transparent'
-                        }`}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        value={product.seuil}
-                        onChange={(event) => onUpdateProduct(product.id, { seuil: Number(event.target.value) || 0 })}
-                        disabled={!isEditing(product.id)}
-                        className={`h-9 w-20 px-2 text-center font-medium tabular-nums text-[#7A5900] outline-none transition-shadow duration-150 ${
-                          isEditing(product.id)
-                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
-                            : 'rounded-xl bg-transparent'
-                        }`}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        value={restockValue}
-                        title="Quantité à ajouter au stock actuel (appliquée à l'enregistrement)"
-                        onChange={(event) =>
-                          setRestockByProduct((prev) => ({ ...prev, [product.id]: Number(event.target.value) || 0 }))
-                        }
-                        disabled={!isEditing(product.id)}
-                        className={`mx-auto h-9 w-20 px-2 text-center font-medium tabular-nums text-[var(--m3-primary)] outline-none transition-shadow duration-150 ${
-                          isEditing(product.id)
-                            ? 'rounded-xl bg-[var(--m3-surface)] ring-1 ring-[var(--m3-outline)] focus:ring-2 focus:ring-[var(--m3-primary)]'
-                            : 'rounded-xl bg-transparent'
-                        }`}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => onViewHistory(product)}
-                          disabled={isEditing(product.id)}
-                          className={
-                            `${iconBtn} ` +
-                            (showHistory
-                              ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
-                              : 'text-[var(--m3-on-surface-variant)]')
-                          }
-                          aria-label="Historique"
-                          aria-pressed={showHistory}
-                          title="Historique"
-                        >
-                          <M3StateLayer />
-                          <History size={18} />
-                        </button>
-                        {!isEditing(product.id) ? (
-                          <button
-                            onClick={() => handleEditClick(product.id)}
-                            className={`${iconBtn} bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]`}
-                            aria-label="Modifier"
-                            title="Modifier"
-                          >
-                            <M3StateLayer />
-                            <Pencil size={18} />
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handleSaveClick(product.id)}
-                              disabled={isSaving(product.id)}
-                              className={
-                                `${iconBtn} bg-[var(--m3-primary)] text-[var(--m3-on-primary)] ` +
-                                (isSaving(product.id) ? 'cursor-wait opacity-80' : '')
-                              }
-                              aria-label={isSaving(product.id) ? 'Enregistrement...' : 'Enregistrer'}
-                              title={isSaving(product.id) ? 'Enregistrement...' : 'Enregistrer'}
-                            >
-                              <M3StateLayer />
-                              {isSaving(product.id) ? <M3Loading size={18} /> : <Check size={18} />}
-                            </button>
-                            <button
-                              onClick={handleCancelClick}
-                              className={`${iconBtn} border border-[var(--m3-outline)] text-[var(--m3-primary)]`}
-                              aria-label="Annuler"
-                              title="Annuler"
-                            >
-                              <M3StateLayer />
-                              <X size={18} />
-                            </button>
-                          </>
-                        )}
-                        <button
-                          onClick={() => onDeleteProduct(product)}
-                          disabled={isEditing(product.id)}
-                          className={`${iconBtn} text-[#BA1A1A]`}
-                          aria-label="Supprimer"
-                          title="Supprimer"
-                        >
-                          <M3StateLayer />
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filteredProducts.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="px-3 py-16 text-center">
-                    <div className="flex flex-col items-center gap-1 text-[var(--m3-on-surface)]">
-                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
-                        <PackagePlus size={28} />
-                      </span>
-                      <span className="text-base font-medium">Aucun produit ne correspond aux filtres.</span>
-                      <span className="text-sm text-[var(--m3-on-surface-variant)]">Essayez de modifier vos critères de recherche.</span>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile list — Material 3: tonal surfaces, state layers, tap to expand */}
-        <div className="space-y-2 pb-24 sm:hidden">
+      {/* Product cards — tonal surfaces, state layers, tap to expand (1 column on phone, grid on desktop) */}
+      <div className="grid grid-cols-1 items-start gap-2 pb-24 sm:grid-cols-2 sm:gap-3 sm:pb-0 xl:grid-cols-3">
           {filteredProducts.map((product) => {
             const soldToday = soldByProductToday[product.id] ?? 0;
             const restockValue = restockByProduct[product.id] ?? 0;
@@ -4456,7 +4202,7 @@ function BranchProductsSection({
             );
           })}
           {filteredProducts.length === 0 && (
-            <div className="rounded-[32px] bg-[var(--m3-surface-container)] px-6 py-10 text-center">
+            <div className="rounded-[32px] bg-[var(--m3-surface-container)] px-6 py-10 text-center sm:col-span-full">
               <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
                 <PackagePlus size={28} />
               </span>
@@ -4466,7 +4212,6 @@ function BranchProductsSection({
               </p>
             </div>
           )}
-        </div>
       </div>
     </div>
   );
