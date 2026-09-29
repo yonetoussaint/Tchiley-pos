@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
@@ -8,7 +8,7 @@ import {
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
   Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown,
-  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt, ExternalLink, Copy
+  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt, ExternalLink, Copy, Palette, Wrench, CupSoda, Wheat
 } from 'lucide-react';
 
 /* =========================================================================
@@ -2742,17 +2742,138 @@ function BranchDashboardSection({
   );
 }
 
-type ProductFieldTone = 'green' | 'ink' | 'steel' | 'yellow';
+/* =========================================================================
+   MATERIAL 3 — mobile Products tab
+   Colour roles (container / on-container pairs) are exposed as CSS custom
+   properties on the section root, so the whole phone UI can be re-tinted by
+   swapping a palette ("dynamic colour", user-controlled). Desktop keeps the
+   house style: every M3 class below is only applied below the `sm` breakpoint.
+   ========================================================================= */
+type M3PaletteId = 'vert' | 'terre' | 'ocean' | 'prune';
 
-const PRODUCT_FIELD_TONES: Record<ProductFieldTone, { text: string; edit: string }> = {
-  green: { text: 'text-[#2F6B4F]', edit: 'border-[#2F6B4F] bg-[#E9F5EF]' },
-  steel: { text: 'text-[#4B5560]', edit: 'border-[#4B5560] bg-[#F3F4F6]' },
-  ink: { text: 'text-[#16181A]', edit: 'border-[#16181A] bg-[#F3F4F6]' },
-  yellow: { text: 'text-[#8a6d00]', edit: 'border-[#F2B705] bg-[#FDF6DC]' },
+const M3_PALETTES: Record<M3PaletteId, { label: string; vars: Record<string, string> }> = {
+  vert: {
+    label: 'Vert',
+    vars: {
+      '--m3-primary': '#2C6A4C', '--m3-on-primary': '#FFFFFF',
+      '--m3-primary-container': '#B1F0CE', '--m3-on-primary-container': '#002114',
+      '--m3-secondary-container': '#CFE9D9', '--m3-on-secondary-container': '#0A1F14',
+      '--m3-surface': '#F6FBF5', '--m3-surface-container': '#EAEFE9',
+      '--m3-surface-container-high': '#E4EAE3', '--m3-surface-container-highest': '#DFE4DD',
+      '--m3-on-surface': '#181D19', '--m3-on-surface-variant': '#404943',
+      '--m3-outline': '#707973', '--m3-outline-variant': '#BFC9C2',
+    },
+  },
+  terre: {
+    label: 'Terre',
+    vars: {
+      '--m3-primary': '#9A4521', '--m3-on-primary': '#FFFFFF',
+      '--m3-primary-container': '#FFDBCD', '--m3-on-primary-container': '#360F00',
+      '--m3-secondary-container': '#F4DDD4', '--m3-on-secondary-container': '#2A1710',
+      '--m3-surface': '#FFF8F6', '--m3-surface-container': '#F6EAE5',
+      '--m3-surface-container-high': '#F0E4DF', '--m3-surface-container-highest': '#EADEDA',
+      '--m3-on-surface': '#221A17', '--m3-on-surface-variant': '#53433D',
+      '--m3-outline': '#85736C', '--m3-outline-variant': '#D8C2BA',
+    },
+  },
+  ocean: {
+    label: 'Océan',
+    vars: {
+      '--m3-primary': '#37618E', '--m3-on-primary': '#FFFFFF',
+      '--m3-primary-container': '#D2E4FF', '--m3-on-primary-container': '#001C37',
+      '--m3-secondary-container': '#D7E3F7', '--m3-on-secondary-container': '#101C2B',
+      '--m3-surface': '#F9F9FF', '--m3-surface-container': '#EDEDF4',
+      '--m3-surface-container-high': '#E7E8EE', '--m3-surface-container-highest': '#E2E2E9',
+      '--m3-on-surface': '#191C20', '--m3-on-surface-variant': '#43474E',
+      '--m3-outline': '#73777F', '--m3-outline-variant': '#C3C7CF',
+    },
+  },
+  prune: {
+    label: 'Prune',
+    vars: {
+      '--m3-primary': '#6750A4', '--m3-on-primary': '#FFFFFF',
+      '--m3-primary-container': '#EADDFF', '--m3-on-primary-container': '#21005D',
+      '--m3-secondary-container': '#E8DEF8', '--m3-on-secondary-container': '#1D192B',
+      '--m3-surface': '#FEF7FF', '--m3-surface-container': '#F3EDF7',
+      '--m3-surface-container-high': '#ECE6F0', '--m3-surface-container-highest': '#E6E0E9',
+      '--m3-on-surface': '#1D1B20', '--m3-on-surface-variant': '#49454F',
+      '--m3-outline': '#79747E', '--m3-outline-variant': '#CAC4D0',
+    },
+  },
 };
 
-/* Large, thumb-friendly numeric field used by the phone card layout of the Products tab.
-   16px text avoids the iOS zoom-on-focus; read-only until the card is in edit mode. */
+const M3_PALETTE_ORDER: M3PaletteId[] = ['vert', 'terre', 'ocean', 'prune'];
+const M3_PALETTE_KEY = 'tchiley-m3-palette';
+
+/* Stock status roles — fixed across palettes so meaning never changes with the tint. */
+const M3_STATUS = {
+  ok: { bg: 'bg-[var(--m3-primary-container)]', fg: 'text-[var(--m3-on-primary-container)]' },
+  low: { bg: 'bg-[#FFE08B]', fg: 'text-[#251A00]' },
+  out: { bg: 'bg-[#FFDAD6]', fg: 'text-[#410002]' },
+};
+
+const M3_FOCUS =
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--m3-primary)]';
+
+const M3_CSS = `
+@keyframes m3-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.m3-in { animation: m3-in .3s cubic-bezier(.05,.7,.1,1); }
+@media (prefers-reduced-motion: reduce) { .m3-in { animation: none; } }
+`;
+
+/* State layer: a translucent overlay in the content colour (hover 8 %, focus/press 12 %). */
+function M3StateLayer({ className = '' }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute inset-0 bg-current opacity-0 transition-opacity duration-150 group-hover:opacity-[0.08] group-focus-visible:opacity-[0.12] group-active:opacity-[0.12] motion-reduce:transition-none ${className}`}
+    />
+  );
+}
+
+function categoryIcon(categorie: string) {
+  if (categorie === 'Quincaillerie') return Wrench;
+  if (categorie === 'Boissons Gazeuse') return CupSoda;
+  if (categorie === 'Produits alimentaires') return Wheat;
+  return Package;
+}
+
+/* Filled text field with a persistent small label; 16px text avoids the iOS zoom-on-focus. */
+function M3TextField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block min-w-0 rounded-xl bg-[var(--m3-surface)] px-4 pb-1.5 pt-2 ring-1 ring-[var(--m3-outline)] transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none">
+      <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">{label}</span>
+      <input
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-8 w-full min-w-0 bg-transparent p-0 text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
+      />
+    </label>
+  );
+}
+
+type ProductFieldTone = 'green' | 'ink' | 'steel' | 'yellow';
+
+const PRODUCT_FIELD_TONES: Record<ProductFieldTone, { text: string }> = {
+  green: { text: 'text-[var(--m3-primary)]' },
+  steel: { text: 'text-[var(--m3-on-surface-variant)]' },
+  ink: { text: 'text-[var(--m3-on-surface)]' },
+  yellow: { text: 'text-[#7A5900]' },
+};
+
+/* Numeric field for the phone card: read-only tile until the card is in edit mode,
+   then an outlined field that highlights with the primary colour on focus. */
 function ProductNumberField({
   label,
   value,
@@ -2772,8 +2893,12 @@ function ProductNumberField({
 }) {
   const t = PRODUCT_FIELD_TONES[tone];
   return (
-    <label className="block min-w-0">
-      <span className="mb-0.5 block truncate px-1 text-[9px] uppercase tracking-[0.12em] text-[#4B5560]">{label}</span>
+    <label
+      className={`block min-w-0 rounded-xl bg-[var(--m3-surface)] px-3 pb-1 pt-2 transition-shadow motion-reduce:transition-none ${
+        editing ? 'ring-1 ring-[var(--m3-outline)] focus-within:ring-2 focus-within:ring-[var(--m3-primary)]' : ''
+      }`}
+    >
+      <span className="block truncate text-xs leading-4 text-[var(--m3-on-surface-variant)]">{label}</span>
       <input
         type="number"
         min="0"
@@ -2784,9 +2909,7 @@ function ProductNumberField({
         tabIndex={editing ? 0 : -1}
         onFocus={(event) => event.target.select()}
         onChange={(event) => onChange(Number(event.target.value) || 0)}
-        className={`h-10 w-full min-w-0 rounded-xl border-2 px-2 text-right text-base font-medium tabular-nums outline-none transition-colors ${t.text} ${
-          editing ? t.edit : 'border-transparent bg-white'
-        }`}
+        className={`h-8 w-full min-w-0 bg-transparent p-0 text-base font-medium tabular-nums outline-none ${t.text}`}
       />
     </label>
   );
@@ -2857,25 +2980,85 @@ function BranchProductsSection({
     setEditingId(null);
   };
 
+  const [paletteId, setPaletteId] = useState<M3PaletteId>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? window.localStorage.getItem(M3_PALETTE_KEY) : null;
+      return saved && saved in M3_PALETTES ? (saved as M3PaletteId) : 'vert';
+    } catch {
+      return 'vert';
+    }
+  });
+  const cyclePalette = () => {
+    const next = M3_PALETTE_ORDER[(M3_PALETTE_ORDER.indexOf(paletteId) + 1) % M3_PALETTE_ORDER.length];
+    setPaletteId(next);
+    try {
+      window.localStorage.setItem(M3_PALETTE_KEY, next);
+    } catch {
+      /* storage unavailable — the choice simply isn't remembered */
+    }
+  };
+  const m3Style = M3_PALETTES[paletteId].vars as CSSProperties;
+
+  const lowStockCount = branchProducts.filter((product) => product.stockFermeture <= product.seuil).length;
+  const presentCategories = Array.from(new Set(branchProducts.map((product) => product.categorie))).sort(
+    (a, b) => {
+      const ia = (CATEGORIES as readonly string[]).indexOf(a);
+      const ib = (CATEGORIES as readonly string[]).indexOf(b);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    }
+  );
+
   return (
-    <div className="border-0 border-[#16181A] bg-transparent p-1 shadow-none sm:border-2 sm:bg-[#FBFAF6] sm:p-5 sm:shadow-[8px_8px_0_#2F6B4F]">
-      <div className="mb-3 flex items-center justify-between sm:mb-5">
-        <h2 className="font-serif text-xl sm:text-2xl">Produits</h2>
-        <span className="rounded-full bg-[#E8EAED] px-3 py-1 text-[10px] sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#ECE7DC] sm:px-2.5 font-medium uppercase tracking-[0.2em]">
+    <div
+      style={m3Style}
+      className="rounded-[28px] bg-[var(--m3-surface)] p-3 font-sans text-[var(--m3-on-surface)] sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#2F6B4F]"
+    >
+      <style>{M3_CSS}</style>
+
+      <div className="mb-4 flex items-center gap-2 sm:mb-5 sm:justify-between">
+        <div className="min-w-0 flex-1 sm:flex-none">
+          <h2 className="text-[28px] font-normal leading-9 sm:font-serif sm:text-2xl sm:leading-normal">Produits</h2>
+          <p className="truncate text-sm leading-5 text-[var(--m3-on-surface-variant)] sm:hidden">
+            {branchProducts.length} article{branchProducts.length !== 1 ? 's' : ''}
+            {lowStockCount > 0 ? ` · ${lowStockCount} en stock bas` : ''}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={cyclePalette}
+          aria-label={`Couleur ${M3_PALETTES[paletteId].label} — changer la palette`}
+          title="Changer la palette"
+          className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] sm:hidden ${M3_FOCUS}`}
+        >
+          <M3StateLayer />
+          <Palette size={22} />
+        </button>
+        <span className="hidden font-medium uppercase tracking-[0.2em] sm:inline-block sm:border-2 sm:border-[#16181A] sm:bg-[#ECE7DC] sm:px-2.5 sm:py-1 sm:text-[10px]">
           {branchProducts.length} produits
         </span>
       </div>
 
       <div className="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
-        <div className="flex w-full min-w-0 items-center gap-2 rounded-full bg-[#F1F3F4] px-4 py-3 transition-shadow sm:min-w-[220px] sm:flex-1 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:px-3 sm:py-2 sm:focus-within:shadow-[4px_4px_0_#C1440E]">
-          <Search className="h-4 w-4 shrink-0 text-[#4B5560]" />
+        <div className="flex h-14 w-full min-w-0 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none sm:h-auto sm:min-w-[220px] sm:flex-1 sm:gap-2 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:px-3 sm:py-2 sm:focus-within:shadow-[4px_4px_0_#C1440E] sm:focus-within:ring-0">
+          <Search className="h-6 w-6 shrink-0 text-[var(--m3-on-surface-variant)] sm:h-4 sm:w-4 sm:text-[#4B5560]" />
           <input
             type="text"
             value={inventorySearch}
             onChange={(event) => setInventorySearch(event.target.value)}
             placeholder="Rechercher un produit..."
-            className="w-full min-w-0 border-none bg-transparent text-base text-[#16181A] outline-none placeholder:text-[#4B5560] sm:text-sm"
+            className="w-full min-w-0 border-none bg-transparent text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)] sm:text-sm sm:text-[#16181A] sm:placeholder:text-[#4B5560]"
           />
+          {inventorySearch && (
+            <button
+              type="button"
+              onClick={() => setInventorySearch('')}
+              aria-label="Effacer la recherche"
+              className={`group relative -mr-2 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] sm:hidden ${M3_FOCUS}`}
+            >
+              <M3StateLayer />
+              <X size={20} />
+            </button>
+          )}
           <select
             value={inventoryCategoryFilter}
             onChange={(event) => setInventoryCategoryFilter(event.target.value)}
@@ -2889,48 +3072,78 @@ function BranchProductsSection({
             ))}
           </select>
         </div>
-        <div className="flex gap-2 sm:contents">
-            <select
-              value={inventoryCategoryFilter}
-              onChange={(event) => setInventoryCategoryFilter(event.target.value)}
-              className="h-11 min-w-0 flex-1 rounded-full border-0 bg-[#F1F3F4] px-4 text-base uppercase tracking-wide text-[#16181A] outline-none sm:hidden"
-              aria-label="Filtrer par catégorie"
-            >
-              {['Tout', ...CATEGORIES.filter((category) => category !== 'Tout')].map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-        <button
-          onClick={onAddProduct}
-          className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border-0 bg-[#16181A] px-5 sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:px-3 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#2b2e31]"
-        >
-          <Plus size={14} />
-          Nouveau
-        </button>
+
+        <div className="contents">
+          <button
+            onClick={onAddProduct}
+            className={`group relative fixed bottom-5 right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-2xl bg-[var(--m3-primary-container)] px-5 text-sm font-medium tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] transition-transform duration-200 active:scale-95 motion-reduce:transition-none ${M3_FOCUS} sm:static sm:z-auto sm:h-auto sm:gap-2 sm:overflow-visible sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#16181A] sm:px-3 sm:py-2 sm:text-[11px] sm:uppercase sm:tracking-[0.18em] sm:text-white sm:shadow-none sm:transition-colors sm:hover:bg-[#2b2e31] sm:active:scale-100`}
+          >
+            <M3StateLayer className="sm:hidden" />
+            <Plus className="h-6 w-6 sm:h-3.5 sm:w-3.5" />
+            Nouveau
+          </button>
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-3 gap-2 sm:mb-5 sm:flex sm:flex-wrap">
+      {/* Category filter chips (phone only) — only categories present in this branch */}
+      <div
+        role="group"
+        aria-label="Filtrer par catégorie"
+        className="-mx-3 mb-2 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden"
+      >
+        {['Tout', ...presentCategories].map((category) => {
+          const selected = inventoryCategoryFilter === category;
+          return (
+            <button
+              key={category}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setInventoryCategoryFilter(category)}
+              className={`group relative shrink-0 before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] ${M3_FOCUS}`}
+            >
+              <span
+                className={`relative flex h-8 items-center gap-2 overflow-hidden rounded-lg px-3 text-sm font-medium transition-colors motion-reduce:transition-none ${
+                  selected
+                    ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                    : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+                }`}
+              >
+                <M3StateLayer />
+                {selected && <Check size={16} />}
+                {category}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Stock status — segmented button on phone, original pills on desktop */}
+      <div className="mb-4 grid h-12 grid-cols-3 gap-px overflow-hidden rounded-full border border-[var(--m3-outline)] bg-[var(--m3-outline)] sm:mb-5 sm:flex sm:h-auto sm:flex-wrap sm:gap-2 sm:overflow-visible sm:rounded-none sm:border-0 sm:bg-transparent">
         {[
           { id: 'all', label: 'Tous' },
           { id: 'low', label: 'En stock bas' },
           { id: 'normal', label: 'Normal' },
-        ].map((status) => (
-          <button
-            key={status.id}
-            onClick={() => setInventoryStatusFilter(status.id as 'all' | 'low' | 'normal')}
-            className={
-              'rounded-full px-1 py-2.5 text-center text-[10px] sm:rounded-none sm:border-2 font-medium uppercase tracking-[0.1em] transition-colors sm:px-2.5 sm:py-1.5 sm:tracking-[0.16em] ' +
-              (inventoryStatusFilter === status.id
-                ? 'sm:border-[#C1440E] bg-[#C1440E] text-white'
-                : 'sm:border-[#16181A] bg-[#F1F3F4] text-[#16181A] hover:bg-[#E8EAED] sm:bg-white sm:hover:bg-[#ECE7DC]')
-            }
-          >
-            {status.label}
-          </button>
-        ))}
+        ].map((status) => {
+          const selected = inventoryStatusFilter === status.id;
+          return (
+            <button
+              key={status.id}
+              onClick={() => setInventoryStatusFilter(status.id as 'all' | 'low' | 'normal')}
+              aria-pressed={selected}
+              className={
+                `group relative flex items-center justify-center gap-1.5 overflow-hidden px-1 text-sm font-medium transition-colors motion-reduce:transition-none ${M3_FOCUS} ` +
+                'sm:rounded-none sm:border-2 sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:uppercase sm:tracking-[0.16em] ' +
+                (selected
+                  ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] sm:border-[#C1440E] sm:bg-[#C1440E] sm:text-white'
+                  : 'bg-[var(--m3-surface)] text-[var(--m3-on-surface)] sm:border-[#16181A] sm:bg-white sm:text-[#16181A] sm:hover:bg-[#ECE7DC]')
+              }
+            >
+              <M3StateLayer className="sm:hidden" />
+              {selected && <Check size={16} className="sm:hidden" />}
+              {status.label}
+            </button>
+          );
+        })}
       </div>
 
       {selectedHistoryProduct && (
@@ -3184,8 +3397,8 @@ function BranchProductsSection({
           </table>
         </div>
 
-        {/* Mobile Card View — compact rows, tap to expand */}
-        <div className="space-y-2.5 sm:hidden">
+        {/* Mobile list — Material 3: tonal surfaces, state layers, tap to expand */}
+        <div className="space-y-2 pb-24 sm:hidden">
           {filteredProducts.map((product) => {
             const soldToday = soldByProductToday[product.id] ?? 0;
             const restockValue = restockByProduct[product.id] ?? 0;
@@ -3195,34 +3408,36 @@ function BranchProductsSection({
             const saving = isSaving(product.id);
             const open = editing || expandedId === product.id;
             const showHistory = selectedHistoryProduct?.id === product.id;
-            const statusColor = isOutOfStock ? '#C1440E' : isLowStock ? '#F2B705' : '#2F6B4F';
-            const stockTone = isOutOfStock
-              ? 'bg-[#FCE8E6] text-[#C5221F]'
-              : isLowStock
-              ? 'bg-[#FEF3C7] text-[#8a6d00]'
-              : 'bg-white text-[#16181A]';
+            const tone = isOutOfStock ? M3_STATUS.out : isLowStock ? M3_STATUS.low : M3_STATUS.ok;
+            const statusLabel = isOutOfStock ? 'Rupture de stock' : isLowStock ? 'Stock bas' : 'En stock';
+            const CategoryIcon = categoryIcon(product.categorie);
+            const btn =
+              `group relative flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full px-2 text-sm font-medium tracking-[0.01em] ${M3_FOCUS}`;
             return (
               <div
                 key={product.id}
                 className={
-                  'overflow-hidden rounded-3xl transition-colors duration-150 ' +
-                  (editing ? 'bg-[#F1F3F4] ring-2 ring-[#C1440E]/50' : 'bg-[#F1F3F4]')
+                  'overflow-hidden transition-[background-color,border-radius] duration-300 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ' +
+                  (open
+                    ? 'rounded-[28px] bg-[var(--m3-surface-container-high)]'
+                    : 'rounded-2xl bg-[var(--m3-surface-container)]') +
+                  (editing ? ' ring-2 ring-[var(--m3-primary)]' : '')
                 }
               >
-                {/* Compact row */}
+                {/* List item */}
                 {editing ? (
-                  <div className="space-y-2 p-3">
-                    <input
+                  <div className="m3-in space-y-2 p-4 pb-2">
+                    <M3TextField
+                      label="Nom du produit"
                       value={product.nom}
-                      onChange={(event) => onUpdateProduct(product.id, { nom: event.target.value })}
                       placeholder="Nom du produit"
-                      className="h-11 w-full rounded-2xl bg-white px-3 font-serif text-base font-semibold outline-none ring-1 ring-[#DADCE0] focus:ring-2 focus:ring-[#C1440E]"
+                      onChange={(value) => onUpdateProduct(product.id, { nom: value })}
                     />
-                    <input
+                    <M3TextField
+                      label="Catégorie"
                       value={product.categorie}
-                      onChange={(event) => onUpdateProduct(product.id, { categorie: event.target.value })}
                       placeholder="Catégorie"
-                      className="h-11 w-full rounded-2xl bg-white px-3 text-base uppercase tracking-[0.08em] text-[#4B5560] outline-none ring-1 ring-[#DADCE0] focus:ring-2 focus:ring-[#C1440E]"
+                      onChange={(value) => onUpdateProduct(product.id, { categorie: value })}
                     />
                   </div>
                 ) : (
@@ -3230,36 +3445,46 @@ function BranchProductsSection({
                     type="button"
                     onClick={() => setExpandedId((prev) => (prev === product.id ? null : product.id))}
                     aria-expanded={open}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-[#E8EAED]"
+                    className={`group relative flex min-h-[72px] w-full items-center gap-4 px-4 py-3 text-left ${M3_FOCUS}`}
                   >
+                    <M3StateLayer />
                     <span
                       aria-hidden="true"
-                      style={{ backgroundColor: statusColor }}
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    />
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}
+                    >
+                      <CategoryIcon size={20} />
+                    </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-serif text-[15px] font-semibold leading-tight">{product.nom}</span>
-                      <span className="block truncate text-[10.5px] uppercase tracking-[0.08em] text-[#4B5560]">
+                      <span className="block truncate text-base font-medium leading-6 text-[var(--m3-on-surface)]">
+                        {product.nom}
+                      </span>
+                      <span className="block truncate text-sm leading-5 text-[var(--m3-on-surface-variant)]">
                         {product.categorie} · Prix {product.prix} · Vendu {soldToday}
                       </span>
                     </span>
                     <span
-                      className={`flex h-9 min-w-[2.5rem] shrink-0 items-center justify-center rounded-full px-3 font-serif text-lg font-semibold leading-none tabular-nums ${stockTone}`}
+                      className={`flex h-8 min-w-[2rem] shrink-0 items-center justify-center gap-1 rounded-full px-3 text-sm font-medium tabular-nums ${tone.bg} ${tone.fg}`}
                     >
+                      {(isLowStock || isOutOfStock) && <AlertTriangle size={14} aria-hidden="true" />}
+                      <span className="sr-only">{statusLabel} : </span>
                       {product.stockFermeture}
                     </span>
                     <ChevronDown
-                      size={16}
-                      className={'shrink-0 text-[#4B5560] transition-transform ' + (open ? 'rotate-180' : '')}
+                      size={20}
+                      aria-hidden="true"
+                      className={
+                        'shrink-0 text-[var(--m3-on-surface-variant)] transition-transform duration-300 motion-reduce:transition-none ' +
+                        (open ? 'rotate-180' : '')
+                      }
                     />
                   </button>
                 )}
 
                 {/* Expanded details */}
                 {open && (
-                  <div className="px-3 pb-3 pt-0.5">
+                  <div className="m3-in px-4 pb-4 pt-1">
                     {showHistory && !editing && (
-                      <div className="mb-2 grid grid-cols-4 gap-1 rounded-2xl bg-white p-2 text-center">
+                      <div className="mb-3 grid grid-cols-4 rounded-xl bg-[var(--m3-surface)] py-2 text-center">
                         {[
                           ['Vendu', soldToday],
                           ['Ouv.', product.stockOuverture],
@@ -3267,8 +3492,8 @@ function BranchProductsSection({
                           ['Seuil', product.seuil],
                         ].map(([label, value]) => (
                           <div key={label}>
-                            <div className="text-[9px] uppercase tracking-[0.1em] text-[#4B5560]">{label}</div>
-                            <div className="text-[13px] font-bold tabular-nums">{value}</div>
+                            <div className="text-xs leading-4 text-[var(--m3-on-surface-variant)]">{label}</div>
+                            <div className="text-base font-medium tabular-nums">{value}</div>
                           </div>
                         ))}
                       </div>
@@ -3320,27 +3545,29 @@ function BranchProductsSection({
                       />
                     </div>
 
-                    <div className={'mt-3 grid gap-2 ' + (editing ? 'grid-cols-2' : 'grid-cols-3')}>
+                    <div className={'mt-4 grid gap-2 ' + (editing ? 'grid-cols-2' : 'grid-cols-3')}>
                       {editing ? (
                         <>
                           <button
                             onClick={() => handleSaveClick(product.id)}
                             disabled={saving}
                             className={
-                              'flex h-11 items-center justify-center gap-1.5 rounded-full bg-[#2F6B4F] text-[11px] font-medium uppercase tracking-[0.1em] text-white ' +
-                              (saving ? 'cursor-wait opacity-80' : 'active:bg-[#255640]')
+                              `${btn} bg-[var(--m3-primary)] text-[var(--m3-on-primary)] ` +
+                              (saving ? 'cursor-wait opacity-80' : '')
                             }
                             aria-label={saving ? 'Enregistrement...' : 'Enregistrer'}
                           >
-                            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                            <M3StateLayer />
+                            {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
                             {saving ? 'Envoi…' : 'Enregistrer'}
                           </button>
                           <button
                             onClick={handleCancelClick}
-                            className="flex h-11 items-center justify-center gap-1.5 rounded-full bg-white text-[11px] font-medium uppercase tracking-[0.1em] text-[#C1440E] active:bg-[#FCE8E6]"
+                            className={`${btn} border border-[var(--m3-outline)] text-[var(--m3-primary)]`}
                             aria-label="Annuler"
                           >
-                            <X size={14} />
+                            <M3StateLayer />
+                            <X size={18} />
                             Annuler
                           </button>
                         </>
@@ -3349,13 +3576,16 @@ function BranchProductsSection({
                           <button
                             onClick={() => onViewHistory(product)}
                             className={
-                              'flex h-11 items-center justify-center gap-1.5 rounded-full text-[11px] font-medium uppercase tracking-[0.08em] active:bg-[#E8EAED] ' +
-                              (showHistory ? 'bg-[#16181A] text-white active:bg-[#2b2e31]' : 'bg-white text-[#16181A]')
+                              `${btn} ` +
+                              (showHistory
+                                ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
+                                : 'border border-[var(--m3-outline)] text-[var(--m3-primary)]')
                             }
                             aria-label="Historique"
                             aria-pressed={showHistory}
                           >
-                            <History size={14} />
+                            <M3StateLayer />
+                            <History size={18} />
                             Histo.
                           </button>
                           <button
@@ -3363,20 +3593,22 @@ function BranchProductsSection({
                               setExpandedId(product.id);
                               handleEditClick(product.id);
                             }}
-                            className="flex h-11 items-center justify-center gap-1.5 rounded-full bg-white text-[11px] font-medium uppercase tracking-[0.08em] text-[#16181A] active:bg-[#E8EAED]"
+                            className={`${btn} bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]`}
                             aria-label="Modifier"
                           >
-                            <Pencil size={14} />
+                            <M3StateLayer />
+                            <Pencil size={18} />
                             Modifier
                           </button>
                           <button
                             onClick={() => {
                               if (window.confirm(`Supprimer « ${product.nom} » ?`)) onDeleteProduct(product);
                             }}
-                            className="flex h-11 items-center justify-center gap-1.5 rounded-full bg-white text-[11px] font-medium uppercase tracking-[0.08em] text-[#C1440E] active:bg-[#FCE8E6]"
+                            className={`${btn} text-[#BA1A1A]`}
                             aria-label="Supprimer"
                           >
-                            <Trash2 size={14} />
+                            <M3StateLayer />
+                            <Trash2 size={18} />
                             Suppr.
                           </button>
                         </>
@@ -3388,10 +3620,14 @@ function BranchProductsSection({
             );
           })}
           {filteredProducts.length === 0 && (
-            <div className="rounded-3xl bg-[#F1F3F4] py-10 text-center text-[#4B5560]">
-              <PackagePlus size={28} className="mx-auto mb-2 opacity-40" />
-              <p className="text-[13px]">Aucun produit ne correspond aux filtres.</p>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.16em]">Essayez de modifier vos critères de recherche</p>
+            <div className="rounded-[28px] bg-[var(--m3-surface-container)] px-6 py-10 text-center">
+              <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+                <PackagePlus size={28} />
+              </span>
+              <p className="text-base font-medium">Aucun produit ne correspond aux filtres.</p>
+              <p className="mt-1 text-sm text-[var(--m3-on-surface-variant)]">
+                Essayez de modifier vos critères de recherche.
+              </p>
             </div>
           )}
         </div>
