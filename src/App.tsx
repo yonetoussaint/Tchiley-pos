@@ -8,7 +8,7 @@ import {
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
   Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown,
-  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt, ExternalLink, Copy, Palette, Wrench, CupSoda, Wheat
+  Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt, ExternalLink, Copy, Wrench, CupSoda, Wheat
 } from 'lucide-react';
 
 /* =========================================================================
@@ -2749,61 +2749,15 @@ function BranchDashboardSection({
    swapping a palette ("dynamic colour", user-controlled). Desktop keeps the
    house style: every M3 class below is only applied below the `sm` breakpoint.
    ========================================================================= */
-type M3PaletteId = 'vert' | 'terre' | 'ocean' | 'prune';
-
-const M3_PALETTES: Record<M3PaletteId, { label: string; vars: Record<string, string> }> = {
-  vert: {
-    label: 'Vert',
-    vars: {
-      '--m3-primary': '#2C6A4C', '--m3-on-primary': '#FFFFFF',
-      '--m3-primary-container': '#B1F0CE', '--m3-on-primary-container': '#002114',
-      '--m3-secondary-container': '#CFE9D9', '--m3-on-secondary-container': '#0A1F14',
-      '--m3-surface': '#F6FBF5', '--m3-surface-container': '#EAEFE9',
-      '--m3-surface-container-high': '#E4EAE3', '--m3-surface-container-highest': '#DFE4DD',
-      '--m3-on-surface': '#181D19', '--m3-on-surface-variant': '#404943',
-      '--m3-outline': '#707973', '--m3-outline-variant': '#BFC9C2',
-    },
-  },
-  terre: {
-    label: 'Terre',
-    vars: {
-      '--m3-primary': '#9A4521', '--m3-on-primary': '#FFFFFF',
-      '--m3-primary-container': '#FFDBCD', '--m3-on-primary-container': '#360F00',
-      '--m3-secondary-container': '#F4DDD4', '--m3-on-secondary-container': '#2A1710',
-      '--m3-surface': '#FFF8F6', '--m3-surface-container': '#F6EAE5',
-      '--m3-surface-container-high': '#F0E4DF', '--m3-surface-container-highest': '#EADEDA',
-      '--m3-on-surface': '#221A17', '--m3-on-surface-variant': '#53433D',
-      '--m3-outline': '#85736C', '--m3-outline-variant': '#D8C2BA',
-    },
-  },
-  ocean: {
-    label: 'Océan',
-    vars: {
-      '--m3-primary': '#37618E', '--m3-on-primary': '#FFFFFF',
-      '--m3-primary-container': '#D2E4FF', '--m3-on-primary-container': '#001C37',
-      '--m3-secondary-container': '#D7E3F7', '--m3-on-secondary-container': '#101C2B',
-      '--m3-surface': '#F9F9FF', '--m3-surface-container': '#EDEDF4',
-      '--m3-surface-container-high': '#E7E8EE', '--m3-surface-container-highest': '#E2E2E9',
-      '--m3-on-surface': '#191C20', '--m3-on-surface-variant': '#43474E',
-      '--m3-outline': '#73777F', '--m3-outline-variant': '#C3C7CF',
-    },
-  },
-  prune: {
-    label: 'Prune',
-    vars: {
-      '--m3-primary': '#6750A4', '--m3-on-primary': '#FFFFFF',
-      '--m3-primary-container': '#EADDFF', '--m3-on-primary-container': '#21005D',
-      '--m3-secondary-container': '#E8DEF8', '--m3-on-secondary-container': '#1D192B',
-      '--m3-surface': '#FEF7FF', '--m3-surface-container': '#F3EDF7',
-      '--m3-surface-container-high': '#ECE6F0', '--m3-surface-container-highest': '#E6E0E9',
-      '--m3-on-surface': '#1D1B20', '--m3-on-surface-variant': '#49454F',
-      '--m3-outline': '#79747E', '--m3-outline-variant': '#CAC4D0',
-    },
-  },
-};
-
-const M3_PALETTE_ORDER: M3PaletteId[] = ['vert', 'terre', 'ocean', 'prune'];
-const M3_PALETTE_KEY = 'tchiley-m3-palette';
+const M3_VARS = {
+    '--m3-primary': '#2C6A4C', '--m3-on-primary': '#FFFFFF',
+    '--m3-primary-container': '#B1F0CE', '--m3-on-primary-container': '#002114',
+    '--m3-secondary-container': '#CFE9D9', '--m3-on-secondary-container': '#0A1F14',
+    '--m3-surface': '#F6FBF5', '--m3-surface-container': '#EAEFE9',
+    '--m3-surface-container-high': '#E4EAE3', '--m3-surface-container-highest': '#DFE4DD',
+    '--m3-on-surface': '#181D19', '--m3-on-surface-variant': '#404943',
+    '--m3-outline': '#707973', '--m3-outline-variant': '#BFC9C2',
+  } as CSSProperties;
 
 /* Stock status roles — fixed across palettes so meaning never changes with the tint. */
 const M3_STATUS = {
@@ -2980,24 +2934,6 @@ function BranchProductsSection({
     setEditingId(null);
   };
 
-  const [paletteId, setPaletteId] = useState<M3PaletteId>(() => {
-    try {
-      const saved = typeof window !== 'undefined' ? window.localStorage.getItem(M3_PALETTE_KEY) : null;
-      return saved && saved in M3_PALETTES ? (saved as M3PaletteId) : 'vert';
-    } catch {
-      return 'vert';
-    }
-  });
-  const cyclePalette = () => {
-    const next = M3_PALETTE_ORDER[(M3_PALETTE_ORDER.indexOf(paletteId) + 1) % M3_PALETTE_ORDER.length];
-    setPaletteId(next);
-    try {
-      window.localStorage.setItem(M3_PALETTE_KEY, next);
-    } catch {
-      /* storage unavailable — the choice simply isn't remembered */
-    }
-  };
-  const m3Style = M3_PALETTES[paletteId].vars as CSSProperties;
 
   const lowStockCount = branchProducts.filter((product) => product.stockFermeture <= product.seuil).length;
   const presentCategories = Array.from(new Set(branchProducts.map((product) => product.categorie))).sort(
@@ -3010,8 +2946,8 @@ function BranchProductsSection({
 
   return (
     <div
-      style={m3Style}
-      className="rounded-[28px] bg-[var(--m3-surface)] p-3 font-sans text-[var(--m3-on-surface)] sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#2F6B4F]"
+      style={M3_VARS}
+      className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-6 pt-4 font-sans text-[var(--m3-on-surface)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#2F6B4F]"
     >
       <style>{M3_CSS}</style>
 
@@ -3023,16 +2959,6 @@ function BranchProductsSection({
             {lowStockCount > 0 ? ` · ${lowStockCount} en stock bas` : ''}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={cyclePalette}
-          aria-label={`Couleur ${M3_PALETTES[paletteId].label} — changer la palette`}
-          title="Changer la palette"
-          className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] sm:hidden ${M3_FOCUS}`}
-        >
-          <M3StateLayer />
-          <Palette size={22} />
-        </button>
         <span className="hidden font-medium uppercase tracking-[0.2em] sm:inline-block sm:border-2 sm:border-[#16181A] sm:bg-[#ECE7DC] sm:px-2.5 sm:py-1 sm:text-[10px]">
           {branchProducts.length} produits
         </span>
