@@ -3275,6 +3275,7 @@ const M3_CSS = `
 @keyframes m3-in { from { opacity: 0; transform: translateY(-12px) scale(.98); } to { opacity: 1; transform: none; } }
 .m3-in { animation: m3-in .5s var(--m3-spring-spatial); }
 @keyframes m3e-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes m3e-pop-in { from { opacity: 0; transform: scale(.86) translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes m3e-dialog-in { from { opacity: 0; transform: translate(-50%, -46%) scale(.86); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 
 /* Phone only: pressed controls squish and morph their shape (pill -> rounded square). */
@@ -3285,6 +3286,7 @@ const M3_CSS = `
   .m3-press-card:active { transform: scale(.97); }
   .m3-scrim { animation: m3e-scrim-in .25s var(--m3-spring-effects); }
   .m3-dialog { animation: m3e-dialog-in .5s var(--m3-spring-spatial); }
+  .m3-pop { animation: m3e-pop-in .5s var(--m3-spring-spatial); }
 }
 .m3-morph { transition: border-radius .5s var(--m3-spring-spatial), background-color .25s var(--m3-spring-effects), color .25s var(--m3-spring-effects); }
 
@@ -3299,7 +3301,7 @@ const M3_CSS = `
 }
 .m3-loading { display: inline-block; background: currentColor; animation: m3-morph 2s var(--m3-spring-effects) infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .m3-in, .m3-scrim, .m3-dialog { animation: none; }
+  .m3-in, .m3-scrim, .m3-dialog, .m3-pop { animation: none; }
   .m3-press, .m3-press-card, .m3-morph { transition: none; }
   .m3-loading { animation: none; border-radius: 30%; }
 }
@@ -4161,25 +4163,246 @@ function BranchSalesSection({
     window.setTimeout(() => window.print(), 150);
   };
 
+  const paymentIcon = (id: string) => PAYMENT_METHODS.find((m) => m.id === id)?.icon ?? Banknote;
+  const plural = (n: number, word: string) => `${n} ${word}${n !== 1 ? 's' : ''}`;
+
   const cellBase = 'px-3 py-2.5 text-center';
   const iconButton =
     'flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#4B5560] transition-all duration-150 hover:border-[#16181A] hover:bg-[#ECE7DC] hover:text-[#16181A]';
 
   return (
-    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#C1440E] sm:p-5 sm:shadow-[8px_8px_0_#C1440E]">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-serif text-2xl">Ventes</h2>
-          <div className="text-[12px] capitalize text-[#4B5560]">
+    <div
+      style={M3_VARS}
+      className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-8 pt-4 font-sans text-[var(--m3-on-surface)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#C1440E]"
+    >
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
+        <div className="min-w-0">
+          <h2 className="text-[32px] font-bold leading-10 tracking-tight sm:font-serif sm:text-2xl sm:font-normal sm:leading-normal sm:tracking-normal">Ventes</h2>
+          <div className="text-sm capitalize text-[var(--m3-on-surface-variant)] sm:text-[12px] sm:text-[#4B5560]">
             {selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
         </div>
-        <span className="border-2 border-[#16181A] bg-[#ECE7DC] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em]">
+        <span className="hidden border-2 border-[#16181A] bg-[#ECE7DC] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em] sm:inline-block">
           {rows.length} vente{rows.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      {/* ── Phone (M3 Expressive): summary hero, search, payment chips, sale cards ── */}
+      <section
+        aria-label="Résumé des ventes"
+        className="m3-in mb-4 overflow-hidden rounded-[32px] bg-[var(--m3-primary-container)] p-5 text-[var(--m3-on-primary-container)] sm:hidden"
+      >
+        <div className="text-sm font-medium opacity-80">{isFiltering ? 'Total (résultats)' : 'Total du jour'}</div>
+        <div className="mt-1 text-[40px] font-bold leading-[48px] tracking-tight tabular-nums">{fmtHTG(totalAmount)}</div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className="rounded-full bg-[var(--m3-primary)] px-3.5 py-1.5 text-xs font-semibold text-[var(--m3-on-primary)]">
+            {plural(countedRows.length, 'vente')}
+          </span>
+          <span className="rounded-full bg-[var(--m3-surface-container-lowest)] px-3.5 py-1.5 text-xs font-semibold text-[var(--m3-on-surface)]">
+            {plural(totalQty, 'article')}
+          </span>
+          {totalDiscount > 0 && (
+            <span className="rounded-full bg-[var(--m3-tertiary-container)] px-3.5 py-1.5 text-xs font-semibold text-[var(--m3-on-tertiary-container)]">
+              Remises − {fmtHTG(totalDiscount)}
+            </span>
+          )}
+          {rows.length > countedRows.length && (
+            <span className="rounded-full bg-[#FFDAD6] px-3.5 py-1.5 text-xs font-semibold text-[#410002]">
+              {rows.length - countedRows.length} annulée{rows.length - countedRows.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      </section>
+
+      <div className="mb-3 flex h-14 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 focus-within:ring-2 focus-within:ring-[var(--m3-primary)] sm:hidden">
+        <Search className="h-6 w-6 shrink-0 text-[var(--m3-on-surface-variant)]" />
+        <input
+          type="text"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Rechercher une vente..."
+          aria-label="Rechercher une vente"
+          className="w-full min-w-0 border-none bg-transparent text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            aria-label="Effacer la recherche"
+            className={`group relative -mr-2 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+          >
+            <M3StateLayer />
+            <X size={20} />
+          </button>
+        )}
+      </div>
+
+      <div
+        role="group"
+        aria-label="Filtrer par mode de paiement"
+        className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden"
+      >
+        {[{ id: 'all', label: 'Tous', icon: null as LucideIcon | null }, ...PAYMENT_METHODS].map((method) => {
+          const selected = paymentFilter === method.id;
+          const Icon = method.icon;
+          return (
+            <button
+              key={method.id}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setPaymentFilter(method.id)}
+              className={`group relative shrink-0 before:absolute before:inset-x-0 before:-inset-y-1 before:content-[''] ${M3_FOCUS}`}
+            >
+              <span
+                className={`relative flex h-10 items-center gap-2 overflow-hidden px-4 text-sm font-medium m3-morph ${
+                  selected ? 'rounded-full' : 'rounded-xl'
+                } ${
+                  selected
+                    ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                    : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+                }`}
+              >
+                <M3StateLayer />
+                {selected ? <Check size={16} /> : Icon ? <Icon size={16} /> : null}
+                {method.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <ul className="space-y-3 sm:hidden" aria-label="Liste des ventes">
+        {rows.map(({ sale, number }) => {
+          const cancelled = sale.statut === 'annulee';
+          const PayIcon = paymentIcon(sale.paiement);
+          const discount = sale.remise ?? 0;
+          const pct = discount > 0 ? Math.round((discount / (sale.total + discount)) * 1000) / 10 : 0;
+          return (
+            <li
+              key={sale.id}
+              className={
+                'm3-in overflow-hidden rounded-[28px] p-4 ' +
+                (cancelled ? 'bg-[var(--m3-surface-container-low)]' : 'bg-[var(--m3-surface-container)]')
+              }
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={
+                    'flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] text-base font-bold tabular-nums ' +
+                    (cancelled
+                      ? 'bg-[#FFDAD6] text-[#410002]'
+                      : 'bg-[var(--m3-tertiary-container)] text-[var(--m3-on-tertiary-container)]')
+                  }
+                  aria-label={`Vente numéro ${number}`}
+                >
+                  {number}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-base font-semibold tabular-nums">{fmtTime12(sale.date)}</div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--m3-secondary-container)] px-2.5 py-1 text-xs font-medium text-[var(--m3-on-secondary-container)]">
+                      <PayIcon size={12} />
+                      {paymentLabel(sale.paiement)}
+                    </span>
+                    <span
+                      className={
+                        'rounded-full px-2.5 py-1 text-xs font-medium ' +
+                        (cancelled ? 'bg-[#FFDAD6] text-[#410002]' : 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]')
+                      }
+                    >
+                      {cancelled ? 'Annulée' : 'Validée'}
+                    </span>
+                  </div>
+                  {sale.client && (
+                    <div className="mt-1.5 flex items-center gap-1 text-xs text-[var(--m3-on-surface-variant)]">
+                      <UserRound size={12} className="shrink-0" />
+                      <span className="truncate">{sale.client}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="shrink-0 text-right">
+                  <div
+                    className={
+                      'text-xl font-bold tabular-nums ' +
+                      (cancelled ? 'text-[var(--m3-on-surface-variant)] line-through' : 'text-[var(--m3-primary)]')
+                    }
+                  >
+                    {fmtHTG(sale.total)}
+                  </div>
+                  {discount > 0 && (
+                    <div className={'mt-0.5 text-xs font-medium tabular-nums ' + (cancelled ? 'line-through' : 'text-[var(--m3-tertiary)]')}>
+                      − {fmtHTG(discount)} · {pct} %
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-1.5 rounded-[20px] bg-[var(--m3-surface)] p-3 text-sm">
+                {sale.lignes.map((ligne, lineIndex) => (
+                  <div key={lineIndex} className="flex justify-between gap-3">
+                    <span className={'min-w-0 ' + (cancelled ? 'line-through' : '')}>
+                      <span className="font-semibold tabular-nums text-[var(--m3-on-surface-variant)]">{ligne.qte} ×</span> {ligne.nom}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-[var(--m3-on-surface-variant)]">{fmtHTG(ligne.sousTotal)}</span>
+                  </div>
+                ))}
+                {sale.paiement !== 'credit' && (
+                  <div className="flex justify-between gap-3 border-t border-[var(--m3-outline-variant)] pt-1.5 text-xs text-[var(--m3-on-surface-variant)]">
+                    <span>Reçu {fmtHTG(sale.recu)}</span>
+                    <span>Monnaie {fmtHTG(sale.monnaie)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReceiptSale(sale)}
+                  className={`group relative flex h-12 flex-1 items-center justify-center gap-2 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-sm font-semibold text-[var(--m3-on-secondary-container)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
+                >
+                  <M3StateLayer />
+                  <Eye size={18} />
+                  Voir le reçu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => printSale(sale)}
+                  aria-label="Imprimer le reçu"
+                  className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
+                >
+                  <M3StateLayer />
+                  <Printer size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSaleToCancel({ sale, number })}
+                  disabled={cancelled}
+                  aria-label="Annuler la vente"
+                  className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#FFDAD6] text-[#410002] m3-press motion-reduce:transition-none disabled:opacity-40 ${M3_FOCUS}`}
+                >
+                  <M3StateLayer />
+                  <Undo2 size={18} />
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {rows.length === 0 && (
+        <div className="m3-in flex flex-col items-center rounded-[32px] bg-[var(--m3-surface-container-low)] px-6 py-12 text-center sm:hidden">
+          <span className="mb-4 flex h-20 w-20 -rotate-6 items-center justify-center rounded-[32px] bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+            <ShoppingCart size={36} />
+          </span>
+          <div className="text-lg font-semibold">{isFiltering ? 'Aucun résultat' : 'Aucune vente'}</div>
+          <div className="mt-1 text-sm text-[var(--m3-on-surface-variant)]">
+            {isFiltering ? 'Aucune vente ne correspond à votre recherche.' : 'Aucune vente pour cette date.'}
+          </div>
+        </div>
+      )}
+
+      {/* ── Desktop (≥ sm): original house-style search + table ── */}
+      <div className="mb-4 hidden flex-wrap items-center justify-between gap-3 sm:flex">
         <div className="flex min-w-[220px] flex-1 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 transition-shadow focus-within:shadow-[4px_4px_0_#C1440E]">
           <Search className="h-4 w-4 shrink-0 text-[#4B5560]" />
           <input
@@ -4205,7 +4428,7 @@ function BranchSalesSection({
         </div>
       </div>
 
-      <div className="overflow-hidden border-2 border-[#16181A] bg-white">
+      <div className="hidden overflow-hidden border-2 border-[#16181A] bg-white sm:block">
         <div className="max-h-[65vh] overflow-auto">
           <table className="w-full min-w-[1080px] border-collapse text-left" role="grid">
             <thead className="sticky top-0 z-10 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
@@ -4351,23 +4574,35 @@ function BranchSalesSection({
       {receiptSale && <ReceiptModal sale={receiptSale} onClose={() => setReceiptSale(null)} />}
 
       {saleToCancel && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
-          <div className="w-full max-w-sm border-2 border-[#16181A] bg-white p-3 shadow-[4px_4px_0_#C1440E] sm:p-5 sm:shadow-[8px_8px_0_#C1440E]">
-            <div className="font-serif text-xl">Annuler la vente n° {saleToCancel.number} ?</div>
-            <p className="mt-2 text-[13px] text-[#4B5560]">
+        <div className="m3-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 sm:bg-black/55">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-label={`Annuler la vente n° ${saleToCancel.number}`}
+            style={M3_VARS}
+            className="m3-pop w-full max-w-sm rounded-[32px] bg-[var(--m3-surface-container-high)] p-6 text-[var(--m3-on-surface)] shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14)] sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#C1440E]"
+          >
+            <span className="mb-4 flex h-14 w-14 -rotate-6 items-center justify-center rounded-[20px] bg-[#FFDAD6] text-[#410002] sm:hidden">
+              <Undo2 size={26} />
+            </span>
+            <div className="text-2xl font-bold leading-8 sm:font-serif sm:text-xl sm:font-normal sm:leading-normal">
+              Annuler la vente n° {saleToCancel.number} ?
+            </div>
+            <p className="mt-3 text-sm leading-5 text-[var(--m3-on-surface-variant)] sm:mt-2 sm:text-[13px] sm:text-[#4B5560]">
               {fmtHTG(saleToCancel.sale.total)} • {qtyOf(saleToCancel.sale)} article{qtyOf(saleToCancel.sale) !== 1 ? 's' : ''}.
               Le stock sera remis en inventaire et la vente ne comptera plus dans les totaux.
             </p>
             {saleToCancel.sale.paiement === 'credit' && creditPaid(saleToCancel.sale) > 0 && (
-              <p className="mt-2 border-2 border-[#F2B705] bg-[#FDF6DC] px-3 py-2 text-[12px] text-[#8a6d00]">
+              <p className="mt-3 rounded-2xl bg-[var(--m3-tertiary-container)] px-4 py-3 text-sm text-[var(--m3-on-tertiary-container)] sm:mt-2 sm:rounded-none sm:border-2 sm:border-[#F2B705] sm:bg-[#FDF6DC] sm:px-3 sm:py-2 sm:text-[12px] sm:text-[#8a6d00]">
                 {fmtHTG(creditPaid(saleToCancel.sale))} ont déjà été payés sur ce crédit : pensez à les rembourser au client.
               </p>
             )}
-            <div className="mt-5 flex gap-2">
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:mt-5 sm:flex-row">
               <button
                 onClick={() => setSaleToCancel(null)}
-                className="flex-1 border-2 border-[#16181A] bg-white py-2.5 text-[14px] hover:bg-[#ECE7DC]"
+                className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-sm font-semibold text-[var(--m3-on-secondary-container)] m3-press motion-reduce:transition-none sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:py-2.5 sm:text-[14px] sm:font-normal sm:text-[#16181A] sm:hover:bg-[#ECE7DC] ${M3_FOCUS}`}
               >
+                <M3StateLayer className="sm:hidden" />
                 Retour
               </button>
               <button
@@ -4375,8 +4610,9 @@ function BranchSalesSection({
                   onCancelSale(saleToCancel.sale);
                   setSaleToCancel(null);
                 }}
-                className="flex-1 border-2 border-[#16181A] bg-[#C1440E] py-2.5 text-[14px] font-medium text-white hover:bg-[#a53a0b]"
+                className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[#BA1A1A] text-sm font-semibold text-white m3-press motion-reduce:transition-none sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#C1440E] sm:py-2.5 sm:text-[14px] sm:font-medium sm:hover:bg-[#a53a0b] ${M3_FOCUS}`}
               >
+                <M3StateLayer className="sm:hidden" />
                 Annuler la vente
               </button>
             </div>
