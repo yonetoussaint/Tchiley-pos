@@ -9,6 +9,8 @@ export type Product = {
   seuil: number;
   unite: string;
   image?: string;
+  /** EAN/UPC barcode or QR payload, used to find the product by scan. */
+  codeBarres?: string;
 };
 
 export type ProductMovementKind = 'sale' | 'purchase' | 'restock' | 'manual';
