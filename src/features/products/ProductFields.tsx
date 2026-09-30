@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { ScanLine } from 'lucide-react';
+import { ScanLine, Sparkles } from 'lucide-react';
 import { M3_FOCUS } from '../../components/ui/focus';
 import { M3StateLayer } from '../../components/ui/theme';
 
@@ -94,11 +94,13 @@ type M3BarcodeFieldProps = {
   value: string;
   onChange: (value: string) => void;
   onScan: () => void;
+  /** When given, shows a button that fills the field with a new internal code. */
+  onGenerate?: () => void;
   error?: string;
 };
 
 /* Text field with a trailing scan button: type/paste a code or fill it from the camera. */
-export function M3BarcodeField({ value, onChange, onScan, error }: M3BarcodeFieldProps) {
+export function M3BarcodeField({ value, onChange, onScan, onGenerate, error }: M3BarcodeFieldProps) {
   const errorId = useId();
   return (
     <div>
@@ -124,6 +126,18 @@ export function M3BarcodeField({ value, onChange, onScan, error }: M3BarcodeFiel
             className="h-8 w-full min-w-0 bg-transparent p-0 text-base tabular-nums text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
           />
         </label>
+        {onGenerate && (
+          <button
+            type="button"
+            onClick={onGenerate}
+            aria-label="Générer un code-barres"
+            title="Générer un code"
+            className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-primary)] ${M3_FOCUS}`}
+          >
+            <M3StateLayer />
+            <Sparkles size={22} aria-hidden="true" />
+          </button>
+        )}
         <button
           type="button"
           onClick={onScan}

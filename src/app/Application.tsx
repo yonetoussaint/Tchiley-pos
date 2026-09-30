@@ -1601,6 +1601,7 @@ function OwnerBoard({
       stockFermeture: Math.max(0, Number(draft.stockFermeture) || 0),
       seuil: Math.max(0, Number(draft.seuil) || 5),
       unite: draft.unite?.trim() || 'unité',
+      codeBarres: draft.codeBarres?.trim() || undefined,
     };
     const newProduct: Product = { id: createdId, ...normalizedDraft };
 
@@ -2244,6 +2245,7 @@ function BranchManagementSections({
       stockFermeture: Math.max(0, Number(draft.stockFermeture) || 0),
       seuil: Math.max(0, Number(draft.seuil) || 5),
       unite: draft.unite?.trim() || 'unité',
+      codeBarres: draft.codeBarres?.trim() || undefined,
     };
     const newProduct: Product = { id: createdId, ...normalizedDraft };
     setProducts((prev) => [newProduct, ...prev]);

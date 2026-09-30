@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Check, ChevronDown, Clock, History, PackagePlus, Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, TrendingUp, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, Clock, History, PackagePlus, Pencil, Plus, Printer, ScanLine, Search, ShoppingCart, Trash2, TrendingUp, X } from 'lucide-react';
 import { M3_FOCUS } from '../../components/ui/focus';
 import { M3Loading, M3StateLayer, M3_STATUS, M3_VARS } from '../../components/ui/theme';
 import { CATEGORIES, categoryIcon } from './constants';
 import { M3BarcodeField, M3TextField, ProductNumberField, type ProductDraft } from './ProductFields';
 import { BarcodeScannerDialog } from './BarcodeScannerDialog';
 import { lookupProductByCode, normalizeCode } from './barcodeLookup';
+import { generateInternalCode } from './barcodeGen';
+import { LabelPrintDialog } from './LabelPrintDialog';
 import type { Product, ProductHistoryEntry, ProductMovement } from './types';
 import { fmtHTG } from '../../shared/currency';
 
@@ -98,6 +100,8 @@ export function BranchProductsSection({
   const [stockAdjustment, setStockAdjustment] = useState({ delta: 0, reason: 'Inventaire' });
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  /* Label printing dialog: null = closed, otherwise the products ticked on open. */
+  const [labelIds, setLabelIds] = useState<string[] | null>(null);
 
   const productSummaries = useMemo(() => {
     const map: Record<string, { unitMargin: number; stockCost: number; stockSale: number; sales7: number; sales30: number; velocity: number; daysLeft: number | null }> = {};
@@ -234,6 +238,12 @@ export function BranchProductsSection({
     setDrawerId(id);
   };
   const drawerProduct = drawerId ? (branchProducts.find((item) => item.id === drawerId) ?? null) : null;
+
+  /* Next free internal (EAN-13, in-store range) code for products that have no factory barcode. */
+  const newInternalCode = () => generateInternalCode(branchProducts.map((item) => item.codeBarres ?? ''));
+  const applyGeneratedCodes = (assignments: { id: string; code: string }[]) =>
+    assignments.forEach((assignment) => onUpdateProduct(assignment.id, { codeBarres: assignment.code }));
+  const productsWithoutCode = branchProducts.filter((item) => !item.codeBarres?.trim()).length;
 
   const findByCode = (raw: string, exceptId?: string) => {
     const key = normalizeCode(raw);
@@ -455,6 +465,17 @@ export function BranchProductsSection({
             {lowStockCount > 0 ? ` · ${lowStockCount} en stock bas` : ''}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setLabelIds([])}
+          aria-label="Imprimer des étiquettes code-barres"
+          title="Étiquettes"
+          className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-primary)] ${M3_FOCUS}`}
+        >
+          <M3StateLayer />
+          <Printer size={22} aria-hidden="true" />
+          {productsWithoutCode > 0 && <span aria-hidden="true" className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#7B5800]" />}
+        </button>
         <button
             onClick={() => setAddProductOpen(true)}
             className={`group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS}       `}
@@ -683,6 +704,7 @@ export function BranchProductsSection({
                       value={product.codeBarres ?? ''}
                       onChange={(value) => onUpdateProduct(product.id, { codeBarres: value })}
                       onScan={() => setScanTarget({ kind: 'fill', apply: (code) => onUpdateProduct(product.id, { codeBarres: code }) })}
+                      onGenerate={() => onUpdateProduct(product.id, { codeBarres: newInternalCode() })}
                       error={duplicateMessage(product.codeBarres ?? '', product.id)}
                     />
                   </div>
@@ -822,7 +844,7 @@ export function BranchProductsSection({
                       />
                     </div>
 
-                    <div className={'mt-4 grid gap-2 ' + (editing ? 'grid-cols-2' : 'grid-cols-[1fr_1fr_auto]')}>
+                    <div className={'mt-4 grid gap-2 ' + (editing ? 'grid-cols-2' : 'grid-cols-[1fr_1fr_auto_auto]')}>
                       {editing ? (
                         <>
                           <button
@@ -878,6 +900,15 @@ export function BranchProductsSection({
                             Modifier
                           </button>
                           <button
+                            onClick={() => setLabelIds([product.id])}
+                            className={iconBtn}
+                            aria-label="Imprimer l'étiquette"
+                            title="Imprimer l'étiquette"
+                          >
+                            <M3StateLayer />
+                            <Printer size={20} />
+                          </button>
+                          <button
                             onClick={() => {
                               setDeleteTarget(product);
                             }}
@@ -921,6 +952,20 @@ export function BranchProductsSection({
               {outOfStockCount > 0 ? ` · ${outOfStockCount} en rupture` : ''}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setLabelIds([])}
+            className={`group relative flex h-12 shrink-0 items-center gap-2 overflow-hidden rounded-full border border-[var(--m3-outline)] px-5 text-sm font-semibold text-[var(--m3-primary)] ${M3_FOCUS}`}
+          >
+            <M3StateLayer />
+            <Printer size={20} aria-hidden="true" />
+            Étiquettes
+            {productsWithoutCode > 0 && (
+              <span className="rounded-full bg-[var(--m3-tertiary-container)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--m3-on-tertiary-container)]" title="Produits sans code-barres">
+                {productsWithoutCode}
+              </span>
+            )}
+          </button>
           <button
             onClick={() => setAddProductOpen(true)}
             className={`group relative flex h-12 shrink-0 items-center gap-2 overflow-hidden rounded-full bg-[var(--m3-primary)] px-6 text-sm font-semibold text-[var(--m3-on-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.15)] transition-[box-shadow,transform] hover:shadow-[0_2px_6px_2px_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.3)] active:scale-[0.96] motion-reduce:transition-none ${M3_FOCUS}`}
@@ -1247,6 +1292,7 @@ export function BranchProductsSection({
                         value={p.codeBarres ?? ''}
                         onChange={(value) => onUpdateProduct(p.id, { codeBarres: value })}
                         onScan={() => setScanTarget({ kind: 'fill', apply: (code) => onUpdateProduct(p.id, { codeBarres: code }) })}
+                        onGenerate={() => onUpdateProduct(p.id, { codeBarres: newInternalCode() })}
                         error={duplicateMessage(p.codeBarres ?? '', p.id)}
                       />
                     </div>
@@ -1365,6 +1411,11 @@ export function BranchProductsSection({
                     <Trash2 size={18} />
                     Supprimer
                   </button>
+                  <button type="button" onClick={() => setLabelIds([p.id])} className={`${footBtn} text-[var(--m3-primary)]`}>
+                    <M3StateLayer />
+                    <Printer size={18} />
+                    Étiquette
+                  </button>
                   <div className="flex-1" />
                   <button type="button" onClick={() => setDrawerId(null)} className={`${footBtn} border border-[var(--m3-outline)] text-[var(--m3-primary)]`}>
                     <M3StateLayer />
@@ -1421,6 +1472,12 @@ export function BranchProductsSection({
                   setAddProductDraft((prev) => ({ ...prev, codeBarres: value }));
                 }}
                 onScan={() => setScanTarget({ kind: 'fill', apply: applyCodeToNewDraft })}
+                onGenerate={() => {
+                  lookupAbort.current?.abort();
+                  setCodeLookup('idle');
+                  setAddProductError(null);
+                  setAddProductDraft((prev) => ({ ...prev, codeBarres: newInternalCode() }));
+                }}
                 error={duplicateMessage(addProductDraft.codeBarres)}
               />
               {codeLookup !== 'idle' && (
@@ -1475,6 +1532,15 @@ export function BranchProductsSection({
           </div>
         </div>,
         document.body
+      )}
+
+      {labelIds && (
+        <LabelPrintDialog
+          products={branchProducts}
+          initialIds={labelIds}
+          onApplyCodes={applyGeneratedCodes}
+          onClose={() => setLabelIds(null)}
+        />
       )}
 
       {scanTarget && (
