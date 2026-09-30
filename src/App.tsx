@@ -8761,12 +8761,15 @@ function PettyForm({
   coffreEspeces,
   date,
   onAdd,
+  onClose,
 }: {
   balance: number;
   fixedFloat: number;
   coffreEspeces: number;
   date: Date;
   onAdd: (entry: Omit<PettyEntry, 'id' | 'branchId' | 'coffreId'>, fromCoffre: boolean) => void;
+  /** Rendered as a Material 3 sheet: bottom sheet on phone, side sheet on PC. */
+  onClose: () => void;
 }) {
   const [kind, setKind] = useState<PettyKind>('depense');
   const [categorie, setCategorie] = useState<string>(PETTY_CATEGORIES[0]);
@@ -8774,6 +8777,12 @@ function PettyForm({
   const [recu, setRecu] = useState('');
   const [note, setNote] = useState('');
   const [fromCoffre, setFromCoffre] = useState(true);
+
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => ev.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const value = Number(montant);
   const valid = Number.isFinite(value) && value > 0;
@@ -8800,140 +8809,204 @@ function PettyForm({
     setMontant('');
     setNote('');
     setRecu('');
+    onClose();
   };
 
-  const labelCls = 'mb-1.5 text-[10px] uppercase tracking-[0.16em] text-[#4B5560]';
-  const fieldCls = 'w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]';
-  const warnCls = 'mt-1.5 border-2 border-[#F2B705] bg-[#FFF6D6] px-2.5 py-1.5 text-[10px] uppercase tracking-[0.08em]';
+  const m3Field =
+    'block min-w-0 rounded-xl bg-[var(--m3-surface)] px-4 pb-1.5 pt-2 ring-1 ring-[var(--m3-outline)] transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none';
+  const m3Input = 'h-8 w-full min-w-0 bg-transparent p-0 text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]';
+  const m3Label = 'block text-xs leading-4 text-[var(--m3-on-surface-variant)]';
+  const kindTone: Record<PettyKind, string> = {
+    depense: `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`,
+    reappro: 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]',
+  };
+  const kinds: Array<{ id: PettyKind; label: string; icon: LucideIcon }> = [
+    { id: 'depense', label: 'Dépense', icon: ArrowUpRight },
+    { id: 'reappro', label: 'Réappro', icon: ArrowDownLeft },
+  ];
 
-  return (
-    <div className="border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#C1440E]">
-      <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
-        Nouveau mouvement
-      </div>
-      <div className="space-y-3.5 p-4">
-        <div className="grid grid-cols-2 gap-1.5">
-          {(
-            [
-              { id: 'depense', label: 'Dépense', icon: ArrowUpRight, on: 'border-[#C1440E] bg-[#C1440E] text-white' },
-              { id: 'reappro', label: 'Réapprovisionnement', icon: ArrowDownLeft, on: 'border-[#2F6B4F] bg-[#2F6B4F] text-white' },
-            ] as const
-          ).map((k) => {
-            const Icon = k.icon;
-            return (
-              <button
-                key={k.id}
-                onClick={() => setKind(k.id)}
-                className={
-                  'flex items-center justify-center gap-1.5 border-2 px-2 py-2.5 text-[10px] uppercase tracking-[0.1em] ' +
-                  (kind === k.id ? k.on : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
-                }
-              >
-                <Icon size={13} /> {k.label}
-              </button>
-            );
-          })}
+  return createPortal(
+    <>
+      <div aria-hidden="true" onClick={onClose} className="m3-scrim fixed inset-0 z-[80] bg-black/40" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Nouveau mouvement de petite caisse"
+        style={M3_VARS}
+        className="m3-sheet fixed inset-x-0 bottom-0 z-[81] flex max-h-[92dvh] w-full flex-col rounded-t-[28px] bg-[var(--m3-surface-container-low)] pt-2 text-[var(--m3-on-surface)] shadow-[0_-8px_24px_rgba(0,0,0,0.16)] sm:inset-x-auto sm:inset-y-0 sm:bottom-auto sm:right-0 sm:h-full sm:max-h-none sm:w-[480px] sm:max-w-full sm:rounded-l-[28px] sm:rounded-tr-none sm:pt-4 sm:shadow-[-8px_0_24px_rgba(0,0,0,0.16)] sm:[animation:m3-side-in_.4s_var(--m3-spring-effects)]"
+      >
+        <div className="mx-auto mb-3 mt-1 h-1 w-8 shrink-0 rounded-full bg-[var(--m3-outline-variant)] sm:hidden" />
+        <div className="shrink-0 px-6 pb-3">
+          <div className="text-xs font-medium text-[var(--m3-on-surface-variant)]">Petite caisse</div>
+          <div className="mt-1 text-[24px] font-normal leading-8">Nouveau mouvement</div>
         </div>
 
-        {kind === 'depense' ? (
-          <div>
-            <div className={labelCls}>Catégorie</div>
-            <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className={fieldCls}>
-              {PETTY_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3">
+          {/* Type: segmented button */}
+          <div role="group" aria-label="Type de mouvement" className="flex h-10 overflow-hidden rounded-full border border-[var(--m3-outline)]">
+            {kinds.map((k, i) => {
+              const Icon = k.icon;
+              const selected = kind === k.id;
+              return (
+                <button
+                  key={k.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setKind(k.id)}
+                  className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 text-sm font-medium m3-morph motion-reduce:transition-none ${M3_FOCUS} ${
+                    i > 0 ? 'border-l border-[var(--m3-outline)]' : ''
+                  } ${selected ? kindTone[k.id] : 'text-[var(--m3-on-surface)] active:bg-[var(--m3-surface-container-highest)]'}`}
+                >
+                  {selected ? <Check size={16} className="shrink-0" /> : <Icon size={16} className="shrink-0" />}
+                  <span className="truncate">{k.label}</span>
+                </button>
+              );
+            })}
           </div>
-        ) : (
-          missing > 0 && (
-            <button
-              onClick={() => setMontant(String(Math.round(missing)))}
-              className="w-full border-2 border-dashed border-[#2F6B4F] bg-[#E9F5EF] px-3 py-2 text-left text-[10px] uppercase tracking-[0.12em] text-[#2F6B4F] hover:bg-[#dcefe5]"
-            >
-              Compléter jusqu'au fonds fixe · {fmtHTG(missing)}
-            </button>
-          )
-        )}
 
-        <div>
-          <div className={labelCls}>Montant (HTG)</div>
-          <input
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={montant}
-            onChange={(e) => setMontant(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()}
-            placeholder="0"
-            className={fieldCls}
-          />
-          {overBalance && (
-            <div className={warnCls}>Dépasse le solde de la petite caisse ({fmtHTG(balance)} disponible)</div>
+          {kind === 'depense' ? (
+            <label className={m3Field}>
+              <span className={m3Label}>Catégorie</span>
+              <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className={m3Input}>
+                {PETTY_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            missing > 0 && (
+              <button
+                type="button"
+                onClick={() => setMontant(String(Math.round(missing)))}
+                className={`group relative flex min-h-12 w-full items-center gap-3 overflow-hidden rounded-2xl bg-[var(--m3-tertiary-container)] px-4 py-2 text-left text-sm text-[var(--m3-on-tertiary-container)] m3-press-card motion-reduce:transition-none ${M3_FOCUS}`}
+              >
+                <M3StateLayer />
+                <Coins size={18} className="shrink-0" />
+                <span className="min-w-0">
+                  Compléter jusqu&apos;au fonds fixe
+                  <span className="block font-medium tabular-nums">{fmtHTG(missing)}</span>
+                </span>
+              </button>
+            )
           )}
-        </div>
 
-        {kind === 'depense' && (
           <div>
-            <div className={labelCls}>N° de reçu (optionnel)</div>
+            <label className={m3Field}>
+              <span className={m3Label}>Montant (HTG)</span>
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={montant}
+                onChange={(e) => setMontant(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && submit()}
+                placeholder="0"
+                className={m3Input + ' tabular-nums'}
+              />
+            </label>
+            {overBalance && (
+              <div className={`mt-2 rounded-2xl px-4 py-2.5 text-sm ${M3_STATUS.low.bg} ${M3_STATUS.low.fg}`}>
+                Dépasse le solde de la petite caisse : {fmtHTG(balance)} disponible
+              </div>
+            )}
+          </div>
+
+          {kind === 'depense' && (
+            <label className={m3Field}>
+              <span className={m3Label}>N° de reçu (optionnel)</span>
+              <input
+                type="text"
+                value={recu}
+                onChange={(e) => setRecu(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && submit()}
+                placeholder="Ex : R-1042"
+                className={m3Input}
+              />
+            </label>
+          )}
+
+          <label className={m3Field}>
+            <span className={m3Label}>{kind === 'depense' ? 'Motif / bénéficiaire' : 'Note'} (optionnel)</span>
             <input
               type="text"
-              value={recu}
-              onChange={(e) => setRecu(e.target.value)}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
-              placeholder="Ex : R-1042"
-              className={fieldCls}
+              placeholder={kind === 'depense' ? 'Ex : moto-taxi livraison' : 'Ex : complément de fin de semaine'}
+              className={m3Input}
             />
-          </div>
-        )}
-
-        <div>
-          <div className={labelCls}>{kind === 'depense' ? 'Motif / bénéficiaire' : 'Note'} (optionnel)</div>
-          <input
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()}
-            placeholder={kind === 'depense' ? 'Ex : moto-taxi livraison' : 'Ex : complément de fin de semaine'}
-            className={fieldCls}
-          />
-        </div>
-
-        {kind === 'reappro' && (
-          <label className="flex cursor-pointer items-start gap-2 border-2 border-[#16181A] bg-[#FBFAF6] px-3 py-2.5 text-[11px]">
-            <input
-              type="checkbox"
-              checked={fromCoffre}
-              onChange={(e) => setFromCoffre(e.target.checked)}
-              className="mt-0.5 h-4 w-4 accent-[#C1440E]"
-            />
-            <span className="uppercase tracking-[0.08em]">
-              Prélever sur le Coffre (Espèces)
-              <span className="block normal-case tracking-normal text-[#4B5560]">
-                Crée une sortie dans le Coffre · {fmtHTG(coffreEspeces)} disponible
-              </span>
-            </span>
           </label>
-        )}
-        {overCoffre && <div className={warnCls}>Espèces du Coffre insuffisantes pour ce montant</div>}
 
-        <div className="text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
-          Date : {date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+          {kind === 'reappro' && (
+            <>
+              {/* Switch */}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={fromCoffre}
+                onClick={() => setFromCoffre((v) => !v)}
+                className={`group relative flex w-full items-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-surface-container)] px-4 py-3 text-left m3-press-card motion-reduce:transition-none ${M3_FOCUS}`}
+              >
+                <M3StateLayer />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">Prélever sur le Coffre (Espèces)</span>
+                  <span className="block text-xs text-[var(--m3-on-surface-variant)]">
+                    Crée une sortie dans le Coffre · {fmtHTG(coffreEspeces)} disponible
+                  </span>
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={`relative h-8 w-[52px] shrink-0 rounded-full border-2 transition-colors motion-reduce:transition-none ${
+                    fromCoffre ? 'border-[var(--m3-primary)] bg-[var(--m3-primary)]' : 'border-[var(--m3-outline)] bg-[var(--m3-surface-container-highest)]'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full transition-all duration-300 motion-reduce:transition-none ${
+                      fromCoffre ? 'left-[22px] h-6 w-6 bg-[var(--m3-on-primary)] text-[var(--m3-primary)]' : 'left-1 h-4 w-4 bg-[var(--m3-outline)]'
+                    }`}
+                  >
+                    {fromCoffre && <Check size={14} />}
+                  </span>
+                </span>
+              </button>
+              {overCoffre && (
+                <div className={`rounded-2xl px-4 py-2.5 text-sm ${M3_STATUS.low.bg} ${M3_STATUS.low.fg}`}>
+                  Espèces du Coffre insuffisantes pour ce montant
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="px-1 text-xs text-[var(--m3-on-surface-variant)]">
+            Date : {date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
         </div>
 
-        <button
-          onClick={submit}
-          disabled={!valid}
-          className={
-            'flex w-full items-center justify-center gap-2 border-2 px-4 py-2.5 text-[11px] uppercase tracking-[0.18em] ' +
-            (valid
-              ? 'border-[#C1440E] bg-[#C1440E] text-white hover:bg-[#a53a0b]'
-              : 'cursor-not-allowed border-[#9CA3AF] bg-[#E5E7EB] text-[#6B7280]')
-          }
-        >
-          <Plus size={14} /> Enregistrer
-        </button>
+        <div className="flex shrink-0 items-center gap-2 border-t border-[var(--m3-outline-variant)] bg-[var(--m3-surface-container-low)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className={`h-12 shrink-0 rounded-full px-6 text-sm font-medium text-[var(--m3-primary)] active:bg-[var(--m3-surface-container-highest)] ${M3_FOCUS}`}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!valid}
+            className={`group relative flex h-12 flex-1 items-center justify-center gap-2 overflow-hidden rounded-full text-sm font-medium m3-press motion-reduce:transition-none ${M3_FOCUS} ${
+              valid ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'cursor-not-allowed bg-[var(--m3-surface-container-highest)] text-[var(--m3-outline)]'
+            }`}
+          >
+            {valid && <M3StateLayer />}
+            <Plus size={18} /> Enregistrer
+          </button>
+        </div>
       </div>
-    </div>
+    </>,
+    document.body
   );
 }
 
@@ -8957,69 +9030,69 @@ function PettyCountPanel({
     setNote('');
   };
 
+  const m3Field =
+    'block min-w-0 rounded-xl bg-[var(--m3-surface)] px-4 pb-1.5 pt-2 ring-1 ring-[var(--m3-outline)] transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none';
+  const m3Input = 'h-8 w-full min-w-0 bg-transparent p-0 text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]';
+  const m3Label = 'block text-xs leading-4 text-[var(--m3-on-surface-variant)]';
+
   return (
-    <div className="border-2 border-[#16181A] bg-white">
-      <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
-        Comptage de la caisse
+    <section className="space-y-3 rounded-[28px] bg-[var(--m3-surface-container)] p-5">
+      <h3 className="text-base font-medium">Comptage de la caisse</h3>
+      <div className="flex items-baseline justify-between rounded-[20px] bg-[var(--m3-surface-container-high)] px-4 py-3">
+        <span className="text-sm text-[var(--m3-on-surface-variant)]">Solde théorique</span>
+        <span className="text-lg font-semibold tabular-nums">{fmtHTG(theorique)}</span>
       </div>
-      <div className="space-y-3 p-4">
-        <div className="flex items-baseline justify-between text-[11px] uppercase tracking-[0.1em]">
-          <span className="text-[#4B5560]">Solde théorique</span>
-          <span className="font-mono text-sm tabular-nums">{fmtHTG(theorique)}</span>
-        </div>
-        <div>
-          <div className="mb-1.5 text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">Montant compté (HTG)</div>
-          <input
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={compte}
-            onChange={(e) => setCompte(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && save()}
-            placeholder="Argent réellement en caisse"
-            className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
-          />
-        </div>
-        {valid && (
-          <div
-            className={
-              'border-2 px-3 py-2 text-[11px] uppercase tracking-[0.1em] ' +
-              (ecart === 0
-                ? 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]'
-                : ecart < 0
-                  ? 'border-[#C1440E] bg-[#FDECE4] text-[#C1440E]'
-                  : 'border-[#F2B705] bg-[#FFF6D6]')
-            }
-          >
-            {ecart === 0
-              ? 'Caisse juste'
+      <label className={m3Field}>
+        <span className={m3Label}>Montant compté (HTG)</span>
+        <input
+          type="number"
+          min={0}
+          inputMode="numeric"
+          value={compte}
+          onChange={(e) => setCompte(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && save()}
+          placeholder="Argent réellement en caisse"
+          className={m3Input + ' tabular-nums'}
+        />
+      </label>
+      {valid && (
+        <div
+          role="status"
+          className={
+            'm3-in flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium ' +
+            (ecart === 0
+              ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]'
               : ecart < 0
-                ? `Manque ${fmtHTG(Math.abs(ecart))}`
-                : `Excédent ${fmtHTG(ecart)}`}
-          </div>
-        )}
+                ? `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`
+                : `${M3_STATUS.low.bg} ${M3_STATUS.low.fg}`)
+          }
+        >
+          {ecart === 0 ? <Check size={16} /> : <AlertTriangle size={16} />}
+          {ecart === 0 ? 'Caisse juste' : ecart < 0 ? `Manque ${fmtHTG(Math.abs(ecart))}` : `Excédent ${fmtHTG(ecart)}`}
+        </div>
+      )}
+      <label className={m3Field}>
+        <span className={m3Label}>Note sur l&apos;écart (optionnel)</span>
         <input
           type="text"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && save()}
-          placeholder="Note sur l'écart (optionnel)"
-          className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
+          className={m3Input}
         />
-        <button
-          onClick={save}
-          disabled={!valid}
-          className={
-            'flex w-full items-center justify-center gap-2 border-2 px-4 py-2.5 text-[11px] uppercase tracking-[0.18em] ' +
-            (valid
-              ? 'border-[#16181A] bg-[#16181A] text-white hover:bg-[#2a2e31]'
-              : 'cursor-not-allowed border-[#9CA3AF] bg-[#E5E7EB] text-[#6B7280]')
-          }
-        >
-          <Check size={14} /> Enregistrer le comptage
-        </button>
-      </div>
-    </div>
+      </label>
+      <button
+        type="button"
+        onClick={save}
+        disabled={!valid}
+        className={`group relative flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-full text-sm font-medium m3-press motion-reduce:transition-none ${M3_FOCUS} ${
+          valid ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'cursor-not-allowed bg-[var(--m3-surface-container-highest)] text-[var(--m3-outline)]'
+        }`}
+      >
+        {valid && <M3StateLayer />}
+        <Check size={18} /> Enregistrer le comptage
+      </button>
+    </section>
   );
 }
 
@@ -9052,6 +9125,7 @@ function BranchPetiteCaisseSection({
   const [kindFilter, setKindFilter] = useState<'all' | PettyKind>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [query, setQuery] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
 
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
@@ -9126,330 +9200,657 @@ function BranchPetiteCaisseSection({
   }, [periodEntries]);
   const maxBreak = Math.max(...breakdown.map((b) => b.total), 1);
 
-  const chip = (active: boolean) =>
-    'border-2 px-3 py-1.5 text-[10px] uppercase tracking-[0.14em] ' +
-    (active ? 'border-[#16181A] bg-[#16181A] text-white' : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]');
-
   const sortedCounts = useMemo(() => [...counts].sort((a, b) => b.date.getTime() - a.date.getTime()), [counts]);
 
+  const num = (n: number) => fmtHTG(n).replace(' HTG', '');
+  const net = totalReappro - totalDepenses;
+  const gaugeColor = ratio < 0.2 ? '#BA1A1A' : ratio < 0.5 ? 'var(--m3-tertiary)' : 'var(--m3-primary)';
+  const heroTone = balance < 0 ? `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}` : 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]';
+  const ecartLabel = (ecart: number) => (ecart === 0 ? 'Aucun' : (ecart > 0 ? '+ ' : '− ') + fmtHTG(Math.abs(ecart)));
+  const ecartTone = (ecart: number) =>
+    ecart === 0
+      ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]'
+      : ecart < 0
+        ? `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`
+        : `${M3_STATUS.low.bg} ${M3_STATUS.low.fg}`;
+
+  const iconBtn =
+    'group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ' + M3_FOCUS;
+  const rowBtn = `group relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`;
+  const kindIconTone = (k: PettyKind) =>
+    k === 'reappro' ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]' : `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`;
+  const m3Field =
+    'block min-w-0 rounded-xl bg-[var(--m3-surface)] px-4 pb-1.5 pt-2 ring-1 ring-[var(--m3-outline)] transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none';
+
+  const m3Chip = (selected: boolean, label: string, onClick: () => void) => (
+    <button
+      key={label}
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`group relative shrink-0 before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] ${M3_FOCUS}`}
+    >
+      <span
+        className={`relative flex h-9 items-center gap-2 overflow-hidden px-3.5 text-sm font-medium m3-morph ${selected ? 'rounded-full' : 'rounded-xl'} ${
+          selected
+            ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+            : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+        }`}
+      >
+        <M3StateLayer />
+        {selected && <Check size={16} />}
+        {label}
+      </span>
+    </button>
+  );
+
+  const chipDesk = (selected: boolean, label: string, onClick: () => void) => (
+    <button key={label} type="button" aria-pressed={selected} onClick={onClick} className={`group relative shrink-0 ${M3_FOCUS}`}>
+      <span
+        className={`relative flex h-8 items-center gap-1.5 overflow-hidden px-3 text-sm font-medium m3-morph ${selected ? 'rounded-full' : 'rounded-lg'} ${
+          selected
+            ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+            : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+        }`}
+      >
+        <M3StateLayer />
+        {selected && <Check size={14} />}
+        {label}
+      </span>
+    </button>
+  );
+
+  const segmented = (label: string, options: Array<[string, string]>, value: string, onPick: (id: string) => void, width: string) => (
+    <div
+      role="group"
+      aria-label={label}
+      className={`grid h-12 ${width} max-w-full gap-0.5`}
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
+      {options.map(([id, text], idx) => {
+        const selected = value === id;
+        const shape = selected ? 'rounded-full' : idx === 0 ? 'rounded-l-full rounded-r-lg' : idx === options.length - 1 ? 'rounded-r-full rounded-l-lg' : 'rounded-lg';
+        return (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onPick(id)}
+            className={`group relative flex items-center justify-center gap-1.5 overflow-hidden px-2 text-sm font-semibold m3-morph ${shape} ${M3_FOCUS} ${
+              selected ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]'
+            }`}
+          >
+            <M3StateLayer />
+            {selected && <Check size={16} />}
+            {text}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const gauge = (
+    <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(ratio * 100)} aria-label="Niveau du fonds fixe">
+      <div className="h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${ratio * 100}%`, background: gaugeColor }} />
+    </div>
+  );
+
+  const m3Breakdown = () => (
+    <div>
+      {breakdown.length === 0 ? (
+        <div className="text-sm text-[var(--m3-on-surface-variant)]">Aucune dépense.</div>
+      ) : (
+        <div className="space-y-3">
+          {breakdown.map((b) => (
+            <div key={b.label}>
+              <div className="flex items-baseline justify-between gap-2 text-sm">
+                <span className="min-w-0 truncate">{b.label}</span>
+                <span className="shrink-0 font-medium tabular-nums">{fmtHTG(b.total)}</span>
+              </div>
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--m3-surface-container-highest)]">
+                <div className="h-full rounded-full bg-[#BA1A1A]" style={{ width: `${(b.total / maxBreak) * 100}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const floatInput = (
+    <input
+      type="number"
+      min={0}
+      inputMode="numeric"
+      value={fixedFloat}
+      onChange={(e) => setFixedFloat(Math.max(Number(e.target.value) || 0, 0))}
+      aria-label="Fonds fixe"
+      className="h-8 w-full min-w-0 bg-transparent p-0 text-base tabular-nums text-[var(--m3-on-surface)] outline-none"
+    />
+  );
+
+  const receiptPill = (e: PettyEntry) =>
+    e.kind !== 'depense' ? null : e.recu ? (
+      <span className="truncate rounded-lg border border-[var(--m3-outline)] px-2 py-0.5 font-mono text-xs">{e.recu}</span>
+    ) : (
+      <span className={`rounded-lg px-2 py-0.5 text-xs font-medium ${M3_STATUS.low.bg} ${M3_STATUS.low.fg}`}>Sans reçu</span>
+    );
+
   return (
-    <div className="space-y-5">
-      {/* Title bar */}
-      <div className="flex flex-wrap items-end justify-between gap-2 border-b-2 border-[#16181A] pb-3">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.22em] text-[#4B5560]">Petite caisse · {branch.nom}</div>
-          <h2 className="font-serif text-2xl">Petites dépenses du quotidien</h2>
-        </div>
-        <div className="text-[11px] uppercase tracking-[0.14em] text-[#4B5560]">{entries.length} mouvement(s) au total</div>
-      </div>
+    <>
+      {formOpen && (
+        <PettyForm
+          balance={balance}
+          fixedFloat={fixedFloat}
+          coffreEspeces={coffreEspeces}
+          date={selectedDate}
+          onAdd={onAdd}
+          onClose={() => setFormOpen(false)}
+        />
+      )}
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <div
-          className={
-            'col-span-2 border-2 p-4 shadow-[4px_4px_0_#2F6B4F] lg:col-span-1 ' +
-            (balance < 0 ? 'border-[#C1440E] bg-[#FDECE4]' : 'border-[#2F6B4F] bg-[#E9F5EF]')
-          }
-        >
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-[#2F6B4F]">
-            <Coins size={13} /> Solde théorique
-          </div>
-          <div className={'mt-1.5 font-serif text-2xl tabular-nums ' + (balance < 0 ? 'text-[#C1440E]' : 'text-[#2F6B4F]')}>
-            {fmtHTG(balance)}
-          </div>
-          <div className="mt-2 h-2 border-2 border-[#16181A] bg-white">
-            <div
-              className={'h-full ' + (ratio < 0.2 ? 'bg-[#C1440E]' : ratio < 0.5 ? 'bg-[#F2B705]' : 'bg-[#2F6B4F]')}
-              style={{ width: `${ratio * 100}%` }}
-            />
-          </div>
+      {/* ===================== Phone: Material 3 ===================== */}
+      <div
+        style={M3_VARS}
+        className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-28 pt-4 font-sans text-[var(--m3-on-surface)] sm:hidden"
+      >
+        <div className="mb-4">
+          <h2 className="text-[32px] font-bold leading-10 tracking-tight">Petite caisse</h2>
+          <p className="truncate text-sm leading-5 text-[var(--m3-on-surface-variant)]">
+            {branch.nom} · {entries.length} mouvement{entries.length !== 1 ? 's' : ''}
+          </p>
         </div>
 
-        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[4px_4px_0_#16181A]">
-          <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">Fonds fixe</div>
-          <div className="mt-1.5 flex items-baseline gap-1.5">
-            <input
-              type="number"
-              min={0}
-              inputMode="numeric"
-              value={fixedFloat}
-              onChange={(e) => setFixedFloat(Math.max(Number(e.target.value) || 0, 0))}
-              aria-label="Fonds fixe"
-              className="w-full min-w-0 border-b-2 border-[#16181A] bg-transparent font-serif text-xl tabular-nums outline-none focus:border-[#C1440E] xl:text-2xl"
-            />
-            <span className="text-[10px] uppercase text-[#4B5560]">HTG</span>
-          </div>
-        </div>
-
-        <div
-          className={
-            'border-2 p-4 shadow-[4px_4px_0_#16181A] ' +
-            (missing > 0 ? 'border-[#C1440E] bg-white' : 'border-[#16181A] bg-white')
-          }
-        >
-          <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">À réapprovisionner</div>
-          <div className={'mt-1.5 font-serif text-xl tabular-nums xl:text-2xl ' + (missing > 0 ? 'text-[#C1440E]' : 'text-[#2F6B4F]')}>
-            {missing > 0 ? fmtHTG(missing) : 'Fonds complet'}
-          </div>
-        </div>
-
-        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[4px_4px_0_#16181A]">
-          <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">Dépenses · {MONTHS_FR[month]}</div>
-          <div className="mt-1.5 font-serif text-xl tabular-nums xl:text-2xl">{fmtHTG(spentThisMonth)}</div>
-        </div>
-
-        <div className="border-2 border-[#16181A] bg-white p-4 shadow-[4px_4px_0_#16181A]">
-          <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">Dernier écart</div>
-          {lastCount ? (
-            <>
-              <div
-                className={
-                  'mt-1.5 font-serif text-xl tabular-nums xl:text-2xl ' +
-                  (lastCount.ecart === 0 ? 'text-[#2F6B4F]' : lastCount.ecart < 0 ? 'text-[#C1440E]' : '')
-                }
-              >
-                {lastCount.ecart === 0 ? 'Aucun' : (lastCount.ecart > 0 ? '+ ' : '− ') + fmtHTG(Math.abs(lastCount.ecart))}
-              </div>
-              <div className="text-[10px] text-[#4B5560]">
-                Comptage du {lastCount.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-              </div>
-            </>
-          ) : (
-            <div className="mt-1.5 font-serif text-xl text-[#4B5560]">—</div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-3">
-        {/* Left: journal + counts history */}
-        <div className="space-y-5 xl:col-span-2">
-          <div className="border-2 border-[#16181A] bg-white">
-            <div className="space-y-3 border-b-2 border-[#16181A] bg-[#ECE7DC] p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-[11px] uppercase tracking-[0.18em]">Journal · {periodLabel}</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {COFFRE_PERIODS.map((p) => (
-                    <button key={p.id} onClick={() => setPeriod(p.id)} className={chip(period === p.id)}>
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex flex-wrap gap-1.5">
-                  <button onClick={() => setKindFilter('all')} className={chip(kindFilter === 'all')}>Tous</button>
-                  <button onClick={() => setKindFilter('depense')} className={chip(kindFilter === 'depense')}>Dépenses</button>
-                  <button onClick={() => setKindFilter('reappro')} className={chip(kindFilter === 'reappro')}>Réappros</button>
-                </div>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="border-2 border-[#16181A] bg-white px-2 py-1.5 text-[10px] uppercase tracking-[0.12em] outline-none"
-                >
-                  <option value="all">Toutes catégories</option>
-                  {PETTY_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                <div className="relative min-w-[140px] flex-1">
-                  <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#4B5560]" />
-                  <input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Rechercher (motif, reçu)…"
-                    className="w-full border-2 border-[#16181A] bg-white py-1.5 pl-8 pr-2 text-[12px] outline-none focus:border-[#C1440E]"
-                  />
-                </div>
-              </div>
+        <div className="space-y-3">
+          {/* Balance hero */}
+          <section className={'rounded-[28px] p-5 ' + heroTone}>
+            <div className="flex items-center gap-1.5 text-xs font-medium opacity-80">
+              <Coins size={14} /> Solde théorique
             </div>
-
-            <div className="grid grid-cols-3 divide-x-2 divide-[#16181A] border-b-2 border-[#16181A]">
-              <div className="p-3">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-[#4B5560]">Réapprovisionnements</div>
-                <div className="font-mono text-sm tabular-nums text-[#2F6B4F] md:text-base">+ {fmtHTG(totalReappro)}</div>
-              </div>
-              <div className="p-3">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-[#4B5560]">Dépenses</div>
-                <div className="font-mono text-sm tabular-nums text-[#C1440E] md:text-base">− {fmtHTG(totalDepenses)}</div>
-              </div>
-              <div className="p-3">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-[#4B5560]">Sans reçu</div>
-                <div className={'font-mono text-sm tabular-nums md:text-base ' + (sansRecu > 0 ? 'text-[#C1440E]' : '')}>
-                  {sansRecu} dépense(s)
-                </div>
-              </div>
+            <div className="mt-1 break-words text-[32px] font-bold leading-10 tracking-tight tabular-nums">{fmtHTG(balance)}</div>
+            {gauge}
+            <div className="mt-2 text-xs opacity-80">
+              {fixedFloat > 0 ? `${Math.round(ratio * 100)} % du fonds fixe de ${fmtHTG(fixedFloat)}` : 'Aucun fonds fixe défini'}
             </div>
+          </section>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] text-[12px]">
-                <thead>
-                  <tr className="border-b-2 border-[#16181A] text-left text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
-                    <th className="px-3 py-2.5">Date</th>
-                    <th className="px-3 py-2.5">Type</th>
-                    <th className="px-3 py-2.5">Catégorie</th>
-                    <th className="px-3 py-2.5">Motif</th>
-                    <th className="px-3 py-2.5">Reçu</th>
-                    <th className="px-3 py-2.5 text-right">Montant</th>
-                    <th className="w-10 px-3 py-2.5" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="px-3 py-12 text-center text-sm text-[#4B5560]">
-                        Aucun mouvement sur cette période.
-                      </td>
-                    </tr>
-                  )}
-                  {rows.map((e) => {
-                    const isIn = e.kind === 'reappro';
-                    const Icon = isIn ? ArrowDownLeft : ArrowUpRight;
-                    const tone = isIn ? 'text-[#2F6B4F]' : 'text-[#C1440E]';
-                    return (
-                      <tr key={e.id} className="border-b border-[#16181A]/15 hover:bg-[#FBFAF6]">
-                        <td className="whitespace-nowrap px-3 py-2.5">
-                          <div className="font-mono text-[11px]">{e.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</div>
-                          <div className="font-mono text-[10px] text-[#4B5560]">{fmtTime12(e.date)}</div>
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <span className={'inline-flex items-center gap-1.5 uppercase tracking-[0.08em] ' + tone}>
-                            <Icon size={13} /> {isIn ? 'Réappro' : 'Dépense'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5">
-                          {e.categorie}
-                          {e.coffreId && (
-                            <span className="ml-1.5 border border-[#16181A] px-1 py-px text-[9px] uppercase tracking-[0.08em]">Coffre</span>
-                          )}
-                        </td>
-                        <td className="max-w-[170px] truncate px-3 py-2.5 text-[#4B5560]">{e.note ?? '—'}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">
-                          {e.kind === 'depense' ? (
-                            e.recu ?? (
-                              <span className="border border-[#F2B705] bg-[#FFF6D6] px-1.5 py-0.5 font-sans text-[9px] uppercase tracking-[0.08em]">
-                                Sans reçu
-                              </span>
-                            )
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td className={'whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums ' + tone}>
-                          {isIn ? '+' : '−'} {fmtHTG(e.montant)}
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <button
-                            onClick={() => onDelete(e.id)}
-                            aria-label="Supprimer"
-                            className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          {/* Float + refill */}
+          <div className="grid grid-cols-2 gap-2">
+            <label className={m3Field}>
+              <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">Fonds fixe (HTG)</span>
+              {floatInput}
+            </label>
+            <div className={'min-w-0 rounded-[20px] p-3 ' + (missing > 0 ? `${M3_STATUS.low.bg} ${M3_STATUS.low.fg}` : 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]')}>
+              <div className="text-xs opacity-80">À réapprovisionner</div>
+              <div className="mt-1 truncate text-sm font-semibold tabular-nums">{missing > 0 ? fmtHTG(missing) : 'Fonds complet'}</div>
             </div>
-          </div>
-
-          <div className="border-2 border-[#16181A] bg-white">
-            <div className="flex items-center justify-between border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
-              <span>Historique des comptages</span>
-              <span className="text-[#4B5560]">{sortedCounts.length}</span>
+            <div className="min-w-0 rounded-[20px] bg-[var(--m3-surface-container)] p-3">
+              <div className="text-xs text-[var(--m3-on-surface-variant)]">Dépenses · {MONTHS_FR[month]}</div>
+              <div className="mt-1 truncate text-sm font-semibold tabular-nums">{fmtHTG(spentThisMonth)}</div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-[12px]">
-                <thead>
-                  <tr className="border-b-2 border-[#16181A] text-left text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
-                    <th className="px-3 py-2.5">Date</th>
-                    <th className="px-3 py-2.5 text-right">Théorique</th>
-                    <th className="px-3 py-2.5 text-right">Compté</th>
-                    <th className="px-3 py-2.5 text-right">Écart</th>
-                    <th className="px-3 py-2.5">Note</th>
-                    <th className="w-10 px-3 py-2.5" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedCounts.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-3 py-8 text-center text-sm text-[#4B5560]">
-                        Aucun comptage enregistré.
-                      </td>
-                    </tr>
-                  )}
-                  {sortedCounts.slice(0, 12).map((c) => (
-                    <tr key={c.id} className="border-b border-[#16181A]/15 hover:bg-[#FBFAF6]">
-                      <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11px]">
-                        {c.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} · {fmtTime12(c.date)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtHTG(c.theorique)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtHTG(c.compte)}</td>
-                      <td
-                        className={
-                          'px-3 py-2.5 text-right font-mono tabular-nums ' +
-                          (c.ecart === 0 ? 'text-[#2F6B4F]' : c.ecart < 0 ? 'text-[#C1440E]' : '')
-                        }
-                      >
-                        {c.ecart === 0 ? '0' : (c.ecart > 0 ? '+ ' : '− ') + fmtHTG(Math.abs(c.ecart))}
-                      </td>
-                      <td className="max-w-[160px] truncate px-3 py-2.5 text-[#4B5560]">{c.note ?? '—'}</td>
-                      <td className="px-3 py-2.5">
-                        <button
-                          onClick={() => onDeleteCount(c.id)}
-                          aria-label="Supprimer"
-                          className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Right: form + count + breakdown */}
-        <div className="space-y-5">
-          <PettyForm balance={balance} fixedFloat={fixedFloat} coffreEspeces={coffreEspeces} date={selectedDate} onAdd={onAdd} />
-
-          <PettyCountPanel
-            theorique={balance}
-            onSave={(compte, note) =>
-              onAddCount({ date: new Date(), theorique: balance, compte, ecart: compte - balance, note })
-            }
-          />
-
-          <div className="border-2 border-[#16181A] bg-white">
-            <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
-              Dépenses par catégorie · {periodLabel}
-            </div>
-            <div className="p-4">
-              {breakdown.length === 0 ? (
-                <div className="text-[11px] text-[#4B5560]">Aucune dépense.</div>
-              ) : (
-                <div className="space-y-2.5">
-                  {breakdown.map((b) => (
-                    <div key={b.label}>
-                      <div className="mb-1 flex items-baseline justify-between gap-2 text-[11px] uppercase tracking-[0.08em]">
-                        <span className="truncate">{b.label}</span>
-                        <span className="shrink-0 font-mono tabular-nums">{fmtHTG(b.total)}</span>
-                      </div>
-                      <div className="h-2.5 border-2 border-[#16181A] bg-[#FBFAF6]">
-                        <div className="h-full bg-[#C1440E]" style={{ width: `${(b.total / maxBreak) * 100}%` }} />
-                      </div>
-                    </div>
-                  ))}
+            <div className={'min-w-0 rounded-[20px] p-3 ' + (lastCount ? ecartTone(lastCount.ecart) : 'bg-[var(--m3-surface-container)]')}>
+              <div className="text-xs opacity-80">Dernier écart</div>
+              <div className="mt-1 truncate text-sm font-semibold tabular-nums">{lastCount ? ecartLabel(lastCount.ecart) : '—'}</div>
+              {lastCount && (
+                <div className="truncate text-[11px] opacity-80">
+                  {lastCount.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                 </div>
               )}
             </div>
           </div>
+
+          {/* Period: segmented button */}
+          <div role="group" aria-label="Période" className="flex h-10 overflow-hidden rounded-full border border-[var(--m3-outline)]">
+            {COFFRE_PERIODS.map((p, i) => {
+              const selected = period === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setPeriod(p.id)}
+                  className={
+                    'flex min-w-0 flex-1 items-center justify-center gap-1 text-sm font-medium m3-morph motion-reduce:transition-none ' +
+                    M3_FOCUS +
+                    (i > 0 ? ' border-l border-[var(--m3-outline)]' : '') +
+                    (selected
+                      ? ' bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                      : ' text-[var(--m3-on-surface)] active:bg-[var(--m3-surface-container-highest)]')
+                  }
+                >
+                  {selected && <Check size={14} className="shrink-0" />}
+                  <span className="truncate">{p.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search */}
+          <div className="flex h-14 w-full min-w-0 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none">
+            <Search className="h-6 w-6 shrink-0 text-[var(--m3-on-surface-variant)]" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Catégorie, motif ou n° de reçu…"
+              className="w-full min-w-0 border-none bg-transparent text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery('')} aria-label="Effacer la recherche" className={`${iconBtn} -mr-2`}>
+                <M3StateLayer />
+                <X size={20} />
+              </button>
+            )}
+          </div>
+
+          {/* Filter chips: type, then category */}
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filtrer par type">
+            {m3Chip(kindFilter === 'all', 'Tous', () => setKindFilter('all'))}
+            {m3Chip(kindFilter === 'depense', 'Dépenses', () => setKindFilter('depense'))}
+            {m3Chip(kindFilter === 'reappro', 'Réappros', () => setKindFilter('reappro'))}
+          </div>
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filtrer par catégorie">
+            {m3Chip(categoryFilter === 'all', 'Toutes catégories', () => setCategoryFilter('all'))}
+            {PETTY_CATEGORIES.map((c) => m3Chip(categoryFilter === c, c, () => setCategoryFilter(c)))}
+          </div>
+
+          {/* Period totals */}
+          <section>
+            <div className="flex items-baseline justify-between px-1 pb-2 pt-1">
+              <h3 className="text-base font-medium">Journal · {periodLabel}</h3>
+              <span className="text-xs text-[var(--m3-on-surface-variant)]">HTG</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="min-w-0 rounded-[20px] bg-[var(--m3-secondary-container)] p-3 text-[var(--m3-on-secondary-container)]">
+                <div className="flex items-center gap-1 text-xs opacity-80">
+                  <ArrowDownLeft size={12} /> Réappros
+                </div>
+                <div className="mt-1 truncate text-sm font-medium tabular-nums">+ {num(totalReappro)}</div>
+              </div>
+              <div className={`min-w-0 rounded-[20px] p-3 ${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`}>
+                <div className="flex items-center gap-1 text-xs opacity-80">
+                  <ArrowUpRight size={12} /> Dépenses
+                </div>
+                <div className="mt-1 truncate text-sm font-medium tabular-nums">− {num(totalDepenses)}</div>
+              </div>
+              <div className={'min-w-0 rounded-[20px] p-3 ' + (sansRecu > 0 ? `${M3_STATUS.low.bg} ${M3_STATUS.low.fg}` : 'bg-[var(--m3-surface-container)]')}>
+                <div className="text-xs opacity-80">Sans reçu</div>
+                <div className="mt-1 truncate text-sm font-medium tabular-nums">{sansRecu}</div>
+              </div>
+            </div>
+          </section>
+
+          {/* Ledger */}
+          {rows.length === 0 ? (
+            <div className="rounded-[28px] bg-[var(--m3-surface-container-low)] px-4 py-10 text-center text-sm text-[var(--m3-on-surface-variant)]">
+              Aucun mouvement sur cette période.
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {rows.map((e) => {
+                const isIn = e.kind === 'reappro';
+                const Icon = isIn ? ArrowDownLeft : ArrowUpRight;
+                const tone = isIn ? 'text-[var(--m3-primary)]' : 'text-[#BA1A1A]';
+                return (
+                  <li key={e.id} className="rounded-[20px] bg-[var(--m3-surface-container)] p-3">
+                    <div className="flex items-center gap-3">
+                      <span className={'flex h-10 w-10 shrink-0 items-center justify-center rounded-full ' + kindIconTone(e.kind)}>
+                        <Icon size={18} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-sm font-medium">{e.categorie}</span>
+                          {e.coffreId && (
+                            <span className="shrink-0 rounded-md bg-[var(--m3-secondary-container)] px-1.5 py-px text-[10px] font-medium text-[var(--m3-on-secondary-container)]">Coffre</span>
+                          )}
+                        </div>
+                        <div className="truncate text-xs text-[var(--m3-on-surface-variant)]">
+                          {e.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} · {fmtTime12(e.date)}
+                        </div>
+                      </div>
+                      <div className={'shrink-0 text-sm font-medium tabular-nums ' + tone}>
+                        {isIn ? '+' : '−'} {fmtHTG(e.montant)}
+                      </div>
+                    </div>
+                    {e.note && <div className="mt-1.5 pl-[52px] text-xs text-[var(--m3-on-surface-variant)]">{e.note}</div>}
+                    <div className="mt-1 flex items-center justify-between gap-2 pl-[52px]">
+                      <div className="flex min-w-0 items-center">{receiptPill(e)}</div>
+                      <button type="button" onClick={() => onDelete(e.id)} aria-label="Supprimer" className={`${iconBtn} -mr-1`}>
+                        <M3StateLayer />
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {/* Count */}
+          <PettyCountPanel
+            theorique={balance}
+            onSave={(compte, note) => onAddCount({ date: new Date(), theorique: balance, compte, ecart: compte - balance, note })}
+          />
+
+          {/* Count history */}
+          <section className="rounded-[28px] bg-[var(--m3-surface-container-low)] p-4">
+            <div className="mb-2 flex items-baseline justify-between">
+              <h3 className="text-base font-medium">Historique des comptages</h3>
+              <span className="text-xs text-[var(--m3-on-surface-variant)]">{sortedCounts.length}</span>
+            </div>
+            {sortedCounts.length === 0 ? (
+              <div className="py-4 text-center text-sm text-[var(--m3-on-surface-variant)]">Aucun comptage enregistré.</div>
+            ) : (
+              <ul className="divide-y divide-[var(--m3-outline-variant)]">
+                {sortedCounts.slice(0, 12).map((c) => (
+                  <li key={c.id} className="flex items-center gap-3 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium tabular-nums">
+                        {fmtHTG(c.compte)}
+                        <span className="ml-1.5 text-xs font-normal text-[var(--m3-on-surface-variant)]">/ {fmtHTG(c.theorique)}</span>
+                      </div>
+                      <div className="truncate text-xs text-[var(--m3-on-surface-variant)]">
+                        {c.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} · {fmtTime12(c.date)}
+                        {c.note ? ` · ${c.note}` : ''}
+                      </div>
+                    </div>
+                    <span className={'shrink-0 rounded-full px-2.5 py-1 text-xs font-medium tabular-nums ' + ecartTone(c.ecart)}>
+                      {c.ecart === 0 ? '0' : (c.ecart > 0 ? '+ ' : '− ') + num(Math.abs(c.ecart))}
+                    </span>
+                    <button type="button" onClick={() => onDeleteCount(c.id)} aria-label="Supprimer" className={`${rowBtn} -mr-1`}>
+                      <M3StateLayer />
+                      <Trash2 size={18} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* Breakdown */}
+          <section className="space-y-3 rounded-[28px] bg-[var(--m3-surface-container-low)] p-4">
+            <h3 className="text-base font-medium">Dépenses par catégorie · {periodLabel}</h3>
+            {m3Breakdown()}
+          </section>
+        </div>
+
+        {/* FAB */}
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className={`group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
+        >
+          <M3StateLayer />
+          <Plus className="h-6 w-6" />
+          Mouvement
+        </button>
+      </div>
+
+      {/* ===================== Desktop (sm and up) ===================== */}
+      <div style={M3_VARS} className="hidden space-y-5 font-sans text-[var(--m3-on-surface)] sm:block">
+        <div className="flex items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[32px] font-bold leading-10 tracking-tight">Petite caisse</h2>
+            <p className="truncate text-sm text-[var(--m3-on-surface-variant)]">
+              {branch.nom} · Petites dépenses du quotidien · {entries.length} mouvement{entries.length !== 1 ? 's' : ''} au total
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className={`group relative flex h-12 shrink-0 items-center gap-2 overflow-hidden rounded-[20px] bg-[var(--m3-primary)] px-6 text-sm font-semibold text-[var(--m3-on-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.15)] transition-[box-shadow,transform] hover:shadow-[0_2px_6px_2px_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.3)] active:scale-[0.96] motion-reduce:transition-none ${M3_FOCUS}`}
+          >
+            <M3StateLayer />
+            <Plus size={20} />
+            Nouveau mouvement
+          </button>
+        </div>
+
+        {/* KPI strip */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <div className={'col-span-2 rounded-[28px] px-6 py-5 lg:col-span-1 ' + heroTone}>
+            <div className="flex items-center gap-1.5 text-sm font-medium opacity-80">
+              <Coins size={16} /> Solde théorique
+            </div>
+            <div className="mt-1 break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(balance)}</div>
+            {gauge}
+          </div>
+
+          <div className="rounded-[28px] bg-[var(--m3-surface-container)] px-5 py-5">
+            <div className="text-sm text-[var(--m3-on-surface-variant)]">Fonds fixe</div>
+            <div className="mt-1 flex items-baseline gap-2 rounded-xl border-b-2 border-[var(--m3-outline)] focus-within:border-[var(--m3-primary)]">
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={fixedFloat}
+                onChange={(e) => setFixedFloat(Math.max(Number(e.target.value) || 0, 0))}
+                aria-label="Fonds fixe"
+                className="w-full min-w-0 bg-transparent text-xl font-semibold tabular-nums leading-7 outline-none"
+              />
+              <span className="text-xs text-[var(--m3-on-surface-variant)]">HTG</span>
+            </div>
+          </div>
+
+          <div className={'rounded-[28px] px-5 py-5 ' + (missing > 0 ? `${M3_STATUS.low.bg} ${M3_STATUS.low.fg}` : 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]')}>
+            <div className="text-sm opacity-80">À réapprovisionner</div>
+            <div className="mt-1 truncate text-xl font-semibold leading-7 tabular-nums">{missing > 0 ? fmtHTG(missing) : 'Fonds complet'}</div>
+          </div>
+
+          <div className="rounded-[28px] bg-[var(--m3-surface-container)] px-5 py-5">
+            <div className="text-sm text-[var(--m3-on-surface-variant)]">Dépenses · {MONTHS_FR[month]}</div>
+            <div className="mt-1 truncate text-xl font-semibold leading-7 tabular-nums">{fmtHTG(spentThisMonth)}</div>
+          </div>
+
+          <div className={'rounded-[28px] px-5 py-5 ' + (lastCount ? ecartTone(lastCount.ecart) : 'bg-[var(--m3-surface-container)]')}>
+            <div className="text-sm opacity-80">Dernier écart</div>
+            <div className="mt-1 truncate text-xl font-semibold leading-7 tabular-nums">{lastCount ? ecartLabel(lastCount.ecart) : '—'}</div>
+            {lastCount && (
+              <div className="text-xs opacity-80">
+                Comptage du {lastCount.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Search + period */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex h-12 min-w-[240px] max-w-md flex-1 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none">
+            <Search className="h-5 w-5 shrink-0 text-[var(--m3-on-surface-variant)]" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Catégorie, motif ou n° de reçu…"
+              aria-label="Rechercher un mouvement"
+              className="w-full min-w-0 border-none bg-transparent text-sm text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label="Effacer la recherche"
+                className={`group relative -mr-2 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+              >
+                <M3StateLayer />
+                <X size={18} />
+              </button>
+            )}
+          </div>
+          {segmented('Période', COFFRE_PERIODS.map((p): [string, string] => [p.id, p.label]), period, (id) => setPeriod(id as CoffrePeriod), 'w-[340px]')}
+          <div className="ml-auto text-sm tabular-nums text-[var(--m3-on-surface-variant)]" aria-live="polite">
+            {rows.length} mouvement{rows.length !== 1 ? 's' : ''} · {periodLabel}
+          </div>
+        </div>
+
+        {/* Filter chips */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Filtrer par type" className="flex flex-wrap gap-2">
+            {chipDesk(kindFilter === 'all', 'Tous', () => setKindFilter('all'))}
+            {chipDesk(kindFilter === 'depense', 'Dépenses', () => setKindFilter('depense'))}
+            {chipDesk(kindFilter === 'reappro', 'Réappros', () => setKindFilter('reappro'))}
+          </div>
+          <span aria-hidden="true" className="mx-2 h-6 w-px bg-[var(--m3-outline-variant)]" />
+          <div role="group" aria-label="Filtrer par catégorie" className="flex flex-wrap gap-2">
+            {chipDesk(categoryFilter === 'all', 'Toutes catégories', () => setCategoryFilter('all'))}
+            {PETTY_CATEGORIES.map((c) => chipDesk(categoryFilter === c, c, () => setCategoryFilter(c)))}
+          </div>
+        </div>
+
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+          {/* Left: journal + counts history */}
+          <div className="space-y-5">
+            <div className="overflow-hidden rounded-[28px] bg-[var(--m3-surface-container)]">
+              <div className="grid grid-cols-3 gap-2 p-3">
+                <div className="min-w-0 rounded-[20px] bg-[var(--m3-secondary-container)] px-4 py-3 text-[var(--m3-on-secondary-container)]">
+                  <div className="flex items-center gap-1 text-xs opacity-80"><ArrowDownLeft size={12} /> Réapprovisionnements</div>
+                  <div className="mt-1 truncate text-lg font-semibold tabular-nums">+ {fmtHTG(totalReappro)}</div>
+                </div>
+                <div className={`min-w-0 rounded-[20px] px-4 py-3 ${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`}>
+                  <div className="flex items-center gap-1 text-xs opacity-80"><ArrowUpRight size={12} /> Dépenses</div>
+                  <div className="mt-1 truncate text-lg font-semibold tabular-nums">− {fmtHTG(totalDepenses)}</div>
+                </div>
+                <div className={'min-w-0 rounded-[20px] px-4 py-3 ' + (sansRecu > 0 ? `${M3_STATUS.low.bg} ${M3_STATUS.low.fg}` : 'bg-[var(--m3-surface-container-high)]')}>
+                  <div className="text-xs opacity-80">Sans reçu</div>
+                  <div className="mt-1 truncate text-lg font-semibold tabular-nums">{sansRecu} dépense{sansRecu !== 1 ? 's' : ''}</div>
+                </div>
+              </div>
+
+              <div className="max-h-[62vh] overflow-auto">
+                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                  <thead className="sticky top-0 z-10 bg-[var(--m3-surface-container-high)] text-xs text-[var(--m3-on-surface-variant)] shadow-[0_1px_0_var(--m3-outline-variant)]">
+                    <tr>
+                      <th scope="col" className="px-4 py-3 font-medium">Date</th>
+                      <th scope="col" className="px-4 py-3 font-medium">Type</th>
+                      <th scope="col" className="px-4 py-3 font-medium">Catégorie / motif</th>
+                      <th scope="col" className="px-4 py-3 font-medium">Reçu</th>
+                      <th scope="col" className="px-4 py-3 text-right font-medium">Montant</th>
+                      <th scope="col" className="w-16 px-3 py-3 text-right font-medium"><span className="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-16 text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+                              <Coins size={28} />
+                            </span>
+                            <span className="text-base font-medium">Aucun mouvement sur cette période.</span>
+                            <span className="text-sm text-[var(--m3-on-surface-variant)]">Changez la période ou les filtres, ou ajoutez un mouvement.</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {rows.map((e) => {
+                      const isIn = e.kind === 'reappro';
+                      const Icon = isIn ? ArrowDownLeft : ArrowUpRight;
+                      const tone = isIn ? 'text-[var(--m3-primary)]' : 'text-[#BA1A1A]';
+                      return (
+                        <tr key={e.id} className="border-b border-[var(--m3-outline-variant)]/60 transition-colors last:border-b-0 hover:bg-[var(--m3-surface-container-high)] motion-reduce:transition-none">
+                          <td className="whitespace-nowrap px-4 py-3">
+                            <div className="tabular-nums">{e.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</div>
+                            <div className="text-xs tabular-nums text-[var(--m3-on-surface-variant)]">{fmtTime12(e.date)}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="flex items-center gap-2.5">
+                              <span aria-hidden="true" className={'flex h-9 w-9 shrink-0 items-center justify-center rounded-full ' + kindIconTone(e.kind)}>
+                                <Icon size={16} />
+                              </span>
+                              <span className="font-medium">{isIn ? 'Réappro' : 'Dépense'}</span>
+                            </span>
+                          </td>
+                          <td className="max-w-[260px] px-4 py-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate font-medium">{e.categorie}</span>
+                              {e.coffreId && (
+                                <span className="shrink-0 rounded-md bg-[var(--m3-secondary-container)] px-1.5 py-px text-[10px] font-medium text-[var(--m3-on-secondary-container)]">Coffre</span>
+                              )}
+                            </div>
+                            {e.note && <div className="truncate text-xs text-[var(--m3-on-surface-variant)]">{e.note}</div>}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3">{receiptPill(e) ?? <span className="text-[var(--m3-on-surface-variant)]">—</span>}</td>
+                          <td className={'whitespace-nowrap px-4 py-3 text-right font-medium tabular-nums ' + tone}>
+                            {isIn ? '+' : '−'} {fmtHTG(e.montant)}
+                          </td>
+                          <td className="px-3 py-3 text-right">
+                            <button type="button" onClick={() => onDelete(e.id)} aria-label="Supprimer" className={rowBtn}>
+                              <M3StateLayer />
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-[28px] bg-[var(--m3-surface-container)]">
+              <div className="flex items-baseline justify-between px-5 pb-2 pt-4">
+                <h3 className="text-base font-medium">Historique des comptages</h3>
+                <span className="text-sm text-[var(--m3-on-surface-variant)]">{sortedCounts.length}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] border-collapse text-left text-sm">
+                  <thead className="bg-[var(--m3-surface-container-high)] text-xs text-[var(--m3-on-surface-variant)]">
+                    <tr>
+                      <th scope="col" className="px-4 py-3 font-medium">Date</th>
+                      <th scope="col" className="px-4 py-3 text-right font-medium">Théorique</th>
+                      <th scope="col" className="px-4 py-3 text-right font-medium">Compté</th>
+                      <th scope="col" className="px-4 py-3 text-right font-medium">Écart</th>
+                      <th scope="col" className="px-4 py-3 font-medium">Note</th>
+                      <th scope="col" className="w-16 px-3 py-3"><span className="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedCounts.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-[var(--m3-on-surface-variant)]">Aucun comptage enregistré.</td>
+                      </tr>
+                    )}
+                    {sortedCounts.slice(0, 12).map((c) => (
+                      <tr key={c.id} className="border-b border-[var(--m3-outline-variant)]/60 transition-colors last:border-b-0 hover:bg-[var(--m3-surface-container-high)] motion-reduce:transition-none">
+                        <td className="whitespace-nowrap px-4 py-3 tabular-nums">
+                          {c.date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} · {fmtTime12(c.date)}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">{fmtHTG(c.theorique)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{fmtHTG(c.compte)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={'inline-block rounded-full px-2.5 py-1 text-xs font-medium tabular-nums ' + ecartTone(c.ecart)}>
+                            {c.ecart === 0 ? '0' : (c.ecart > 0 ? '+ ' : '− ') + fmtHTG(Math.abs(c.ecart))}
+                          </span>
+                        </td>
+                        <td className="max-w-[160px] truncate px-4 py-3 text-[var(--m3-on-surface-variant)]">{c.note ?? '—'}</td>
+                        <td className="px-3 py-3 text-right">
+                          <button type="button" onClick={() => onDeleteCount(c.id)} aria-label="Supprimer" className={rowBtn}>
+                            <M3StateLayer />
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: count + breakdown */}
+          <div className="space-y-4">
+            <PettyCountPanel
+              theorique={balance}
+              onSave={(compte, note) => onAddCount({ date: new Date(), theorique: balance, compte, ecart: compte - balance, note })}
+            />
+            <section className="space-y-3 rounded-[28px] bg-[var(--m3-surface-container)] p-5">
+              <h3 className="text-base font-medium">Dépenses par catégorie · {periodLabel}</h3>
+              {m3Breakdown()}
+            </section>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
