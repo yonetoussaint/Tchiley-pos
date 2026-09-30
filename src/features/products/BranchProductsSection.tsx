@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Check, ChevronDown, Clock, History, PackagePlus, Pencil, Plus, Search, ShoppingCart, Trash2, TrendingUp, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, Clock, History, PackagePlus, Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, TrendingUp, X } from 'lucide-react';
 import { M3_FOCUS } from '../../components/ui/focus';
 import { M3Loading, M3StateLayer, M3_STATUS, M3_VARS } from '../../components/ui/theme';
 import { CATEGORIES, categoryIcon } from './constants';
-import { M3TextField, ProductNumberField, type ProductDraft } from './ProductFields';
+import { M3BarcodeField, M3TextField, ProductNumberField, type ProductDraft } from './ProductFields';
+import { BarcodeScannerDialog } from './BarcodeScannerDialog';
+import { lookupProductByCode, normalizeCode } from './barcodeLookup';
 import type { Product, ProductHistoryEntry, ProductMovement } from './types';
 import { fmtHTG } from '../../shared/currency';
 
@@ -40,6 +42,9 @@ function FilterChip({ label, selected, onClick, size = 'md' }: { label: string; 
     </button>
   );
 }
+
+/* What the open scanner is for: locate an existing product, or fill a code field. */
+type ScanTarget = { kind: 'find' } | { kind: 'fill'; apply: (code: string) => void };
 
 type ProductSortKey = 'nom' | 'vendu' | 'prix' | 'prixAchat' | 'stock' | 'seuil' | 'marge' | 'valeur';
 
@@ -126,9 +131,11 @@ export function BranchProductsSection({
       (inventoryFocusFilter === 'reorder' && product.stockFermeture <= product.seuil) ||
       (inventoryFocusFilter === 'dead' && productSummaries[product.id]?.sales30 === 0) ||
       (inventoryFocusFilter === 'top' && (productSummaries[product.id]?.sales30 ?? 0) >= 3);
+    const query = inventorySearch.trim().toLowerCase();
     const matchesSearch =
-      product.nom.toLowerCase().includes(inventorySearch.toLowerCase()) ||
-      product.categorie.toLowerCase().includes(inventorySearch.toLowerCase());
+      product.nom.toLowerCase().includes(query) ||
+      product.categorie.toLowerCase().includes(query) ||
+      (product.codeBarres ?? '').toLowerCase().includes(query);
     return matchesCategory && matchesStatus && matchesFocus && matchesSearch;
   });
 
@@ -153,7 +160,7 @@ export function BranchProductsSection({
       return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
     }
   );
-  const [addProductDraft, setAddProductDraft] = useState<ProductDraft>({
+  const emptyDraft = (): ProductDraft => ({
     nom: '',
     categorie: presentCategories[0] && presentCategories[0] !== 'Tout' ? presentCategories[0] : 'Autre',
     prix: 0,
@@ -161,8 +168,25 @@ export function BranchProductsSection({
     stockFermeture: 0,
     seuil: 5,
     unite: 'unité',
+    codeBarres: '',
   });
+  const [addProductDraft, setAddProductDraft] = useState<ProductDraft>(emptyDraft);
   const [addProductError, setAddProductError] = useState<string | null>(null);
+
+  /* Barcode / QR scanning */
+  const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null);
+  const [unknownCode, setUnknownCode] = useState<string | null>(null);
+  const [codeLookup, setCodeLookup] = useState<'idle' | 'loading' | 'found' | 'none'>('idle');
+  const [scrollToId, setScrollToId] = useState<string | null>(null);
+  const lookupAbort = useRef<AbortController | null>(null);
+
+  const closeAddProduct = useCallback(() => {
+    lookupAbort.current?.abort();
+    setCodeLookup('idle');
+    setAddProductOpen(false);
+  }, []);
+
+  useEffect(() => () => lookupAbort.current?.abort(), []);
 
   /* Desktop: sortable table + side sheet for editing. */
   const [sort, setSort] = useState<{ key: ProductSortKey; dir: 'asc' | 'desc' } | null>(null);
@@ -170,24 +194,25 @@ export function BranchProductsSection({
   const [drawerFocus, setDrawerFocus] = useState<'restock' | null>(null);
 
   useEffect(() => {
-    if (!drawerId || deleteTarget) return;
+    if (!drawerId || deleteTarget || scanTarget) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setDrawerId(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [drawerId, deleteTarget]);
+  }, [drawerId, deleteTarget, scanTarget]);
 
   useEffect(() => {
-    if (!addProductOpen && !deleteTarget) return;
+    if ((!addProductOpen && !deleteTarget && !unknownCode) || scanTarget) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (deleteTarget) setDeleteTarget(null);
-      else setAddProductOpen(false);
+      else if (unknownCode) setUnknownCode(null);
+      else closeAddProduct();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [addProductOpen, deleteTarget]);
+  }, [addProductOpen, deleteTarget, unknownCode, scanTarget, closeAddProduct]);
 
   const isEditing = (id: string) => editingId === id;
   const isSaving = (id: string) => savingId === id;
@@ -209,6 +234,103 @@ export function BranchProductsSection({
     setDrawerId(id);
   };
   const drawerProduct = drawerId ? (branchProducts.find((item) => item.id === drawerId) ?? null) : null;
+
+  const findByCode = (raw: string, exceptId?: string) => {
+    const key = normalizeCode(raw);
+    if (!key) return undefined;
+    return branchProducts.find((item) => item.id !== exceptId && item.codeBarres && normalizeCode(item.codeBarres) === key);
+  };
+  const duplicateMessage = (raw: string, exceptId?: string) => {
+    const match = findByCode(raw, exceptId);
+    return match ? `Déjà utilisé par « ${match.nom} ».` : undefined;
+  };
+
+  /* Show a scanned product: side sheet on desktop, expanded card (scrolled into view) on phone. */
+  const revealProduct = (target: Product) => {
+    if (!filteredProducts.some((item) => item.id === target.id)) {
+      setInventorySearch('');
+      setInventoryCategoryFilter('Tout');
+      setInventoryStatusFilter('all');
+      setInventoryFocusFilter('all');
+    }
+    setEditingId(null);
+    if (window.matchMedia('(min-width: 640px)').matches) {
+      openDrawer(target.id);
+    } else {
+      setExpandedId(target.id);
+      setScrollToId(target.id);
+    }
+  };
+
+  useEffect(() => {
+    if (!scrollToId) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document
+      .querySelector(`[data-product-card="${CSS.escape(scrollToId)}"]`)
+      ?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    setScrollToId(null);
+  }, [scrollToId]);
+
+  /* Prefill name and category for a new product from a public food/drink database (best effort). */
+  const prefillFromCode = async (code: string) => {
+    lookupAbort.current?.abort();
+    const controller = new AbortController();
+    lookupAbort.current = controller;
+    setCodeLookup('loading');
+    const info = await lookupProductByCode(code, controller.signal);
+    if (controller.signal.aborted) return;
+    if (!info) {
+      setCodeLookup('none');
+      return;
+    }
+    setAddProductDraft((prev) => {
+      if (prev.codeBarres !== code || prev.nom.trim()) return prev;
+      return { ...prev, nom: info.nom, categorie: info.categorie ?? prev.categorie };
+    });
+    setCodeLookup('found');
+  };
+
+  const applyCodeToNewDraft = (code: string) => {
+    setAddProductDraft((prev) => ({ ...prev, codeBarres: code }));
+    setAddProductError(null);
+    if (findByCode(code)) {
+      setCodeLookup('idle');
+      return;
+    }
+    void prefillFromCode(code);
+  };
+
+  const openAddWithCode = (code: string) => {
+    setUnknownCode(null);
+    setAddProductDraft({ ...emptyDraft(), codeBarres: code });
+    setAddProductError(null);
+    setAddProductOpen(true);
+    void prefillFromCode(code);
+  };
+
+  const handleScanned = (raw: string) => {
+    const target = scanTarget;
+    setScanTarget(null);
+    const code = raw.trim();
+    if (!target || !code) return;
+    if (target.kind === 'fill') {
+      target.apply(code);
+      return;
+    }
+    const match = findByCode(code);
+    if (match) revealProduct(match);
+    else setUnknownCode(code);
+  };
+
+  /* USB / Bluetooth scanners type the code into the search box and press Enter. */
+  const handleSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    const match = findByCode(inventorySearch);
+    if (match) {
+      event.preventDefault();
+      revealProduct(match);
+    }
+  };
 
   const toggleSort = (key: ProductSortKey) =>
     setSort((prev) => {
@@ -262,6 +384,11 @@ export function BranchProductsSection({
       setAddProductError('Le nom du produit est obligatoire.');
       return;
     }
+    const duplicate = addProductDraft.codeBarres.trim() ? findByCode(addProductDraft.codeBarres) : undefined;
+    if (duplicate) {
+      setAddProductError(`Ce code-barres est déjà utilisé par « ${duplicate.nom} ».`);
+      return;
+    }
 
     const salePrice = Number(addProductDraft.prix) || 0;
     const purchasePrice = Number(addProductDraft.prixAchat) || 0;
@@ -282,18 +409,11 @@ export function BranchProductsSection({
       stockFermeture: Math.max(0, Number(addProductDraft.stockFermeture) || 0),
       seuil: Math.max(0, Number(addProductDraft.seuil) || 0),
       unite: addProductDraft.unite.trim() || 'unité',
+      codeBarres: addProductDraft.codeBarres.trim() || undefined,
     });
     setAddProductError(null);
-    setAddProductOpen(false);
-    setAddProductDraft({
-      nom: '',
-      categorie: presentCategories[0] && presentCategories[0] !== 'Tout' ? presentCategories[0] : 'Autre',
-      prix: 0,
-      prixAchat: 0,
-      stockFermeture: 0,
-      seuil: 5,
-      unite: 'unité',
-    });
+    closeAddProduct();
+    setAddProductDraft(emptyDraft());
   };
 
   const sortHead = (key: ProductSortKey, label: string, align: 'left' | 'right' = 'right') => {
@@ -353,6 +473,7 @@ export function BranchProductsSection({
             type="text"
             value={inventorySearch}
             onChange={(event) => setInventorySearch(event.target.value)}
+            onKeyDown={handleSearchKeyDown}
             placeholder="Rechercher un produit..."
             className="w-full min-w-0 border-none bg-transparent text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
           />
@@ -361,12 +482,22 @@ export function BranchProductsSection({
               type="button"
               onClick={() => setInventorySearch('')}
               aria-label="Effacer la recherche"
-              className={`group relative -mr-2 flex h-12 w-12 shrink-0   items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+              className={`group relative flex h-12 w-12 shrink-0   items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
             >
               <M3StateLayer />
               <X size={20} />
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setScanTarget({ kind: 'find' })}
+            aria-label="Scanner un code-barres ou QR"
+            title="Scanner un produit"
+            className={`group relative -mr-2 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-primary)] ${M3_FOCUS}`}
+          >
+            <M3StateLayer />
+            <ScanLine className="h-6 w-6" aria-hidden="true" />
+          </button>
         </div>
 
       {/* Category filter chips — only categories present in this branch */}
@@ -524,6 +655,7 @@ export function BranchProductsSection({
             return (
               <div
                 key={product.id}
+                data-product-card={product.id}
                 className={
                   'overflow-hidden transition-[background-color,border-radius] duration-300 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ' +
                   (open
@@ -546,6 +678,12 @@ export function BranchProductsSection({
                       value={product.categorie}
                       placeholder="Catégorie"
                       onChange={(value) => onUpdateProduct(product.id, { categorie: value })}
+                    />
+                    <M3BarcodeField
+                      value={product.codeBarres ?? ''}
+                      onChange={(value) => onUpdateProduct(product.id, { codeBarres: value })}
+                      onScan={() => setScanTarget({ kind: 'fill', apply: (code) => onUpdateProduct(product.id, { codeBarres: code }) })}
+                      error={duplicateMessage(product.codeBarres ?? '', product.id)}
                     />
                   </div>
                 ) : (
@@ -629,6 +767,14 @@ export function BranchProductsSection({
                         </div>
                       );
                     })()}
+
+                    {product.codeBarres && !editing && (
+                      <div className="mb-3 flex items-center gap-2 px-1 text-xs text-[var(--m3-on-surface-variant)]">
+                        <ScanLine size={14} aria-hidden="true" />
+                        <span className="sr-only">Code : </span>
+                        <span className="tabular-nums">{product.codeBarres}</span>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-3 gap-2">
                       <ProductNumberField
@@ -792,6 +938,7 @@ export function BranchProductsSection({
               type="text"
               value={inventorySearch}
               onChange={(event) => setInventorySearch(event.target.value)}
+              onKeyDown={handleSearchKeyDown}
               placeholder="Rechercher un produit..."
               className="w-full min-w-0 border-none bg-transparent text-sm text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
             />
@@ -800,12 +947,22 @@ export function BranchProductsSection({
                 type="button"
                 onClick={() => setInventorySearch('')}
                 aria-label="Effacer la recherche"
-                className={`group relative -mr-2 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+                className={`group relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
               >
                 <M3StateLayer />
                 <X size={18} />
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setScanTarget({ kind: 'find' })}
+              aria-label="Scanner un code-barres ou QR"
+              title="Scanner un produit"
+              className={`group relative -mr-2 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-primary)] ${M3_FOCUS}`}
+            >
+              <M3StateLayer />
+              <ScanLine size={20} aria-hidden="true" />
+            </button>
           </div>
 
           <div role="group" aria-label="Filtrer par stock" className="grid h-12 w-[420px] max-w-full grid-cols-3 gap-0.5">
@@ -1086,6 +1243,12 @@ export function BranchProductsSection({
                     <div className="space-y-2">
                       <M3TextField label="Nom du produit" value={p.nom} placeholder="Nom du produit" onChange={(value) => onUpdateProduct(p.id, { nom: value })} />
                       <M3TextField label="Catégorie" value={p.categorie} placeholder="Catégorie" onChange={(value) => onUpdateProduct(p.id, { categorie: value })} />
+                      <M3BarcodeField
+                        value={p.codeBarres ?? ''}
+                        onChange={(value) => onUpdateProduct(p.id, { codeBarres: value })}
+                        onScan={() => setScanTarget({ kind: 'fill', apply: (code) => onUpdateProduct(p.id, { codeBarres: code }) })}
+                        error={duplicateMessage(p.codeBarres ?? '', p.id)}
+                      />
                     </div>
                   </section>
 
@@ -1231,7 +1394,7 @@ export function BranchProductsSection({
         <div
           role="presentation"
           style={M3_VARS}
-          onClick={(event) => { if (event.target === event.currentTarget) setAddProductOpen(false); }}
+          onClick={(event) => { if (event.target === event.currentTarget) closeAddProduct(); }}
           className="fixed inset-0 z-[80] flex items-end justify-center bg-black/[0.32] sm:items-center sm:p-4"
         >
           <div
@@ -1243,19 +1406,41 @@ export function BranchProductsSection({
             <div aria-hidden="true" className="mx-auto mb-4 h-1 w-8 rounded-full bg-[var(--m3-on-surface-variant)] opacity-40 sm:hidden" />
             <div className="flex items-center justify-between gap-3">
               <h3 id="add-product-title" className="text-2xl leading-8">Ajouter un produit</h3>
-              <button type="button" onClick={() => setAddProductOpen(false)} aria-label="Fermer" className={`group relative -mr-2 flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}>
+              <button type="button" onClick={() => closeAddProduct()} aria-label="Fermer" className={`group relative -mr-2 flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}>
                 <M3StateLayer />
                 <X size={20} />
               </button>
             </div>
 
             <div className="mt-4 space-y-3">
+              <M3BarcodeField
+                value={addProductDraft.codeBarres}
+                onChange={(value) => {
+                  lookupAbort.current?.abort();
+                  setCodeLookup('idle');
+                  setAddProductDraft((prev) => ({ ...prev, codeBarres: value }));
+                }}
+                onScan={() => setScanTarget({ kind: 'fill', apply: applyCodeToNewDraft })}
+                error={duplicateMessage(addProductDraft.codeBarres)}
+              />
+              {codeLookup !== 'idle' && (
+                <p role="status" className="flex items-center gap-2 px-4 text-xs text-[var(--m3-on-surface-variant)]">
+                  {codeLookup === 'loading' && (
+                    <>
+                      <M3Loading size={14} />
+                      Recherche du produit…
+                    </>
+                  )}
+                  {codeLookup === 'found' && 'Nom et catégorie préremplis (Open Food Facts). Vérifiez avant de créer.'}
+                  {codeLookup === 'none' && 'Aucune fiche trouvée pour ce code. Complétez le produit à la main.'}
+                </p>
+              )}
               <M3TextField label="Nom du produit" value={addProductDraft.nom} placeholder="Ex: Ciment gris 50kg" onChange={(value) => setAddProductDraft((prev) => ({ ...prev, nom: value }))} />
               <div className="grid grid-cols-2 gap-2">
                 <label className="block min-w-0 rounded-xl bg-[var(--m3-surface)] px-4 pb-1.5 pt-2 ring-1 ring-[var(--m3-outline)] focus-within:ring-2 focus-within:ring-[var(--m3-primary)]">
                   <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">Catégorie</span>
                   <select value={addProductDraft.categorie} onChange={(event) => setAddProductDraft((prev) => ({ ...prev, categorie: event.target.value }))} className="h-8 w-full min-w-0 bg-transparent p-0 text-base text-[var(--m3-on-surface)] outline-none">
-                    {['Autre', ...presentCategories.filter((c) => c !== 'Tout')].map((cat) => (
+                    {Array.from(new Set(['Autre', ...presentCategories.filter((c) => c !== 'Tout'), addProductDraft.categorie])).map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
@@ -1278,11 +1463,71 @@ export function BranchProductsSection({
             )}
 
             <div className="mt-6 flex justify-end gap-2">
-              <button type="button" onClick={() => setAddProductOpen(false)} className={`group relative h-10 overflow-hidden rounded-full px-4 text-sm font-medium text-[var(--m3-primary)] ${M3_FOCUS}`}>
+              <button type="button" onClick={() => closeAddProduct()} className={`group relative h-10 overflow-hidden rounded-full px-4 text-sm font-medium text-[var(--m3-primary)] ${M3_FOCUS}`}>
                 <M3StateLayer />
                 Annuler
               </button>
               <button type="button" onClick={submitNewProduct} className={`group relative h-10 overflow-hidden rounded-full bg-[var(--m3-primary)] px-6 text-sm font-medium text-[var(--m3-on-primary)] ${M3_FOCUS}`}>
+                <M3StateLayer />
+                Créer le produit
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {scanTarget && (
+        <BarcodeScannerDialog
+          title={scanTarget.kind === 'find' ? 'Trouver un produit' : 'Scanner le code du produit'}
+          onDetected={handleScanned}
+          onClose={() => setScanTarget(null)}
+        />
+      )}
+
+      {unknownCode && createPortal(
+        <div
+          role="presentation"
+          style={M3_VARS}
+          onClick={(event) => { if (event.target === event.currentTarget) setUnknownCode(null); }}
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/[0.32] p-6"
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="unknown-code-title"
+            aria-describedby="unknown-code-desc"
+            className="m3-dialog w-full max-w-[312px] rounded-[28px] bg-[var(--m3-surface-container-high)] p-6 text-[var(--m3-on-surface)] shadow-[0_8px_24px_rgba(0,0,0,0.2)]"
+          >
+            <span aria-hidden="true" className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+              <ScanLine size={24} />
+            </span>
+            <h3 id="unknown-code-title" className="text-center text-2xl leading-8">Produit introuvable</h3>
+            <p id="unknown-code-desc" className="mt-3 text-center text-sm leading-5 text-[var(--m3-on-surface-variant)]">
+              Aucun produit n'a le code{' '}
+              <span className="break-all font-medium tabular-nums text-[var(--m3-on-surface)]">{unknownCode}</span>.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button type="button" autoFocus onClick={() => setUnknownCode(null)} className={`group relative h-10 overflow-hidden rounded-full px-4 text-sm font-medium text-[var(--m3-primary)] ${M3_FOCUS}`}>
+                <M3StateLayer />
+                Fermer
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUnknownCode(null);
+                  setScanTarget({ kind: 'find' });
+                }}
+                className={`group relative h-10 overflow-hidden rounded-full px-4 text-sm font-medium text-[var(--m3-primary)] ${M3_FOCUS}`}
+              >
+                <M3StateLayer />
+                Scanner encore
+              </button>
+              <button
+                type="button"
+                onClick={() => openAddWithCode(unknownCode)}
+                className={`group relative h-10 overflow-hidden rounded-full bg-[var(--m3-primary)] px-5 text-sm font-medium text-[var(--m3-on-primary)] ${M3_FOCUS}`}
+              >
                 <M3StateLayer />
                 Créer le produit
               </button>
