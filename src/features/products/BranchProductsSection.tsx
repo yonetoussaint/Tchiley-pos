@@ -1,12 +1,45 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Check, ChevronDown, History, PackagePlus, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, Clock, History, PackagePlus, Pencil, Plus, Search, ShoppingCart, Trash2, TrendingUp, X } from 'lucide-react';
 import { M3_FOCUS } from '../../components/ui/focus';
 import { M3Loading, M3StateLayer, M3_STATUS, M3_VARS } from '../../components/ui/theme';
 import { CATEGORIES, categoryIcon } from './constants';
 import { M3TextField, ProductNumberField, type ProductDraft } from './ProductFields';
 import type { Product, ProductHistoryEntry, ProductMovement } from './types';
 import { fmtHTG } from '../../shared/currency';
+
+type FocusFilter = 'all' | 'reorder' | 'dead' | 'top';
+
+const FOCUS_OPTIONS: { id: FocusFilter; label: string }[] = [
+  { id: 'all', label: 'Tout' },
+  { id: 'reorder', label: 'À commander' },
+  { id: 'dead', label: 'Inactif' },
+  { id: 'top', label: 'Top ventes' },
+];
+
+/* Filter chip: selected = full pill + check, unselected = rounded square (shape morph). */
+function FilterChip({ label, selected, onClick, size = 'md' }: { label: string; selected: boolean; onClick: () => void; size?: 'sm' | 'md' }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`group relative shrink-0 before:absolute before:inset-x-0 before:-inset-y-1 before:content-[''] ${M3_FOCUS}`}
+    >
+      <span
+        className={`relative flex ${size === 'sm' ? 'h-8' : 'h-9'} items-center gap-2 overflow-hidden px-3.5 text-sm font-medium m3-morph ${
+          selected
+            ? 'rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+            : 'rounded-xl border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+        }`}
+      >
+        <M3StateLayer />
+        {selected && <Check size={16} aria-hidden="true" />}
+        {label}
+      </span>
+    </button>
+  );
+}
 
 type ProductSortKey = 'nom' | 'vendu' | 'prix' | 'prixAchat' | 'stock' | 'seuil' | 'marge' | 'valeur';
 
@@ -56,9 +89,10 @@ export function BranchProductsSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [inventoryFocusFilter, setInventoryFocusFilter] = useState<'all' | 'reorder' | 'dead' | 'top'>('all');
+  const [inventoryFocusFilter, setInventoryFocusFilter] = useState<FocusFilter>('all');
   const [stockAdjustment, setStockAdjustment] = useState({ delta: 0, reason: 'Inventaire' });
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
 
   const productSummaries = useMemo(() => {
     const map: Record<string, { unitMargin: number; stockCost: number; stockSale: number; sales7: number; sales30: number; velocity: number; daysLeft: number | null }> = {};
@@ -136,13 +170,24 @@ export function BranchProductsSection({
   const [drawerFocus, setDrawerFocus] = useState<'restock' | null>(null);
 
   useEffect(() => {
-    if (!drawerId) return;
+    if (!drawerId || deleteTarget) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setDrawerId(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [drawerId]);
+  }, [drawerId, deleteTarget]);
+
+  useEffect(() => {
+    if (!addProductOpen && !deleteTarget) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (deleteTarget) setDeleteTarget(null);
+      else setAddProductOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [addProductOpen, deleteTarget]);
 
   const isEditing = (id: string) => editingId === id;
   const isSaving = (id: string) => savingId === id;
@@ -396,58 +441,66 @@ export function BranchProductsSection({
 
       </div>
 
-      <div className="mb-4 grid grid-cols-3 gap-2">
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        <div className="col-span-2 rounded-[28px] bg-[var(--m3-primary-container)] px-5 py-4 text-[var(--m3-on-primary-container)]">
+          <div className="text-sm font-medium opacity-80">Profit potentiel</div>
+          <div className="mt-1 text-3xl font-semibold leading-9 tabular-nums">{fmtHTG(potentialProfit)}</div>
+        </div>
         {[
           ['Valeur stock', fmtHTG(totalStockValueCost)],
           ['Valeur vente', fmtHTG(totalStockValueSale)],
-          ['Profit potentiel', fmtHTG(potentialProfit)],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-2xl bg-[var(--m3-surface-container)] p-3">
-            <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">{label}</div>
-            <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+          <div key={label} className="rounded-[20px] bg-[var(--m3-surface-container)] px-4 py-3">
+            <div className="text-xs text-[var(--m3-on-surface-variant)]">{label}</div>
+            <div className="mt-0.5 text-base font-semibold tabular-nums">{value}</div>
           </div>
         ))}
       </div>
 
-      <div className="mb-4 grid h-12 grid-cols-4 gap-1.5">
-        {[
-          { id: 'all', label: 'Tout' },
-          { id: 'reorder', label: 'À commander' },
-          { id: 'dead', label: 'Inactif' },
-          { id: 'top', label: 'Top ventes' },
-        ].map((filter) => (
-          <button
-            key={filter.id}
-            type="button"
-            onClick={() => setInventoryFocusFilter(filter.id as 'all' | 'reorder' | 'dead' | 'top')}
-            className={`group relative overflow-hidden rounded-full px-2 text-xs font-semibold ${M3_FOCUS} ${inventoryFocusFilter === filter.id ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]'}`}
-          >
-            <M3StateLayer />
-            {filter.label}
-          </button>
+      <div
+        role="group"
+        aria-label="Filtrer par activité"
+        className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {FOCUS_OPTIONS.map((filter) => (
+          <FilterChip key={filter.id} label={filter.label} selected={inventoryFocusFilter === filter.id} onClick={() => setInventoryFocusFilter(filter.id)} />
         ))}
       </div>
 
+      {/* Insight carousel — tap a card to filter the list */}
       {(reorderList.length > 0 || deadStockList.length > 0 || topSellers.length > 0) && (
-        <div className="mb-4 grid gap-2 sm:grid-cols-3">
-          {reorderList.length > 0 && (
-            <div className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
-              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">À commander</div>
-              <div className="mt-2 text-sm font-medium">{reorderList.slice(0, 2).map((product) => product.nom).join(' • ')}</div>
-            </div>
-          )}
-          {deadStockList.length > 0 && (
-            <div className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
-              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">Inactif 30j</div>
-              <div className="mt-2 text-sm font-medium">{deadStockList.slice(0, 2).map((product) => product.nom).join(' • ')}</div>
-            </div>
-          )}
-          {topSellers.length > 0 && (
-            <div className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
-              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">Top ventes</div>
-              <div className="mt-2 text-sm font-medium">{topSellers.slice(0, 2).map((product) => `${product.nom} (${productSummaries[product.id]?.sales30 ?? 0})`).join(' • ')}</div>
-            </div>
-          )}
+        <div className="-mx-4 mb-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[
+            { id: 'reorder' as const, label: 'À commander', Icon: ShoppingCart, items: reorderList.slice(0, 2).map((product) => product.nom) },
+            { id: 'dead' as const, label: 'Inactif 30 j', Icon: Clock, items: deadStockList.slice(0, 2).map((product) => product.nom) },
+            { id: 'top' as const, label: 'Top ventes', Icon: TrendingUp, items: topSellers.slice(0, 2).map((product) => `${product.nom} (${productSummaries[product.id]?.sales30 ?? 0})`) },
+          ]
+            .filter((card) => card.items.length > 0)
+            .map(({ id, label, Icon, items }) => {
+              const selected = inventoryFocusFilter === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setInventoryFocusFilter((prev) => (prev === id ? 'all' : id))}
+                  className={`group relative flex w-[72%] shrink-0 snap-start items-center gap-3 overflow-hidden p-4 text-left m3-morph ${
+                    selected
+                      ? 'rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                      : 'rounded-[28px] bg-[var(--m3-surface-container)] text-[var(--m3-on-surface)]'
+                  } ${M3_FOCUS}`}
+                >
+                  <M3StateLayer />
+                  <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+                    <Icon size={20} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-xs text-[var(--m3-on-surface-variant)]">{label}</span>
+                    <span className="block truncate text-sm font-medium">{items.join(' • ')}</span>
+                  </span>
+                </button>
+              );
+            })}
         </div>
       )}
 
@@ -465,6 +518,7 @@ export function BranchProductsSection({
             const tone = isOutOfStock ? M3_STATUS.out : isLowStock ? M3_STATUS.low : M3_STATUS.ok;
             const statusLabel = isOutOfStock ? 'Rupture de stock' : isLowStock ? 'Stock bas' : 'En stock';
             const CategoryIcon = categoryIcon(product.categorie);
+            const iconBtn = `group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-[var(--m3-error,#BA1A1A)] ${M3_FOCUS}`;
             const btn =
               `group relative flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full px-2 text-sm font-medium tracking-[0.01em] ${M3_FOCUS}`;
             return (
@@ -475,7 +529,7 @@ export function BranchProductsSection({
                   (open
                     ? 'rounded-[32px] bg-[var(--m3-surface-container-high)]'
                     : 'rounded-2xl bg-[var(--m3-surface-container)]') +
-                  (editing ? ' ring-2 ring-[var(--m3-primary)]' : '')
+                  ''
                 }
               >
                 {/* List item */}
@@ -513,7 +567,7 @@ export function BranchProductsSection({
                         {product.nom}
                       </span>
                       <span className="block truncate text-sm leading-5 text-[var(--m3-on-surface-variant)]">
-                        {product.categorie} · Prix {product.prix} · Vendu {soldToday}
+                        {product.categorie} · {fmtHTG(product.prix)} · Vendu {soldToday}
                       </span>
                     </span>
                     <span
@@ -550,7 +604,7 @@ export function BranchProductsSection({
                               ['Jours restants', metrics.daysLeft != null ? `${metrics.daysLeft.toFixed(1)} j` : '—'],
                             ].map(([label, value]) => (
                               <div key={label}>
-                                <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--m3-on-surface-variant)]">{label}</div>
+                                <div className="text-xs text-[var(--m3-on-surface-variant)]">{label}</div>
                                 <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
                               </div>
                             ))}
@@ -560,7 +614,7 @@ export function BranchProductsSection({
                               <div className="text-xs text-[var(--m3-on-surface-variant)]">Aucun mouvement historique pour ce produit.</div>
                             ) : recent.map((entry) => {
                                 const signed = entry.kind === 'sale' ? '-' : '+';
-                                const tone = entry.kind === 'sale' ? 'text-[#BA1A1A]' : 'text-[#2F6B4F]';
+                                const tone = entry.kind === 'sale' ? 'text-[var(--m3-error,#BA1A1A)]' : 'text-[var(--m3-primary)]';
                                 return (
                                   <div key={entry.id} className="flex items-center justify-between gap-2 rounded-xl bg-[var(--m3-surface-container)] px-2.5 py-1.5 text-xs">
                                     <div className="min-w-0">
@@ -622,7 +676,7 @@ export function BranchProductsSection({
                       />
                     </div>
 
-                    <div className={'mt-4 grid gap-2 ' + (editing ? 'grid-cols-2' : 'grid-cols-3')}>
+                    <div className={'mt-4 grid gap-2 ' + (editing ? 'grid-cols-2' : 'grid-cols-[1fr_1fr_auto]')}>
                       {editing ? (
                         <>
                           <button
@@ -663,7 +717,7 @@ export function BranchProductsSection({
                           >
                             <M3StateLayer />
                             <History size={18} />
-                            Histo.
+                            Historique
                           </button>
                           <button
                             onClick={() => {
@@ -679,14 +733,14 @@ export function BranchProductsSection({
                           </button>
                           <button
                             onClick={() => {
-                              if (window.confirm(`Supprimer « ${product.nom} » ?`)) onDeleteProduct(product);
+                              setDeleteTarget(product);
                             }}
-                            className={`${btn} text-[#BA1A1A]`}
+                            className={iconBtn}
                             aria-label="Supprimer"
+                            title="Supprimer"
                           >
                             <M3StateLayer />
-                            <Trash2 size={18} />
-                            Suppr.
+                            <Trash2 size={20} />
                           </button>
                         </>
                       )}
@@ -723,7 +777,7 @@ export function BranchProductsSection({
           </div>
           <button
             onClick={() => setAddProductOpen(true)}
-            className={`group relative flex h-12 shrink-0 items-center gap-2 overflow-hidden rounded-[20px] bg-[var(--m3-primary)] px-6 text-sm font-semibold text-[var(--m3-on-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.15)] transition-[box-shadow,transform] hover:shadow-[0_2px_6px_2px_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.3)] active:scale-[0.96] motion-reduce:transition-none ${M3_FOCUS}`}
+            className={`group relative flex h-12 shrink-0 items-center gap-2 overflow-hidden rounded-full bg-[var(--m3-primary)] px-6 text-sm font-semibold text-[var(--m3-on-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.15)] transition-[box-shadow,transform] hover:shadow-[0_2px_6px_2px_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.3)] active:scale-[0.96] motion-reduce:transition-none ${M3_FOCUS}`}
           >
             <M3StateLayer />
             <Plus size={20} />
@@ -794,22 +848,9 @@ export function BranchProductsSection({
           </div>
         </div>
 
-        <div className="mb-4 grid grid-cols-4 gap-2">
-          {[
-            { id: 'all', label: 'Tout' },
-            { id: 'reorder', label: 'À commander' },
-            { id: 'dead', label: 'Inactif' },
-            { id: 'top', label: 'Top ventes' },
-          ].map((filter) => (
-            <button
-              key={filter.id}
-              type="button"
-              onClick={() => setInventoryFocusFilter(filter.id as 'all' | 'reorder' | 'dead' | 'top')}
-              className={`group relative h-10 overflow-hidden rounded-full px-3 text-sm font-medium ${M3_FOCUS} ${inventoryFocusFilter === filter.id ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]'}`}
-            >
-              <M3StateLayer />
-              {filter.label}
-            </button>
+        <div role="group" aria-label="Filtrer par activité" className="mb-3 flex flex-wrap gap-2">
+          {FOCUS_OPTIONS.map((filter) => (
+            <FilterChip key={filter.id} size="sm" label={filter.label} selected={inventoryFocusFilter === filter.id} onClick={() => setInventoryFocusFilter(filter.id)} />
           ))}
         </div>
 
@@ -818,10 +859,17 @@ export function BranchProductsSection({
             ['Valeur stock', fmtHTG(totalStockValueCost)],
             ['Valeur vente', fmtHTG(totalStockValueSale)],
             ['Profit potentiel', fmtHTG(potentialProfit)],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
-              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">{label}</div>
-              <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+          ].map(([label, value], idx) => (
+            <div
+              key={label}
+              className={`rounded-[28px] px-5 py-4 ${
+                idx === 2
+                  ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]'
+                  : 'bg-[var(--m3-surface-container)]'
+              }`}
+            >
+              <div className={`text-sm ${idx === 2 ? 'font-medium opacity-80' : 'text-[var(--m3-on-surface-variant)]'}`}>{label}</div>
+              <div className="mt-1 text-2xl font-semibold leading-8 tabular-nums">{value}</div>
             </div>
           ))}
         </div>
@@ -895,12 +943,10 @@ export function BranchProductsSection({
                         }
                       }}
                       className={
-                        'cursor-pointer border-b border-[var(--m3-outline-variant)]/60 transition-colors last:border-b-0 focus-visible:bg-[var(--m3-surface-container-high)] focus-visible:outline-none motion-reduce:transition-none ' +
+                        'cursor-pointer border-b border-[var(--m3-outline-variant)]/60 transition-colors last:border-b-0 focus-visible:bg-[var(--m3-surface-container-high)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--m3-primary)] motion-reduce:transition-none ' +
                         (active
                           ? 'bg-[var(--m3-secondary-container)]'
-                          : isOutOfStock
-                            ? 'bg-[#FFDAD6]/40 hover:bg-[#FFDAD6]/60'
-                            : 'hover:bg-[var(--m3-surface-container-high)]')
+                          : 'hover:bg-[var(--m3-surface-container-high)]')
                       }
                     >
                       <td className="max-w-[320px] px-4 py-2.5">
@@ -939,9 +985,9 @@ export function BranchProductsSection({
                           </button>
                           <button
                             onClick={() => {
-                              if (window.confirm(`Supprimer « ${product.nom} » ?`)) onDeleteProduct(product);
+                              setDeleteTarget(product);
                             }}
-                            className={`${iconBtn} !text-[#BA1A1A]`}
+                            className={`${iconBtn} !text-[var(--m3-error,#BA1A1A)]`}
                             aria-label="Supprimer"
                             title="Supprimer"
                           >
@@ -955,7 +1001,7 @@ export function BranchProductsSection({
                 })}
                 {sortedProducts.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center">
+                    <td colSpan={9} className="px-4 py-16 text-center">
                       <div className="flex flex-col items-center gap-1">
                         <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
                           <PackagePlus size={28} />
@@ -1095,7 +1141,7 @@ export function BranchProductsSection({
                         ];
                       })().map(([label, value]) => (
                         <div key={label} className="rounded-2xl bg-[var(--m3-surface-container)] px-3 py-2.5 text-center">
-                          <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--m3-on-surface-variant)]">{label}</div>
+                          <div className="text-xs text-[var(--m3-on-surface-variant)]">{label}</div>
                           <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
                         </div>
                       ))}
@@ -1111,7 +1157,7 @@ export function BranchProductsSection({
                             <div className="truncate font-medium text-[var(--m3-on-surface)]">{entry.note}</div>
                             <div className="text-[var(--m3-on-surface-variant)]">{entry.kind === 'sale' ? 'Vente' : entry.kind === 'purchase' ? 'Achat' : entry.kind === 'restock' ? 'Réappro.' : entry.kind === 'manual' ? 'Correction' : 'Mouvement'} · {entry.date.toLocaleDateString('fr-FR')}</div>
                           </div>
-                          <div className={`tabular-nums font-semibold ${entry.kind === 'sale' ? 'text-[#BA1A1A]' : 'text-[#2F6B4F]'}`}>
+                          <div className={`tabular-nums font-semibold ${entry.kind === 'sale' ? 'text-[var(--m3-error,#BA1A1A)]' : 'text-[var(--m3-primary)]'}`}>
                             {entry.kind === 'sale' ? '-' : '+'}{entry.qty}
                           </div>
                         </div>
@@ -1148,12 +1194,9 @@ export function BranchProductsSection({
                   <button
                     type="button"
                     onClick={() => {
-                      if (window.confirm(`Supprimer « ${p.nom} » ?`)) {
-                        setDrawerId(null);
-                        onDeleteProduct(p);
-                      }
+                      setDeleteTarget(p);
                     }}
-                    className={`${footBtn} -ml-2 text-[#BA1A1A]`}
+                    className={`${footBtn} -ml-2 text-[var(--m3-error,#BA1A1A)]`}
                   >
                     <M3StateLayer />
                     <Trash2 size={18} />
@@ -1185,23 +1228,24 @@ export function BranchProductsSection({
         })()}
 
       {addProductOpen && createPortal(
-        <>
-          <div aria-hidden="true" onClick={() => setAddProductOpen(false)} className="fixed inset-0 z-[80] bg-black/40" />
+        <div
+          role="presentation"
+          style={M3_VARS}
+          onClick={(event) => { if (event.target === event.currentTarget) setAddProductOpen(false); }}
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/[0.32] sm:items-center sm:p-4"
+        >
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Ajouter un produit"
-            style={M3_VARS}
-            className="m3-dialog fixed left-1/2 top-1/2 z-[81] w-[min(92vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-[28px] bg-[var(--m3-surface-container-low)] p-5 text-[var(--m3-on-surface)] shadow-[0_24px_50px_rgba(0,0,0,0.2)]"
+            aria-labelledby="add-product-title"
+            className="m3-dialog max-h-[92dvh] w-full overflow-y-auto rounded-t-[28px] bg-[var(--m3-surface-container-low)] px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3 text-[var(--m3-on-surface)] shadow-[0_8px_24px_rgba(0,0,0,0.2)] sm:max-w-[520px] sm:rounded-[28px] sm:pb-6 sm:pt-6"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-xs font-medium uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">Inventaire</div>
-                <h3 className="mt-1 text-[24px] leading-8">Ajouter un produit</h3>
-              </div>
-              <button type="button" onClick={() => setAddProductOpen(false)} className={`group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}>
+            <div aria-hidden="true" className="mx-auto mb-4 h-1 w-8 rounded-full bg-[var(--m3-on-surface-variant)] opacity-40 sm:hidden" />
+            <div className="flex items-center justify-between gap-3">
+              <h3 id="add-product-title" className="text-2xl leading-8">Ajouter un produit</h3>
+              <button type="button" onClick={() => setAddProductOpen(false)} aria-label="Fermer" className={`group relative -mr-2 flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}>
                 <M3StateLayer />
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
@@ -1226,20 +1270,70 @@ export function BranchProductsSection({
               </div>
             </div>
 
-            {addProductError && <div className="mt-3 rounded-2xl bg-[#FFDAD6] px-3 py-2 text-sm text-[#410002]">{addProductError}</div>}
+            {addProductError && (
+              <div role="alert" className="mt-3 flex items-start gap-2 rounded-2xl bg-[var(--m3-error-container,#FFDAD6)] px-4 py-3 text-sm text-[var(--m3-on-error-container,#410002)]">
+                <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+                {addProductError}
+              </div>
+            )}
 
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row">
-              <button type="button" onClick={() => setAddProductOpen(false)} className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-sm font-semibold text-[var(--m3-on-secondary-container)] ${M3_FOCUS}`}>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" onClick={() => setAddProductOpen(false)} className={`group relative h-10 overflow-hidden rounded-full px-4 text-sm font-medium text-[var(--m3-primary)] ${M3_FOCUS}`}>
                 <M3StateLayer />
                 Annuler
               </button>
-              <button type="button" onClick={submitNewProduct} className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-primary)] text-sm font-semibold text-[var(--m3-on-primary)] ${M3_FOCUS}`}>
+              <button type="button" onClick={submitNewProduct} className={`group relative h-10 overflow-hidden rounded-full bg-[var(--m3-primary)] px-6 text-sm font-medium text-[var(--m3-on-primary)] ${M3_FOCUS}`}>
                 <M3StateLayer />
                 Créer le produit
               </button>
             </div>
           </div>
-        </>,
+        </div>,
+        document.body
+      )}
+
+      {deleteTarget && createPortal(
+        <div
+          role="presentation"
+          style={M3_VARS}
+          onClick={(event) => { if (event.target === event.currentTarget) setDeleteTarget(null); }}
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/[0.32] p-6"
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-product-title"
+            aria-describedby="delete-product-desc"
+            className="m3-dialog w-full max-w-[312px] rounded-[28px] bg-[var(--m3-surface-container-high)] p-6 text-[var(--m3-on-surface)] shadow-[0_8px_24px_rgba(0,0,0,0.2)]"
+          >
+            <span aria-hidden="true" className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--m3-error-container,#FFDAD6)] text-[var(--m3-error,#BA1A1A)]">
+              <Trash2 size={24} />
+            </span>
+            <h3 id="delete-product-title" className="text-center text-2xl leading-8">Supprimer ce produit ?</h3>
+            <p id="delete-product-desc" className="mt-3 text-center text-sm leading-5 text-[var(--m3-on-surface-variant)]">
+              « {deleteTarget.nom} » sera retiré de l'inventaire. Cette action est définitive.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" autoFocus onClick={() => setDeleteTarget(null)} className={`group relative h-10 overflow-hidden rounded-full px-4 text-sm font-medium text-[var(--m3-primary)] ${M3_FOCUS}`}>
+                <M3StateLayer />
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = deleteTarget;
+                  setDeleteTarget(null);
+                  if (drawerId === target.id) setDrawerId(null);
+                  onDeleteProduct(target);
+                }}
+                className={`group relative h-10 overflow-hidden rounded-full px-4 text-sm font-medium text-[var(--m3-error,#BA1A1A)] ${M3_FOCUS}`}
+              >
+                <M3StateLayer />
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>,
         document.body
       )}
     </>
