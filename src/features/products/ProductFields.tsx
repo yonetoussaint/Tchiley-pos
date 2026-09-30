@@ -1,3 +1,8 @@
+import { useId } from 'react';
+import { ScanLine } from 'lucide-react';
+import { M3_FOCUS } from '../../components/ui/focus';
+import { M3StateLayer } from '../../components/ui/theme';
+
 type ProductFieldTone = 'green' | 'ink' | 'steel' | 'yellow';
 
 export type ProductDraft = {
@@ -8,6 +13,7 @@ export type ProductDraft = {
   stockFermeture: number;
   seuil: number;
   unite: string;
+  codeBarres: string;
 };
 
 const PRODUCT_FIELD_TONES: Record<ProductFieldTone, { text: string }> = {
@@ -81,5 +87,59 @@ export function ProductNumberField({
         className={`h-8 w-full min-w-0 bg-transparent p-0 text-base font-medium tabular-nums outline-none ${fieldTone.text}`}
       />
     </label>
+  );
+}
+
+type M3BarcodeFieldProps = {
+  value: string;
+  onChange: (value: string) => void;
+  onScan: () => void;
+  error?: string;
+};
+
+/* Text field with a trailing scan button: type/paste a code or fill it from the camera. */
+export function M3BarcodeField({ value, onChange, onScan, error }: M3BarcodeFieldProps) {
+  const errorId = useId();
+  return (
+    <div>
+      <div
+        className={`flex min-w-0 items-center rounded-xl bg-[var(--m3-surface)] pl-4 pr-1 transition-shadow focus-within:ring-2 motion-reduce:transition-none ${
+          error
+            ? 'ring-2 ring-[var(--m3-error,#BA1A1A)]'
+            : 'ring-1 ring-[var(--m3-outline)] focus-within:ring-[var(--m3-primary)]'
+        }`}
+      >
+        <label className="block min-w-0 flex-1 pb-1.5 pt-2">
+          <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">Code-barres ou QR</span>
+          <input
+            value={value}
+            onChange={(event) => onChange(event.target.value.trim())}
+            placeholder="Scanner ou saisir le code"
+            autoCapitalize="off"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
+            className="h-8 w-full min-w-0 bg-transparent p-0 text-base tabular-nums text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={onScan}
+          aria-label="Scanner un code-barres ou QR"
+          title="Scanner"
+          className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-primary)] ${M3_FOCUS}`}
+        >
+          <M3StateLayer />
+          <ScanLine size={22} aria-hidden="true" />
+        </button>
+      </div>
+      {error && (
+        <p id={errorId} role="alert" className="mt-1 px-4 text-xs text-[var(--m3-error,#BA1A1A)]">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
