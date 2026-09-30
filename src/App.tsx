@@ -892,7 +892,7 @@ const INITIAL_USERS: User[] = [
 function GestionMateriaux() {
   const [view, setView] = useState<View>('vente');
   const [menuOpen, setMenuOpen] = useState<boolean>(
-    () => typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches
+    () => typeof window === 'undefined' || window.matchMedia('(min-width: 1100px)').matches
   );
   useEffect(() => {
     if (!menuOpen) return;
@@ -1263,45 +1263,66 @@ function GestionMateriaux() {
     );
   }
 
-  return (
-    <div style={M3_VARS} className="flex h-screen w-full flex-col overflow-hidden bg-[var(--m3-surface)] font-sans text-[var(--m3-on-surface)] md:bg-[#ECE7DC] md:text-[#16181A]">
-      <div className="hidden shrink-0 flex-wrap items-center justify-between gap-3 md:flex md:border-b-2 md:border-[#16181A] md:bg-[#FBFAF6] md:py-4 md:px-6">
-        <div>
-          <div className="text-xs text-[var(--m3-on-surface-variant)] md:text-[11px] md:uppercase md:tracking-[0.28em] md:text-[#4B5560]">Espace vendeur</div>
-          <h1 className="mt-1 font-sans font-medium md:font-serif md:font-normal text-2xl md:text-3xl">Gestion de Magasin</h1>
-        </div>
-        <button
-          onClick={() => setSelectedBranchId(null)}
-          className={`h-10 rounded-full bg-[var(--m3-secondary-container)] px-4 text-sm font-medium text-[var(--m3-on-secondary-container)] m3-press motion-reduce:transition-none md:h-auto md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:px-3 md:py-2 md:text-[11px] md:font-normal md:uppercase md:tracking-[0.18em] md:text-[#16181A] md:hover:bg-[#ECE7DC] md:active:scale-100 ${M3_FOCUS}`}
-        >
-          Changer de succursale
-        </button>
-      </div>
+  const drawerGroups: DrawerGroup[] = MOBILE_GROUPS_VENDOR.map(({ label, ids }) => ({
+          label,
+          items: ids.map((id): DrawerItem => {
+            const nav = NAV_ITEMS.find((n) => n.id === id)!;
+            const active = view === id;
+            const isReports = id === 'rapports';
+            return {
+              id,
+              label: nav.label,
+              icon: nav.icon,
+              active,
+              badge: id === 'vente' ? nbArticlesPanier : undefined,
+              expanded: isReports ? reportsOpen && active : undefined,
+              children: isReports
+                ? REPORT_TABS.map((tab) => ({
+                    id: tab.id,
+                    label: tab.label,
+                    short: tab.short,
+                    active: reportPeriod === tab.id,
+                    onClick: () => {
+                      setReportPeriod(tab.id);
+                      closeMenuOnMobile();
+                    },
+                  }))
+                : undefined,
+              onClick: () => {
+                if (isReports) setReportsOpen(active ? !reportsOpen : true);
+                else {
+                  setReportsOpen(false);
+                  closeMenuOnMobile();
+                }
+                setView(id);
+              },
+            };
+          }),
+        }));
 
-      <div className="flex min-h-0 flex-1 flex-col px-4 py-5 md:px-6">
+  return (
+    <div style={M3_VARS} className="flex h-screen w-full flex-col overflow-hidden bg-[var(--m3-surface)] font-sans text-[var(--m3-on-surface)] md:flex-row">
+      <DesktopSidebar
+        collapsed={!menuOpen}
+        onToggle={() => setMenuOpen((prev) => !prev)}
+        title="Gestion de Magasin"
+        subtitle="Espace vendeur"
+        groups={drawerGroups}
+        stockAlerts={produitsStockBas.length}
+        onStockAlerts={() => {
+          setReportsOpen(false);
+          setView('produits');
+        }}
+        actions={[{ label: 'Changer de succursale', icon: ArrowLeftRight, onClick: () => setSelectedBranchId(null) }]}
+      />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col px-4 py-5 md:p-0">
         {/* Branch header — mobile: separate cards */}
         {(() => {
           const ventesDuJour = ventesValides.filter(
             (v) => v.branchId === selectedBranchId && isSameDay(v.date, selectedDate)
           );
           const totalDuJour = ventesDuJour.reduce((s, v) => s + v.total, 0);
-          return (
-            <BranchHeaderCards
-              branch={brancheActuelle}
-              compact={view !== 'dashboard'}
-              title={NAV_ITEMS.find((n) => n.id === view)?.label ?? ''}
-              onMenu={() => setMenuOpen(true)}
-              date={
-                isManagementView(view)
-                  ? {
-                      selectedDate,
-                      onSelect: setSelectedDate,
-                      salesDays,
-                      isToday: isCurrentDateSelected,
-                    }
-                  : null
-              }
-              stats={[
+          const headerStats: HeaderStat[] = [
                 {
                   id: 'ventes',
                   label: 'Ventes',
@@ -1335,181 +1356,42 @@ function GestionMateriaux() {
                   icon: ShoppingCart,
                   onClick: () => setView('vente'),
                 },
-              ]}
+          ];
+          return (
+            <>
+            <BranchHeaderCards
+              branch={brancheActuelle}
+              compact={view !== 'dashboard'}
+              title={NAV_ITEMS.find((n) => n.id === view)?.label ?? ''}
+              onMenu={() => setMenuOpen(true)}
+              date={
+                isManagementView(view)
+                  ? {
+                      selectedDate,
+                      onSelect: setSelectedDate,
+                      salesDays,
+                      isToday: isCurrentDateSelected,
+                    }
+                  : null
+              }
+              stats={headerStats}
             />
+            <DesktopTopBar
+              branch={brancheActuelle}
+              stats={headerStats}
+              date={
+                isManagementView(view)
+                  ? { selectedDate, onSelect: setSelectedDate, salesDays, isToday: isCurrentDateSelected, onShift: shiftSelectedDate }
+                  : null
+              }
+            />
+            </>
           );
         })()}
 
-        {/* Branch header + hamburger menu (same as admin board) */}
-        <div className="mb-4 hidden shrink-0 flex-wrap items-center gap-3 rounded-[32px] bg-[var(--m3-surface-container)] p-4 md:flex md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
-          <button
-            onClick={() => setMenuOpen((prev) => !prev)}
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] m3-press motion-reduce:transition-none md:h-10 md:w-10 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#16181A] md:text-[#FBFAF6] md:hover:bg-[#2b2e31] md:active:scale-100 ${M3_FOCUS}`}
-            aria-label="Menu de la succursale"
-          >
-            <Menu size={18} />
-          </button>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-sans font-medium md:font-serif md:font-normal text-xl leading-tight">{brancheActuelle.nom}</span>
-              <span
-                className={
-                  'rounded-full px-3 py-1 text-xs font-medium md:rounded-none md:border-2 md:px-2 md:py-0.5 md:text-[9px] md:font-normal md:uppercase md:tracking-wide ' +
-                  (brancheActuelle.statut === 'Ouvert'
-                    ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] md:border-[#2F6B4F] md:bg-[#E9F5EF] md:text-[#2F6B4F]'
-                    : 'bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)] md:border-[#4B5560] md:bg-[#F3F4F6] md:text-[#4B5560]')
-                }
-              >
-                {brancheActuelle.statut}
-              </span>
-            </div>
-            <div className="text-[12px] text-[#4B5560]">
-              {brancheActuelle.ville} • {brancheActuelle.adresse} • Responsable: {brancheActuelle.gestionnaire}
-            </div>
-          </div>
-
-          {isManagementView(view) ? (
-            <div className="ml-auto flex shrink-0 items-center gap-1">
-              <button
-                onClick={() => shiftSelectedDate(-1)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg hover:bg-[var(--m3-surface-container-highest)] md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:text-sm md:hover:bg-[#ECE7DC]"
-                aria-label="Jour précédent"
-              >
-                ‹
-              </button>
-              <DatePicker selectedDate={selectedDate} onSelect={setSelectedDate} salesDays={salesDays} />
-              <button
-                onClick={() => shiftSelectedDate(1)}
-                disabled={isCurrentDateSelected}
-                className={
-                  isCurrentDateSelected
-                    ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg cursor-not-allowed opacity-40 md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#E5E7EB] md:text-sm md:text-[#6B7280] md:opacity-100'
-                    : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg hover:bg-[var(--m3-surface-container-highest)] md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:text-sm md:hover:bg-[#ECE7DC]'
-                }
-                aria-label="Jour suivant"
-              >
-                ›
-              </button>
-            </div>
-          ) : (
-            <div className="ml-auto flex shrink-0 items-center gap-2 rounded-full bg-[var(--m3-surface-container-high)] px-4 py-2 text-sm md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:px-3 md:py-1.5 md:text-[12px]">
-              <CalendarDays size={14} />
-              {new Date().toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </div>
-          )}
-        </div>
-
         <div className="flex min-h-0 flex-1 items-start gap-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
-          <nav
-            aria-label="Sections du magasin"
-            className={
-              'hidden md:block ' +
-                            'md:static md:z-auto md:max-w-none md:shrink-0 md:translate-x-0 md:self-start md:overflow-visible md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-2 md:shadow-none md:transition-[width] md:duration-150 ' +
-              (menuOpen ? 'md:w-56' : 'md:w-14')
-            }
-          >
-            {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
-              const actif = view === id;
-              const isReports = id === 'rapports';
-              return (
-                <div
-                  key={id}
-                  className={'mb-1 last:mb-0 ' + (id === 'rapports' ? 'mt-2 border-t-2 border-[#16181A] pt-2' : '')}
-                >
-                  <button
-                    onClick={() => {
-                      if (isReports) setReportsOpen(actif ? !reportsOpen : true);
-                      else {
-                        setReportsOpen(false);
-                        closeMenuOnMobile();
-                      }
-                      setView(id);
-                    }}
-                    title={menuOpen ? undefined : label}
-                    aria-label={label}
-                    aria-expanded={isReports ? reportsOpen && actif : undefined}
-                    className={
-                      'relative flex h-14 w-full items-center rounded-full text-left text-sm font-medium tracking-[0.01em] md:h-auto md:rounded-none md:border-2 md:py-2.5 md:text-[11px] md:font-normal md:uppercase md:tracking-[0.18em] ' +
-                      (menuOpen ? 'gap-3 px-4 md:px-3' : 'justify-center px-0') +
-                      ' ' +
-                      (actif
-                        ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] md:border-[#C1440E] md:bg-[#C1440E] md:text-white'
-                        : 'text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] md:border-transparent md:text-[#16181A] md:hover:border-[#16181A] md:hover:bg-[#ECE7DC]') +
-                      ' ' + M3_FOCUS
-                    }
-                  >
-                    <Icon size={15} className="h-6 w-6 shrink-0 md:h-[15px] md:w-[15px]" />
-                    {menuOpen && <span>{label}</span>}
-                    {menuOpen && isReports && (
-                      <ChevronDown
-                        size={14}
-                        className={'ml-auto shrink-0 transition-transform ' + (reportsOpen && actif ? 'rotate-180' : '')}
-                      />
-                    )}
-                    {id === 'vente' && nbArticlesPanier > 0 && (
-                      menuOpen ? (
-                        <span className="ml-auto border-2 border-current px-1.5 text-[10px]">{nbArticlesPanier}</span>
-                      ) : (
-                        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center bg-[#16181A] px-1 text-[9px] text-white">
-                          {nbArticlesPanier}
-                        </span>
-                      )
-                    )}
-                  </button>
-
-                  {isReports && actif && reportsOpen && (
-                    <div className={'mt-1 border-l-2 border-[var(--m3-outline-variant)] md:border-[#C1440E] ' + (menuOpen ? 'ml-6 pl-2 md:ml-4 md:pl-1' : 'ml-0 pl-0')}>
-                      {REPORT_TABS.map((tab) => {
-                        const subActive = reportPeriod === tab.id;
-                        return (
-                          <button
-                            key={tab.id}
-                            onClick={() => {
-                              setReportPeriod(tab.id);
-                              closeMenuOnMobile();
-                            }}
-                            title={menuOpen ? undefined : tab.label}
-                            aria-label={tab.label}
-                            className={
-                              'mb-0.5 flex h-12 w-full items-center rounded-full text-left text-sm last:mb-0 md:h-auto md:rounded-none md:border-2 md:py-2 md:text-[10px] md:uppercase md:tracking-[0.14em] ' +
-                              (menuOpen ? 'px-4 md:px-3' : 'justify-center px-0') +
-                              ' ' +
-                              (subActive
-                                ? 'bg-[var(--m3-secondary-container)] font-medium text-[var(--m3-on-secondary-container)] md:border-[#16181A] md:bg-[#16181A] md:font-normal md:text-white'
-                                : 'text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] md:border-transparent md:text-[#16181A] md:hover:border-[#16181A] md:hover:bg-[#ECE7DC]')
-                            }
-                          >
-                            {menuOpen ? tab.label : tab.short}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {produitsStockBas.length > 0 && (
-              <div
-                title={menuOpen ? undefined : `${produitsStockBas.length} article(s) en stock bas`}
-                className={
-                  'mt-2 flex items-center border-t-2 border-[#16181A] pt-2 text-[#C1440E] ' +
-                  (menuOpen ? 'gap-2 px-2' : 'justify-center')
-                }
-              >
-                <AlertTriangle size={15} className="shrink-0" />
-                <span className="text-[11px]">
-                  {menuOpen
-                    ? `${produitsStockBas.length} article${produitsStockBas.length > 1 ? 's' : ''} en stock bas`
-                    : produitsStockBas.length}
-                </span>
-              </div>
-            )}
-          </nav>
-
           {isManagementView(view) ? (
-            <main className="min-h-0 min-w-0 flex-1 self-stretch overflow-y-auto pb-2 pr-2">
+            <main className="min-h-0 min-w-0 flex-1 self-stretch overflow-y-auto pb-2 pr-2 md:px-8 md:pb-8">
               <BranchManagementSections
                 view={view}
                 branch={brancheActuelle}
@@ -1535,7 +1417,7 @@ function GestionMateriaux() {
               />
             </main>
           ) : (
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch overflow-hidden border-2 border-[#16181A] bg-[#FBFAF6] shadow-[6px_6px_0_#16181A]">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch overflow-hidden border-2 border-[#16181A] bg-[#FBFAF6] shadow-[6px_6px_0_#16181A] md:mx-8 md:mb-6 md:rounded-[28px] md:border md:border-[var(--m3-outline-variant)] md:shadow-none">
             {view === 'vente' && (
               <VenteView
                 isReadOnly={isReadOnly}
@@ -1578,41 +1460,7 @@ function GestionMateriaux() {
           setView('produits');
           closeMenuOnMobile();
         }}
-        groups={MOBILE_GROUPS_VENDOR.map(({ label, ids }) => ({
-          label,
-          items: ids.map((id): DrawerItem => {
-            const nav = NAV_ITEMS.find((n) => n.id === id)!;
-            const active = view === id;
-            const isReports = id === 'rapports';
-            return {
-              id,
-              label: nav.label,
-              icon: nav.icon,
-              active,
-              badge: id === 'vente' ? nbArticlesPanier : undefined,
-              expanded: isReports ? reportsOpen && active : undefined,
-              children: isReports
-                ? REPORT_TABS.map((tab) => ({
-                    id: tab.id,
-                    label: tab.label,
-                    active: reportPeriod === tab.id,
-                    onClick: () => {
-                      setReportPeriod(tab.id);
-                      closeMenuOnMobile();
-                    },
-                  }))
-                : undefined,
-              onClick: () => {
-                if (isReports) setReportsOpen(active ? !reportsOpen : true);
-                else {
-                  setReportsOpen(false);
-                  closeMenuOnMobile();
-                }
-                setView(id);
-              },
-            };
-          }),
-        }))}
+        groups={drawerGroups}
         actions={[{ label: 'Changer de succursale', icon: ArrowLeftRight, onClick: () => setSelectedBranchId(null) }]}
       />
       <MobileBottomNav
@@ -1874,17 +1722,16 @@ function DatePicker({
         aria-expanded={open}
         title={selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
         className={
-          'flex items-center gap-2 whitespace-nowrap rounded-full border-0 px-4 text-sm font-medium text-[var(--m3-on-surface)] transition-colors ' +
-          'md:gap-1.5 md:rounded-none md:border-2 md:border-[#16181A] md:px-2 md:text-[11px] md:font-normal md:uppercase md:tracking-wide md:text-inherit ' +
-          (block ? 'h-10 w-full justify-center md:h-8 md:w-auto md:justify-start ' : 'h-8 ') +
+          'flex items-center gap-2 whitespace-nowrap rounded-full border-0 px-4 text-sm font-medium text-[var(--m3-on-surface)] transition-colors md:h-10 ' +
+          (block ? 'h-10 w-full justify-center md:w-auto ' : 'h-8 ') +
           (open
-            ? 'bg-[var(--m3-secondary-container)] md:bg-[#E3DCCC] '
-            : 'bg-[var(--m3-surface-container-high)] hover:bg-[var(--m3-surface-container-highest)] md:bg-[#ECE7DC] md:hover:bg-[#E3DCCC] ') +
+            ? 'bg-[var(--m3-secondary-container)] '
+            : 'bg-[var(--m3-surface-container-high)] hover:bg-[var(--m3-surface-container-highest)] ') +
           M3_FOCUS
         }
       >
-        <CalendarDays size={16} className="text-[var(--m3-primary)] md:h-[13px] md:w-[13px] md:text-inherit" />
-        <span className="capitalize md:normal-case">
+        <CalendarDays size={16} className="text-[var(--m3-primary)]" />
+        <span className="capitalize">
           {selectedDate.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
         </span>
       </button>
@@ -1906,7 +1753,7 @@ function DatePicker({
             style={M3_VARS}
             className={
               'm3-sheet fixed inset-x-0 bottom-0 z-[81] max-h-[90vh] w-full overflow-y-auto rounded-t-[28px] bg-[var(--m3-surface-container-low)] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 text-[var(--m3-on-surface)] shadow-[0_-8px_24px_rgba(0,0,0,0.16)] ' +
-              'md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:z-50 md:mt-2 md:max-h-none md:w-72 md:overflow-visible md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:text-inherit md:shadow-[6px_6px_0_#2F6B4F]'
+              'md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:z-50 md:mt-2 md:max-h-none md:w-[328px] md:overflow-visible md:rounded-[28px] md:p-3 md:shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14)]'
             }
           >
             {/* M3 sheet: drag handle + supporting text + headline (mobile only) */}
@@ -1924,10 +1771,10 @@ function DatePicker({
             <div className="px-3 md:px-0">
               <div className="mb-2 flex items-center justify-between md:mb-2">
                 {/* mobile: month label left, chevrons right */}
-                <div className="pl-3 text-sm font-medium capitalize md:hidden">
+                <div className="pl-3 text-sm font-medium capitalize">
                   {viewMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
                 </div>
-                <div className="flex items-center md:hidden">
+                <div className="flex items-center">
                   <button
                     type="button"
                     onClick={() => setViewMonth(new Date(year, month - 1, 1))}
@@ -1947,39 +1794,15 @@ function DatePicker({
                   </button>
                 </div>
 
-                {/* desktop: original header */}
-                <button
-                  type="button"
-                  onClick={() => setViewMonth(new Date(year, month - 1, 1))}
-                  className="hidden h-8 w-8 items-center justify-center border-2 border-[#16181A] bg-white text-sm hover:bg-[#ECE7DC] md:flex"
-                  aria-label="Mois précédent"
-                >
-                  ‹
-                </button>
-                <div className="hidden font-serif text-base capitalize md:block">
-                  {viewMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setViewMonth(new Date(year, month + 1, 1))}
-                  disabled={!canGoNextMonth}
-                  className={
-                    'hidden h-8 w-8 items-center justify-center border-2 border-[#16181A] text-sm md:flex ' +
-                    (canGoNextMonth ? 'bg-white hover:bg-[#ECE7DC]' : 'cursor-not-allowed bg-[#E5E7EB] text-[#6B7280]')
-                  }
-                  aria-label="Mois suivant"
-                >
-                  ›
-                </button>
               </div>
 
-              <div className="mb-1 grid grid-cols-7 text-center text-xs font-medium text-[var(--m3-on-surface)] md:text-[10px] md:uppercase md:tracking-wide md:text-[#4B5560]">
+              <div className="mb-1 grid grid-cols-7 text-center text-xs font-medium text-[var(--m3-on-surface)]">
                 {WEEKDAY_INITIALS_FR.map((label, index) => (
-                  <div key={index} className="flex h-10 items-center justify-center md:h-auto md:py-1">{label}</div>
+                  <div key={index} className="flex h-10 items-center justify-center">{label}</div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 md:gap-0.5">
+              <div className="grid grid-cols-7">
                 {cells.map((date, index) => {
                   if (!date) return <div key={`blank-${index}`} />;
                   const isFuture = date > today;
@@ -1987,7 +1810,7 @@ function DatePicker({
                   const isToday = isSameDay(date, today);
                   const hasSales = salesDays.has(dayKey(date));
                   return (
-                    <div key={dayKey(date)} className="flex items-center justify-center md:block">
+                    <div key={dayKey(date)} className="flex items-center justify-center">
                       <button
                         type="button"
                         disabled={isFuture}
@@ -1996,27 +1819,26 @@ function DatePicker({
                         aria-pressed={isSelected}
                         className={
                           'relative flex h-10 w-10 items-center justify-center rounded-full border text-sm tabular-nums transition-colors ' +
-                          'md:h-9 md:w-full md:rounded-none md:border-2 md:text-[12px] ' +
                           M3_FOCUS + ' ' +
                           (isFuture
-                            ? 'cursor-not-allowed border-transparent text-[var(--m3-on-surface)] opacity-40 md:text-[#B8BDC3] md:opacity-100'
+                            ? 'cursor-not-allowed border-transparent text-[var(--m3-on-surface)] opacity-40'
                             : isSelected
-                            ? 'border-[var(--m3-primary)] bg-[var(--m3-primary)] font-medium text-[var(--m3-on-primary)] md:border-[#C1440E] md:bg-[#C1440E] md:text-white'
+                            ? 'border-[var(--m3-primary)] bg-[var(--m3-primary)] font-medium text-[var(--m3-on-primary)]'
                             : isToday
-                            ? 'border-[var(--m3-outline)] font-medium text-[var(--m3-primary)] hover:bg-[var(--m3-surface-container-highest)] md:border-[#16181A] md:bg-white md:text-inherit md:hover:bg-[#ECE7DC]'
-                            : 'border-transparent hover:bg-[var(--m3-surface-container-highest)] md:hover:border-[#16181A] md:hover:bg-[#ECE7DC]')
+                            ? 'border-[var(--m3-outline)] font-medium text-[var(--m3-primary)] hover:bg-[var(--m3-surface-container-highest)]'
+                            : 'border-transparent hover:bg-[var(--m3-surface-container-highest)]')
                         }
                       >
                         {date.getDate()}
                         {hasSales && (
                           <span
                             className={
-                              'absolute bottom-1 h-1 w-1 rounded-full md:h-1.5 md:w-1.5 ' +
+                              'absolute bottom-1 h-1 w-1 rounded-full ' +
                               (isSelected
-                                ? 'bg-[var(--m3-on-primary)] md:bg-white'
+                                ? 'bg-[var(--m3-on-primary)]'
                                 : isFuture
-                                ? 'bg-[var(--m3-outline)] md:bg-[#B8BDC3]'
-                                : 'bg-[var(--m3-primary)] md:bg-[#2F6B4F]')
+                                ? 'bg-[var(--m3-outline)]'
+                                : 'bg-[var(--m3-primary)]')
                             }
                           />
                         )}
@@ -2028,7 +1850,7 @@ function DatePicker({
             </div>
 
             {/* M3 actions: text buttons (mobile only) */}
-            <div className="mt-2 flex items-center justify-between gap-2 px-3 pb-1 md:hidden">
+            <div className="mt-2 flex items-center justify-between gap-2 px-3 pb-1">
               <span className="flex items-center gap-1.5 pl-3 text-xs text-[var(--m3-on-surface-variant)]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--m3-primary)]" />
                 Jour avec ventes
@@ -2051,20 +1873,6 @@ function DatePicker({
               </div>
             </div>
 
-            {/* desktop footer: original */}
-            <div className="mt-3 hidden items-center justify-between border-t-2 border-[#e4ded0] pt-2 text-[10px] uppercase tracking-wide text-[#4B5560] md:flex">
-              <span className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#2F6B4F]" />
-                Jour avec ventes
-              </span>
-              <button
-                type="button"
-                onClick={() => pickDate(new Date())}
-                className="border-2 border-[#16181A] bg-white px-2 py-1 text-[#16181A] hover:bg-[#ECE7DC]"
-              >
-                Aujourd'hui
-              </button>
-            </div>
           </div>
         </>
       )}
@@ -2078,7 +1886,7 @@ function DatePicker({
    · a day strip (+ calendar bottom sheet) replaces the old "Journée" card
    · a bottom navigation bar holds the four main destinations
    · a modal drawer holds everything else, grouped, with identity + actions
-   Desktop (≥ md) keeps the original bars untouched.
+   Desktop (≥ md) uses DesktopSidebar / DesktopTopBar (defined below).
    ========================================================================= */
 type HeaderStat = {
   id: string;
@@ -2391,7 +2199,7 @@ function MobileBottomNav({ tabs, moreActive, onMore }: { tabs: MobileTab[]; more
   );
 }
 
-type DrawerChild = { id: string; label: string; active: boolean; onClick: () => void };
+type DrawerChild = { id: string; label: string; short?: string; active: boolean; onClick: () => void };
 type DrawerItem = {
   id: string;
   label: string;
@@ -2590,6 +2398,352 @@ const MOBILE_GROUPS_OWNER: Array<{ label: string; ids: OwnerSection[] }> = [
 const MOBILE_TABS_OWNER: OwnerSection[] = ['dashboard', 'sales', 'products', 'reports'];
 const MOBILE_TAB_LABELS: Record<string, string> = { dashboard: 'Accueil', rapports: 'Rapports', reports: 'Rapports' };
 
+/* =========================================================================
+   DESKTOP APP CHROME (≥ md) — Material 3
+   · navigation drawer that collapses to a rail (grouped destinations, badges, report sub-tabs)
+   · top bar: branch identity · key figures · day controls (+ branch tabs for the owner)
+   Shared by the seller board and the owner board; phones keep the mobile chrome above.
+   ========================================================================= */
+function DesktopSidebar({
+  collapsed,
+  onToggle,
+  title,
+  subtitle,
+  groups,
+  stockAlerts,
+  onStockAlerts,
+  actions,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  title: string;
+  subtitle: string;
+  groups: DrawerGroup[];
+  stockAlerts: number;
+  onStockAlerts: () => void;
+  actions: DrawerAction[];
+}) {
+  return (
+    <aside
+      aria-label="Navigation principale"
+      className={
+        'hidden shrink-0 flex-col bg-[var(--m3-surface-container-low)] transition-[width] duration-200 motion-reduce:transition-none md:flex ' +
+        (collapsed ? 'w-[88px]' : 'w-[288px]')
+      }
+    >
+      <div className="flex h-20 shrink-0 items-center gap-2 px-4">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={collapsed ? 'Ouvrir le menu' : 'Réduire le menu'}
+          aria-expanded={!collapsed}
+          className={`group relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+        >
+          <M3StateLayer />
+          <Menu size={24} />
+        </button>
+        {!collapsed && (
+          <div className="min-w-0">
+            <div className="truncate text-lg font-semibold leading-6">{title}</div>
+            <div className="truncate text-xs text-[var(--m3-on-surface-variant)]">{subtitle}</div>
+          </div>
+        )}
+      </div>
+
+      <nav aria-label="Sections" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 [scrollbar-width:thin]">
+        {groups.map((group, groupIndex) => (
+          <div key={group.label} className={groupIndex > 0 ? 'mt-2' : ''}>
+            {collapsed ? (
+              groupIndex > 0 && <div className="mx-3 mb-2 h-px bg-[var(--m3-outline-variant)]" />
+            ) : (
+              <div className="px-4 pb-1 pt-3 text-xs font-medium tracking-[0.03em] text-[var(--m3-on-surface-variant)]">{group.label}</div>
+            )}
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const hasChildren = !!item.children;
+                return (
+                  <div key={item.id}>
+                    <button
+                      type="button"
+                      onClick={item.onClick}
+                      title={collapsed ? item.label : undefined}
+                      aria-label={item.label}
+                      aria-current={item.active ? 'page' : undefined}
+                      aria-expanded={hasChildren ? !!item.expanded : undefined}
+                      className={
+                        'group relative flex h-14 w-full items-center overflow-hidden rounded-full text-sm font-medium tracking-[0.01em] ' +
+                        (collapsed ? 'justify-center ' : 'gap-3 px-4 ') +
+                        (item.active
+                          ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] '
+                          : 'text-[var(--m3-on-surface-variant)] ') +
+                        M3_FOCUS
+                      }
+                    >
+                      <M3StateLayer />
+                      <Icon size={24} className="shrink-0" />
+                      {!collapsed && <span className="truncate">{item.label}</span>}
+                      {!collapsed && hasChildren && (
+                        <ChevronDown
+                          size={18}
+                          aria-hidden="true"
+                          className={'ml-auto shrink-0 transition-transform motion-reduce:transition-none ' + (item.expanded ? 'rotate-180' : '')}
+                        />
+                      )}
+                      {!!item.badge &&
+                        (collapsed ? (
+                          <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--m3-primary)] px-1 text-[10px] font-medium text-[var(--m3-on-primary)]">
+                            {item.badge}
+                          </span>
+                        ) : (
+                          <span className="ml-auto flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--m3-primary)] px-2 text-xs font-medium tabular-nums text-[var(--m3-on-primary)]">
+                            {item.badge}
+                          </span>
+                        ))}
+                    </button>
+
+                    {collapsed && item.expanded && item.children && (
+                      <div className="m3-in mt-1 space-y-0.5">
+                        {item.children.map((child) => (
+                          <button
+                            key={child.id}
+                            type="button"
+                            onClick={child.onClick}
+                            title={child.label}
+                            aria-label={child.label}
+                            aria-current={child.active ? 'true' : undefined}
+                            className={
+                              'group relative flex h-9 w-full items-center justify-center overflow-hidden rounded-full text-xs font-medium ' +
+                              (child.active
+                                ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] '
+                                : 'text-[var(--m3-on-surface-variant)] ') +
+                              M3_FOCUS
+                            }
+                          >
+                            <M3StateLayer />
+                            {child.short ?? child.label.slice(0, 3)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {!collapsed && item.expanded && item.children && (
+                      <div className="m3-in ml-7 mt-1 space-y-0.5 border-l border-[var(--m3-outline-variant)] pl-3">
+                        {item.children.map((child) => (
+                          <button
+                            key={child.id}
+                            type="button"
+                            onClick={child.onClick}
+                            aria-current={child.active ? 'true' : undefined}
+                            className={
+                              'group relative flex h-10 w-full items-center overflow-hidden rounded-full px-4 text-left text-sm ' +
+                              (child.active
+                                ? 'bg-[var(--m3-secondary-container)] font-medium text-[var(--m3-on-secondary-container)] '
+                                : 'text-[var(--m3-on-surface-variant)] ') +
+                              M3_FOCUS
+                            }
+                          >
+                            <M3StateLayer />
+                            {child.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      <div className="shrink-0 space-y-1 px-4 pb-4 pt-2">
+        {stockAlerts > 0 &&
+          (collapsed ? (
+            <button
+              type="button"
+              onClick={onStockAlerts}
+              title={`${stockAlerts} article(s) en stock bas`}
+              aria-label={`${stockAlerts} article(s) en stock bas`}
+              className={`group relative mb-1 flex h-14 w-full items-center justify-center overflow-hidden rounded-2xl ${M3_STATUS.low.bg} ${M3_STATUS.low.fg} ${M3_FOCUS}`}
+            >
+              <M3StateLayer />
+              <AlertTriangle size={22} />
+              <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#251A00] px-1 text-[10px] font-medium text-white">
+                {stockAlerts}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onStockAlerts}
+              className={`group relative mb-1 flex w-full items-center gap-3 overflow-hidden rounded-2xl px-4 py-3 text-left ${M3_STATUS.low.bg} ${M3_STATUS.low.fg} ${M3_FOCUS}`}
+            >
+              <M3StateLayer />
+              <AlertTriangle size={22} className="shrink-0" />
+              <span className="text-sm font-medium leading-5">
+                {stockAlerts} article{stockAlerts > 1 ? 's' : ''} en stock bas
+              </span>
+              <ChevronRight size={18} className="ml-auto shrink-0" />
+            </button>
+          ))}
+        {actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <button
+              key={action.label}
+              type="button"
+              onClick={action.onClick}
+              title={collapsed ? action.label : undefined}
+              aria-label={action.label}
+              className={
+                'group relative flex h-12 w-full items-center overflow-hidden rounded-full text-sm font-medium text-[var(--m3-on-surface-variant)] ' +
+                (collapsed ? 'justify-center ' : 'gap-3 px-4 ') +
+                M3_FOCUS
+              }
+            >
+              <M3StateLayer />
+              <Icon size={22} className="shrink-0" />
+              {!collapsed && <span className="truncate">{action.label}</span>}
+            </button>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+function DesktopTopBar({
+  branch,
+  stats,
+  date,
+  branchSwitcher,
+}: {
+  branch: Branch;
+  stats: HeaderStat[];
+  date: {
+    selectedDate: Date;
+    onSelect: (d: Date) => void;
+    salesDays: Set<string>;
+    isToday: boolean;
+    onShift: (offset: number) => void;
+  } | null;
+  branchSwitcher?: BranchSwitcher;
+}) {
+  const isOpen = branch.statut === 'Ouvert';
+  const navBtn = `group relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)] disabled:cursor-not-allowed disabled:opacity-40 ${M3_FOCUS}`;
+  return (
+    <header className="hidden shrink-0 bg-[var(--m3-surface)] px-8 pb-3 pt-5 md:sticky md:top-0 md:z-30 md:block">
+      <div className="flex items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3">
+            <h1 className="truncate text-[28px] font-medium leading-9 tracking-tight">{branch.nom}</h1>
+            <span
+              className={
+                'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium ' +
+                (isOpen
+                  ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]'
+                  : 'bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)]')
+              }
+            >
+              <span className={'h-2 w-2 rounded-full ' + (isOpen ? 'bg-[var(--m3-primary)]' : 'bg-[var(--m3-outline)]')} />
+              {branch.statut}
+            </span>
+          </div>
+          <div className="truncate text-sm text-[var(--m3-on-surface-variant)]">
+            {branch.ville} · {branch.adresse} · Responsable : {branch.gestionnaire}
+          </div>
+        </div>
+
+        <div className="hidden items-center gap-2 xl:flex">
+          {stats.map((stat, index) => {
+            const Icon = stat.icon;
+            const warn = stat.tone === 'warn';
+            return (
+              <button
+                key={stat.id}
+                type="button"
+                onClick={stat.onClick}
+                title={stat.hint}
+                className={
+                  'group relative items-center gap-2.5 overflow-hidden rounded-2xl px-3 py-1.5 text-left ' +
+                  (index >= 3 ? 'hidden 2xl:flex ' : 'flex ') +
+                  (warn
+                    ? `${M3_STATUS.low.bg} ${M3_STATUS.low.fg} `
+                    : 'bg-[var(--m3-surface-container)] text-[var(--m3-on-surface)] ') +
+                  M3_FOCUS
+                }
+              >
+                <M3StateLayer />
+                <Icon size={18} className="shrink-0 opacity-80" />
+                <span>
+                  <span className="block text-[11px] leading-4 opacity-70">{stat.label}</span>
+                  <span className="block text-sm font-semibold leading-5 tabular-nums">{stat.value}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {date ? (
+          <div className="flex shrink-0 items-center gap-1">
+            <button type="button" onClick={() => date.onShift(-1)} className={navBtn} aria-label="Jour précédent">
+              <M3StateLayer />
+              <ChevronRight size={20} className="rotate-180" />
+            </button>
+            <DatePicker selectedDate={date.selectedDate} onSelect={date.onSelect} salesDays={date.salesDays} />
+            <button type="button" onClick={() => date.onShift(1)} disabled={date.isToday} className={navBtn} aria-label="Jour suivant">
+              <M3StateLayer />
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-[var(--m3-surface-container-high)] px-4 text-sm font-medium">
+            <CalendarDays size={16} className="text-[var(--m3-primary)]" />
+            {new Date().toLocaleDateString('fr-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </div>
+        )}
+      </div>
+
+      {branchSwitcher && (
+        <div
+          role="tablist"
+          aria-label="Succursales"
+          className="mt-4 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {branchSwitcher.branches.map((b) => {
+            const selected = b.id === branchSwitcher.activeId;
+            return (
+              <button
+                key={b.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => branchSwitcher.onChange(b.id)}
+                className={`group relative shrink-0 ${M3_FOCUS}`}
+              >
+                <span
+                  className={`relative flex h-9 items-center gap-2 overflow-hidden px-4 text-sm font-medium m3-morph ${
+                    selected ? 'rounded-full' : 'rounded-xl'
+                  } ${
+                    selected
+                      ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                      : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+                  }`}
+                >
+                  <M3StateLayer />
+                  {selected && <Check size={16} />}
+                  {shortBranchName(b)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </header>
+  );
+}
+
+
 function OwnerBoard({
   users,
   setUsers,
@@ -2639,7 +2793,7 @@ function OwnerBoard({
   const [reportsOpen, setReportsOpen] = useState<boolean>(false);
   const [activeBranchId, setActiveBranchId] = useState<string>(selectedBranchId ?? branches[0]?.id ?? '');
   const [menuOpen, setMenuOpen] = useState<boolean>(
-    () => typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches
+    () => typeof window === 'undefined' || window.matchMedia('(min-width: 1100px)').matches
   );
   useEffect(() => {
     if (!menuOpen) return;
@@ -2821,57 +2975,43 @@ function OwnerBoard({
     );
   }
 
-  return (
-    <div style={M3_VARS} className="min-h-screen w-full bg-[var(--m3-surface)] text-[var(--m3-on-surface)] md:bg-[#ECE7DC] md:text-[#16181A]">
-      <div className="hidden flex-wrap items-center justify-between gap-3 border-b-2 border-[#16181A] bg-[#FBFAF6] px-4 py-4 md:flex md:px-6">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.28em] text-[#4B5560]">Panneau propriétaire</div>
-          <h1 className="mt-1 font-serif text-2xl md:text-3xl">Administration centrale</h1>
-        </div>
-        <button
-          onClick={onBackToBranches}
-          className="border-2 border-[#16181A] bg-white px-3 py-2 text-[11px] uppercase tracking-[0.18em] hover:bg-[#ECE7DC]"
-        >
-          Retour
-        </button>
-      </div>
+  const drawerGroups: DrawerGroup[] = MOBILE_GROUPS_OWNER.map(({ label, ids }) => ({
+          label,
+          items: ids.map((id): DrawerItem => {
+            const section = OWNER_SECTIONS.find((s) => s.id === id)!;
+            const active = activeSection === id;
+            const isReports = id === 'reports';
+            return {
+              id,
+              label: section.label,
+              icon: section.icon,
+              active,
+              expanded: isReports ? reportsOpen && active : undefined,
+              children: isReports
+                ? REPORT_TABS.map((tab) => ({
+                    id: tab.id,
+                    label: tab.label,
+                    short: tab.short,
+                    active: reportPeriod === tab.id,
+                    onClick: () => {
+                      setReportPeriod(tab.id);
+                      closeMenuOnMobile();
+                    },
+                  }))
+                : undefined,
+              onClick: () => {
+                if (isReports) setReportsOpen(active ? !reportsOpen : true);
+                else {
+                  setReportsOpen(false);
+                  closeMenuOnMobile();
+                }
+                selectSection(id);
+              },
+            };
+          }),
+        }));
 
-      {/* Sucursales — top-level tab bar (desktop) */}
-      <div className="hidden gap-1 overflow-x-auto border-b-2 border-[#16181A] bg-[#16181A] px-3 pt-2 md:flex">
-        {branches.map((branch) => {
-          const actif = branch.id === activeBranchId;
-          return (
-            <button
-              key={branch.id}
-              onClick={() => selectBranchTab(branch.id)}
-              className={
-                '-mb-[2px] shrink-0 whitespace-nowrap border-2 border-b-0 px-4 py-2.5 text-[12px] uppercase tracking-wide ' +
-                (actif
-                  ? 'border-[#16181A] bg-[#ECE7DC] text-[#16181A]'
-                  : 'border-transparent text-[#c7ccd1] hover:bg-[#1f2225]')
-              }
-            >
-              {branch.nom.replace('Tchiley Construction', '').trim() || branch.nom}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="px-4 py-5 pb-[calc(5rem+env(safe-area-inset-bottom))] md:px-6 md:pb-5">
-        {/* Active branch header — mobile: sticky app bar + day strip */}
-        <BranchHeaderCards
-          branch={activeBranch}
-          compact={activeSection !== 'dashboard'}
-          title={OWNER_SECTIONS.find((s) => s.id === activeSection)?.label ?? ''}
-          onMenu={() => setMenuOpen(true)}
-          branchSwitcher={{ branches, activeId: activeBranchId, onChange: selectBranchTab }}
-          date={{
-            selectedDate,
-            onSelect: setSelectedDate,
-            salesDays,
-            isToday: isCurrentDateSelected,
-          }}
-          stats={[
+  const headerStats: HeaderStat[] = [
             {
               id: 'ventes',
               label: 'Ventes',
@@ -2907,146 +3047,48 @@ function OwnerBoard({
               icon: Boxes,
               onClick: () => selectSection('products'),
             },
-          ]}
+  ];
+
+  return (
+    <div style={M3_VARS} className="min-h-screen w-full bg-[var(--m3-surface)] text-[var(--m3-on-surface)] md:flex md:h-screen md:overflow-hidden">
+      <DesktopSidebar
+        collapsed={!menuOpen}
+        onToggle={() => setMenuOpen((prev) => !prev)}
+        title="Administration"
+        subtitle="Panneau propriétaire"
+        groups={drawerGroups}
+        stockAlerts={stockAlertCount}
+        onStockAlerts={() => {
+          setReportsOpen(false);
+          selectSection('products');
+        }}
+        actions={[{ label: "Quitter l'administration", icon: LogOut, onClick: onBackToBranches }]}
+      />
+      <div className="min-w-0 flex-1 md:overflow-y-auto">
+      <DesktopTopBar
+        branch={activeBranch}
+        stats={headerStats}
+        date={{ selectedDate, onSelect: setSelectedDate, salesDays, isToday: isCurrentDateSelected, onShift: shiftSelectedDate }}
+        branchSwitcher={{ branches, activeId: activeBranchId, onChange: selectBranchTab }}
+      />
+      <div className="px-4 py-5 pb-[calc(5rem+env(safe-area-inset-bottom))] md:px-8 md:pb-8 md:pt-2">
+        {/* Active branch header — mobile: sticky app bar + day strip */}
+        <BranchHeaderCards
+          branch={activeBranch}
+          compact={activeSection !== 'dashboard'}
+          title={OWNER_SECTIONS.find((s) => s.id === activeSection)?.label ?? ''}
+          onMenu={() => setMenuOpen(true)}
+          branchSwitcher={{ branches, activeId: activeBranchId, onChange: selectBranchTab }}
+          date={{
+            selectedDate,
+            onSelect: setSelectedDate,
+            salesDays,
+            isToday: isCurrentDateSelected,
+          }}
+          stats={headerStats}
         />
 
-        <div className="mb-4 hidden md:flex flex-wrap items-center gap-3 rounded-[32px] bg-[var(--m3-surface-container)] p-4 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-3 md:shadow-[6px_6px_0_#16181A]">
-          <button
-            onClick={() => setMenuOpen((prev) => !prev)}
-            className="hidden h-10 w-10 shrink-0 items-center justify-center border-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6] hover:bg-[#2b2e31] md:flex"
-            aria-label="Menu de la succursale"
-          >
-            <Menu size={18} />
-          </button>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-sans font-medium md:font-serif md:font-normal text-lg leading-tight sm:text-xl">{activeBranch.nom}</span>
-              <span
-                className={
-                  'rounded-full px-3 py-1 text-xs font-medium md:rounded-none md:border-2 md:px-2 md:py-0.5 md:text-[9px] md:font-normal md:uppercase md:tracking-wide ' +
-                  (activeBranch.statut === 'Ouvert'
-                    ? 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)] md:border-[#2F6B4F] md:bg-[#E9F5EF] md:text-[#2F6B4F]'
-                    : 'bg-[var(--m3-surface-container-highest)] text-[var(--m3-on-surface-variant)] md:border-[#4B5560] md:bg-[#F3F4F6] md:text-[#4B5560]')
-                }
-              >
-                {activeBranch.statut}
-              </span>
-            </div>
-            <div className="mt-0.5 break-words text-[12px] leading-snug text-[#4B5560]">
-              <span>{activeBranch.ville} • {activeBranch.adresse}</span>
-              <span className="block md:inline">
-                <span className="hidden md:inline"> • </span>Responsable: {activeBranch.gestionnaire}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex w-full items-center gap-1 border-t border-[var(--m3-outline-variant)] pt-3 md:ml-auto md:w-auto md:shrink-0 md:border-t-0 md:pt-0">
-            <button
-              onClick={() => shiftSelectedDate(-1)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg hover:bg-[var(--m3-surface-container-highest)] md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:text-sm md:hover:bg-[#ECE7DC]"
-              aria-label="Jour précédent"
-            >
-              ‹
-            </button>
-            <DatePicker selectedDate={selectedDate} onSelect={setSelectedDate} salesDays={salesDays} block />
-            <button
-              onClick={() => shiftSelectedDate(1)}
-              disabled={isCurrentDateSelected}
-              className={
-                isCurrentDateSelected
-                  ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg cursor-not-allowed opacity-40 md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#E5E7EB] md:text-sm md:text-[#6B7280] md:opacity-100'
-                  : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface-container-high)] text-lg hover:bg-[var(--m3-surface-container-highest)] md:h-8 md:w-8 md:rounded-none md:border-2 md:border-[#16181A] md:bg-white md:text-sm md:hover:bg-[#ECE7DC]'
-              }
-              aria-label="Jour suivant"
-            >
-              ›
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-start md:gap-4">
-          <nav
-            aria-label="Sections de la succursale"
-            className={
-              'hidden md:block ' +
-                            'md:static md:z-auto md:max-w-none md:translate-x-0 md:overflow-visible md:rounded-none md:border-2 md:border-[#16181A] md:bg-[#FBFAF6] md:p-2 md:shadow-none md:shrink-0 md:transition-[width] md:duration-150 ' +
-              (menuOpen ? 'md:w-56' : 'md:w-14')
-            }
-          >
-            {OWNER_SECTIONS.map(({ id, label, icon: Icon }) => {
-              const active = activeSection === id;
-              const isReports = id === 'reports';
-              return (
-                <div key={id} className="mb-1 last:mb-0">
-                  <button
-                    onClick={() => {
-                      if (isReports) {
-                        if (active) setReportsOpen((prev) => !prev);
-                        else setReportsOpen(true);
-                      } else {
-                        setReportsOpen(false);
-                        closeMenuOnMobile();
-                      }
-                      selectSection(id);
-                    }}
-                    title={menuOpen ? undefined : label}
-                    aria-label={label}
-                    aria-expanded={isReports ? reportsOpen && active : undefined}
-                    className={
-                      'flex h-14 w-full items-center rounded-full text-left text-sm font-medium tracking-[0.01em] md:h-auto md:rounded-none md:border-2 md:py-2.5 md:text-[11px] md:font-normal md:uppercase md:tracking-[0.18em] ' +
-                      (menuOpen ? 'gap-3 px-4 md:px-3' : 'gap-3 px-4 md:justify-center md:gap-0 md:px-0') +
-                      ' ' +
-                      (active
-                        ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)] md:border-[#C1440E] md:bg-[#C1440E] md:text-white'
-                        : 'text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] md:border-transparent md:text-[#16181A] md:hover:border-[#16181A] md:hover:bg-[#ECE7DC]') +
-                      ' ' + M3_FOCUS
-                    }
-                  >
-                    <Icon size={15} className="h-6 w-6 shrink-0 md:h-[15px] md:w-[15px]" />
-                    <span className={menuOpen ? '' : 'md:hidden'}>{label}</span>
-                    {isReports && (
-                      <ChevronDown
-                        size={14}
-                        className={'ml-auto shrink-0 transition-transform ' + (menuOpen ? '' : 'md:hidden ') + (reportsOpen && active ? 'rotate-180' : '')}
-                      />
-                    )}
-                  </button>
-
-                  {isReports && active && reportsOpen && (
-                    <div className={'mt-1 ml-6 border-l-2 border-[var(--m3-outline-variant)] pl-2 md:ml-4 md:border-[#C1440E] md:pl-1 ' + (menuOpen ? '' : 'md:ml-0 md:pl-0')}>
-                      {REPORT_TABS.map((tab) => {
-                        const subActive = reportPeriod === tab.id;
-                        return (
-                          <button
-                            key={tab.id}
-                            onClick={() => {
-                              setReportPeriod(tab.id);
-                              closeMenuOnMobile();
-                            }}
-                            title={menuOpen ? undefined : tab.label}
-                            aria-label={tab.label}
-                            className={
-                              'mb-0.5 flex h-12 w-full items-center rounded-full text-left text-sm last:mb-0 md:h-auto md:rounded-none md:border-2 md:py-2 md:text-[10px] md:uppercase md:tracking-[0.14em] ' +
-                              (menuOpen ? 'px-4 md:px-3' : 'px-4 md:justify-center md:px-0') +
-                              ' ' +
-                              (subActive
-                                ? 'bg-[var(--m3-secondary-container)] font-medium text-[var(--m3-on-secondary-container)] md:border-[#16181A] md:bg-[#16181A] md:font-normal md:text-white'
-                                : 'text-[var(--m3-on-surface-variant)] hover:bg-[var(--m3-surface-container-highest)] md:border-transparent md:text-[#16181A] md:hover:border-[#16181A] md:hover:bg-[#ECE7DC]')
-                            }
-                          >
-                            <span className={menuOpen ? '' : 'md:hidden'}>{tab.label}</span>
-                            {!menuOpen && <span className="hidden md:inline">{tab.short}</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
-
+        <div className="flex flex-col items-stretch gap-3">
           <main className="w-full min-w-0 flex-1 space-y-5">
             {activeSection === 'dashboard' && (
               <BranchDashboardSection
@@ -3171,6 +3213,7 @@ function OwnerBoard({
           </main>
         </div>
       </div>
+      </div>
 
       <MobileNavDrawer
         open={menuOpen}
@@ -3182,40 +3225,7 @@ function OwnerBoard({
           selectSection('products');
           closeMenuOnMobile();
         }}
-        groups={MOBILE_GROUPS_OWNER.map(({ label, ids }) => ({
-          label,
-          items: ids.map((id): DrawerItem => {
-            const section = OWNER_SECTIONS.find((s) => s.id === id)!;
-            const active = activeSection === id;
-            const isReports = id === 'reports';
-            return {
-              id,
-              label: section.label,
-              icon: section.icon,
-              active,
-              expanded: isReports ? reportsOpen && active : undefined,
-              children: isReports
-                ? REPORT_TABS.map((tab) => ({
-                    id: tab.id,
-                    label: tab.label,
-                    active: reportPeriod === tab.id,
-                    onClick: () => {
-                      setReportPeriod(tab.id);
-                      closeMenuOnMobile();
-                    },
-                  }))
-                : undefined,
-              onClick: () => {
-                if (isReports) setReportsOpen(active ? !reportsOpen : true);
-                else {
-                  setReportsOpen(false);
-                  closeMenuOnMobile();
-                }
-                selectSection(id);
-              },
-            };
-          }),
-        }))}
+        groups={drawerGroups}
         actions={[{ label: "Quitter l'administration", icon: LogOut, onClick: onBackToBranches }]}
       />
       <MobileBottomNav
