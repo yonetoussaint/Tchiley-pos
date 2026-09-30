@@ -1,0 +1,1247 @@
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { createPortal } from 'react-dom';
+import { AlertTriangle, Check, ChevronDown, History, PackagePlus, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { M3_FOCUS } from '../../components/ui/focus';
+import { M3Loading, M3StateLayer, M3_STATUS, M3_VARS } from '../../components/ui/theme';
+import { CATEGORIES, categoryIcon } from './constants';
+import { M3TextField, ProductNumberField, type ProductDraft } from './ProductFields';
+import type { Product, ProductHistoryEntry, ProductMovement } from './types';
+import { fmtHTG } from '../../shared/currency';
+
+type ProductSortKey = 'nom' | 'vendu' | 'prix' | 'prixAchat' | 'stock' | 'seuil' | 'marge' | 'valeur';
+
+export function BranchProductsSection({
+  branchId,
+  branchProducts,
+  inventorySearch,
+  setInventorySearch,
+  inventoryCategoryFilter,
+  setInventoryCategoryFilter,
+  inventoryStatusFilter,
+  setInventoryStatusFilter,
+  soldByProductToday,
+  restockByProduct,
+  setRestockByProduct,
+  selectedHistoryProduct,
+  productHistoryById,
+  productMetricsById,
+  onAddProduct,
+  onUpdateProduct,
+  onRestockProduct,
+  onDeleteProduct,
+  onRecordMovement,
+  onViewHistory,
+}: {
+  branchId: string;
+  branchProducts: Product[];
+  inventorySearch: string;
+  setInventorySearch: Dispatch<SetStateAction<string>>;
+  inventoryCategoryFilter: string;
+  setInventoryCategoryFilter: Dispatch<SetStateAction<string>>;
+  inventoryStatusFilter: 'all' | 'low' | 'normal';
+  setInventoryStatusFilter: Dispatch<SetStateAction<'all' | 'low' | 'normal'>>;
+  soldByProductToday: Record<string, number>;
+  restockByProduct: Record<string, number>;
+  setRestockByProduct: Dispatch<SetStateAction<Record<string, number>>>;
+  selectedHistoryProduct: Product | null;
+  productHistoryById: Record<string, ProductHistoryEntry[]>;
+  productMetricsById: Record<string, { velocity: number; daysLeft: number | null; sales30: number }>;
+  onAddProduct: (draft?: Partial<Product>) => void;
+  onUpdateProduct: (productId: string, patch: Partial<Product>) => void;
+  onRestockProduct: (product: Product) => void;
+  onDeleteProduct: (product: Product) => void;
+  onRecordMovement: (entry: ProductMovement) => void;
+  onViewHistory: (product: Product) => void;
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [inventoryFocusFilter, setInventoryFocusFilter] = useState<'all' | 'reorder' | 'dead' | 'top'>('all');
+  const [stockAdjustment, setStockAdjustment] = useState({ delta: 0, reason: 'Inventaire' });
+  const [addProductOpen, setAddProductOpen] = useState(false);
+
+  const productSummaries = useMemo(() => {
+    const map: Record<string, { unitMargin: number; stockCost: number; stockSale: number; sales7: number; sales30: number; velocity: number; daysLeft: number | null }> = {};
+    branchProducts.forEach((product) => {
+      const history = productHistoryById[product.id] ?? [];
+      const sales7 = history.filter((entry) => entry.kind === 'sale' && entry.date.getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000).reduce((sum, entry) => sum + entry.qty, 0);
+      const sales30 = history.filter((entry) => entry.kind === 'sale' && entry.date.getTime() >= Date.now() - 30 * 24 * 60 * 60 * 1000).reduce((sum, entry) => sum + entry.qty, 0);
+      const velocity = sales30 / 30;
+      const daysLeft = velocity > 0 ? product.stockFermeture / velocity : null;
+      map[product.id] = {
+        unitMargin: product.prix - product.prixAchat,
+        stockCost: product.prixAchat * product.stockFermeture,
+        stockSale: product.prix * product.stockFermeture,
+        sales7,
+        sales30,
+        velocity,
+        daysLeft,
+      };
+    });
+    return map;
+  }, [branchProducts, productHistoryById]);
+
+  const filteredProducts = branchProducts.filter((product) => {
+    const matchesCategory = inventoryCategoryFilter === 'Tout' || product.categorie === inventoryCategoryFilter;
+    const matchesStatus =
+      inventoryStatusFilter === 'all' ||
+      (inventoryStatusFilter === 'low' && product.stockFermeture <= product.seuil) ||
+      (inventoryStatusFilter === 'normal' && product.stockFermeture > product.seuil);
+    const matchesFocus =
+      inventoryFocusFilter === 'all' ||
+      (inventoryFocusFilter === 'reorder' && product.stockFermeture <= product.seuil) ||
+      (inventoryFocusFilter === 'dead' && productSummaries[product.id]?.sales30 === 0) ||
+      (inventoryFocusFilter === 'top' && (productSummaries[product.id]?.sales30 ?? 0) >= 3);
+    const matchesSearch =
+      product.nom.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+      product.categorie.toLowerCase().includes(inventorySearch.toLowerCase());
+    return matchesCategory && matchesStatus && matchesFocus && matchesSearch;
+  });
+
+  const totalStockValueCost = branchProducts.reduce((sum, product) => sum + product.prixAchat * product.stockFermeture, 0);
+  const totalStockValueSale = branchProducts.reduce((sum, product) => sum + product.prix * product.stockFermeture, 0);
+  const potentialProfit = totalStockValueSale - totalStockValueCost;
+  const reorderList = branchProducts.filter((product) => product.stockFermeture <= product.seuil).sort((a, b) => {
+    const aPriority = (a.seuil - a.stockFermeture) + (productSummaries[a.id]?.sales30 ?? 0) * 0.1;
+    const bPriority = (b.seuil - b.stockFermeture) + (productSummaries[b.id]?.sales30 ?? 0) * 0.1;
+    return bPriority - aPriority;
+  });
+  const deadStockList = branchProducts.filter((product) => (productSummaries[product.id]?.sales30 ?? 0) === 0).slice(0, 6);
+  const topSellers = [...branchProducts].sort((a, b) => (productSummaries[b.id]?.sales30 ?? 0) - (productSummaries[a.id]?.sales30 ?? 0)).slice(0, 5);
+
+  const lowStockCount = branchProducts.filter((product) => product.stockFermeture <= product.seuil).length;
+  const outOfStockCount = branchProducts.filter((product) => product.stockFermeture <= 0).length;
+  const lowOnlyCount = lowStockCount - outOfStockCount;
+  const presentCategories = Array.from(new Set(branchProducts.map((product) => product.categorie))).sort(
+    (a, b) => {
+      const ia = (CATEGORIES as readonly string[]).indexOf(a);
+      const ib = (CATEGORIES as readonly string[]).indexOf(b);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    }
+  );
+  const [addProductDraft, setAddProductDraft] = useState<ProductDraft>({
+    nom: '',
+    categorie: presentCategories[0] && presentCategories[0] !== 'Tout' ? presentCategories[0] : 'Autre',
+    prix: 0,
+    prixAchat: 0,
+    stockFermeture: 0,
+    seuil: 5,
+    unite: 'unité',
+  });
+  const [addProductError, setAddProductError] = useState<string | null>(null);
+
+  /* Desktop: sortable table + side sheet for editing. */
+  const [sort, setSort] = useState<{ key: ProductSortKey; dir: 'asc' | 'desc' } | null>(null);
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [drawerFocus, setDrawerFocus] = useState<'restock' | null>(null);
+
+  useEffect(() => {
+    if (!drawerId) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDrawerId(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drawerId]);
+
+  const isEditing = (id: string) => editingId === id;
+  const isSaving = (id: string) => savingId === id;
+
+  const handleEditClick = (id: string) => setEditingId(id);
+  const handleCancelClick = () => setEditingId(null);
+  const handleSaveClick = async (id: string) => {
+    setSavingId(id);
+    const savedProduct = branchProducts.find((item) => item.id === id);
+    if (savedProduct) onRestockProduct(savedProduct);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    setSavingId(null);
+    setEditingId(null);
+  };
+
+
+  const openDrawer = (id: string, focus: 'restock' | null = null) => {
+    setDrawerFocus(focus);
+    setDrawerId(id);
+  };
+  const drawerProduct = drawerId ? (branchProducts.find((item) => item.id === drawerId) ?? null) : null;
+
+  const toggleSort = (key: ProductSortKey) =>
+    setSort((prev) => {
+      const first = key === 'nom' ? 'asc' : 'desc';
+      const second = first === 'asc' ? 'desc' : 'asc';
+      if (!prev || prev.key !== key) return { key, dir: first };
+      return prev.dir === first ? { key, dir: second } : null;
+    });
+
+  const sortedProducts = (() => {
+    if (!sort) return filteredProducts;
+    const value = (p: Product): string | number => {
+      switch (sort.key) {
+        case 'nom': return p.nom.toLowerCase();
+        case 'vendu': return soldByProductToday[p.id] ?? 0;
+        case 'prix': return p.prix;
+        case 'prixAchat': return p.prixAchat;
+        case 'stock': return p.stockFermeture;
+        case 'marge': return p.prix - p.prixAchat;
+        case 'valeur': return p.prixAchat * p.stockFermeture;
+        default: return p.seuil;
+      }
+    };
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...filteredProducts].sort((x, y) => {
+      const vx = value(x);
+      const vy = value(y);
+      return (typeof vx === 'string' ? vx.localeCompare(String(vy), 'fr') : Number(vx) - Number(vy)) * dir;
+    });
+  })();
+
+  const handleManualAdjustment = (product: Product, delta: number, reason: string) => {
+    if (!delta) return;
+    const nextStock = Math.max(0, product.stockFermeture + delta);
+    onUpdateProduct(product.id, { stockFermeture: nextStock });
+    onRecordMovement({
+      id: `manual-${Date.now()}-${product.id}`,
+      branchId,
+      productId: product.id,
+      date: new Date(),
+      kind: 'manual',
+      qty: Math.abs(delta),
+      note: reason,
+      amount: 0,
+    });
+  };
+
+  const submitNewProduct = () => {
+    const name = addProductDraft.nom.trim();
+    if (!name) {
+      setAddProductError('Le nom du produit est obligatoire.');
+      return;
+    }
+
+    const salePrice = Number(addProductDraft.prix) || 0;
+    const purchasePrice = Number(addProductDraft.prixAchat) || 0;
+    if (salePrice <= 0) {
+      setAddProductError('Le prix de vente doit être supérieur à 0.');
+      return;
+    }
+    if (purchasePrice > 0 && salePrice < purchasePrice) {
+      setAddProductError('Le prix de vente ne peut pas être inférieur au prix d\'achat.');
+      return;
+    }
+
+    onAddProduct({
+      nom: name,
+      categorie: addProductDraft.categorie || 'Autre',
+      prix: salePrice,
+      prixAchat: purchasePrice,
+      stockFermeture: Math.max(0, Number(addProductDraft.stockFermeture) || 0),
+      seuil: Math.max(0, Number(addProductDraft.seuil) || 0),
+      unite: addProductDraft.unite.trim() || 'unité',
+    });
+    setAddProductError(null);
+    setAddProductOpen(false);
+    setAddProductDraft({
+      nom: '',
+      categorie: presentCategories[0] && presentCategories[0] !== 'Tout' ? presentCategories[0] : 'Autre',
+      prix: 0,
+      prixAchat: 0,
+      stockFermeture: 0,
+      seuil: 5,
+      unite: 'unité',
+    });
+  };
+
+  const sortHead = (key: ProductSortKey, label: string, align: 'left' | 'right' = 'right') => {
+    const active = sort?.key === key;
+    return (
+      <th
+        scope="col"
+        aria-sort={active ? (sort?.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+        className={`px-4 py-3 font-medium ${align === 'left' ? 'text-left' : 'text-right'}`}
+      >
+        <button
+          type="button"
+          onClick={() => toggleSort(key)}
+          className={`group relative -mx-2 inline-flex items-center gap-1 overflow-hidden rounded-full px-2 py-1 ${active ? 'text-[var(--m3-on-surface)]' : ''} ${M3_FOCUS}`}
+        >
+          <M3StateLayer />
+          {label}
+          <ChevronDown
+            size={14}
+            aria-hidden="true"
+            className={`transition-transform motion-reduce:transition-none ${active ? (sort?.dir === 'asc' ? 'rotate-180' : '') : 'opacity-0 group-hover:opacity-50'}`}
+          />
+        </button>
+      </th>
+    );
+  };
+
+  return (
+    <>
+    <div
+      style={M3_VARS}
+      className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-28 pt-4 font-sans text-[var(--m3-on-surface)] sm:hidden      "
+    >
+      <div className="mb-4 flex items-center gap-2  ">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[32px] font-bold leading-10 tracking-tight">Produits</h2>
+          <p className="truncate text-sm leading-5 text-[var(--m3-on-surface-variant)]">
+            {branchProducts.length} article{branchProducts.length !== 1 ? 's' : ''}
+            {lowStockCount > 0 ? ` · ${lowStockCount} en stock bas` : ''}
+          </p>
+        </div>
+        <button
+            onClick={() => setAddProductOpen(true)}
+            className={`group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS}       `}
+          >
+            <M3StateLayer />
+            <Plus className="h-6 w-6" />
+            Nouveau
+          </button>
+      </div>
+
+      {/* Toolbar: search + stock status on one row (desktop), category chips underneath */}
+      <div className="     ">
+        <div className="mb-3 flex h-14 w-full min-w-0 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none   ">
+          <Search className="h-6 w-6 shrink-0 text-[var(--m3-on-surface-variant)]" />
+          <input
+            type="text"
+            value={inventorySearch}
+            onChange={(event) => setInventorySearch(event.target.value)}
+            placeholder="Rechercher un produit..."
+            className="w-full min-w-0 border-none bg-transparent text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
+          />
+          {inventorySearch && (
+            <button
+              type="button"
+              onClick={() => setInventorySearch('')}
+              aria-label="Effacer la recherche"
+              className={`group relative -mr-2 flex h-12 w-12 shrink-0   items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+            >
+              <M3StateLayer />
+              <X size={20} />
+            </button>
+          )}
+        </div>
+
+      {/* Category filter chips — only categories present in this branch */}
+      <div
+        role="group"
+        aria-label="Filtrer par catégorie"
+        className="-mx-3 mb-2 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden       "
+      >
+        {['Tout', ...presentCategories].map((category) => {
+          const selected = inventoryCategoryFilter === category;
+          return (
+            <button
+              key={category}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setInventoryCategoryFilter(category)}
+              className={`group relative shrink-0 before:absolute before:inset-x-0 before:-inset-y-2 before:content-['']  ${M3_FOCUS}`}
+            >
+              <span
+                className={`relative flex h-9 items-center gap-2 overflow-hidden px-3.5 text-sm font-medium m3-morph ${
+                  selected ? 'rounded-full' : 'rounded-xl'
+                } ${
+                  selected
+                    ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                    : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+                }`}
+              >
+                <M3StateLayer />
+                {selected && <Check size={16} />}
+                {category}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Stock status — connected segmented button */}
+      <div className="mb-4 grid h-14 grid-cols-3 gap-0.5    ">
+        {[
+          { id: 'all', label: 'Tous' },
+          { id: 'low', label: 'En stock bas' },
+          { id: 'normal', label: 'Normal' },
+        ].map((status, idx, arr) => {
+          const selected = inventoryStatusFilter === status.id;
+          /* Connected button group: selected = full pill, others = small inner corners. */
+          const shape = selected
+            ? 'rounded-full'
+            : idx === 0
+              ? 'rounded-l-full rounded-r-lg'
+              : idx === arr.length - 1
+                ? 'rounded-r-full rounded-l-lg'
+                : 'rounded-lg';
+          return (
+            <button
+              key={status.id}
+              onClick={() => setInventoryStatusFilter(status.id as 'all' | 'low' | 'normal')}
+              aria-pressed={selected}
+              className={
+                `group relative flex items-center justify-center gap-1.5 overflow-hidden px-1 text-sm font-semibold m3-morph ${shape} ${M3_FOCUS} ` +
+                (selected
+                  ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
+                  : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]')
+              }
+            >
+              <M3StateLayer />
+              {selected && <Check size={16} />}
+              {status.label}
+            </button>
+          );
+        })}
+      </div>
+
+      </div>
+
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        {[
+          ['Valeur stock', fmtHTG(totalStockValueCost)],
+          ['Valeur vente', fmtHTG(totalStockValueSale)],
+          ['Profit potentiel', fmtHTG(potentialProfit)],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-2xl bg-[var(--m3-surface-container)] p-3">
+            <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">{label}</div>
+            <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-4 grid h-12 grid-cols-4 gap-1.5">
+        {[
+          { id: 'all', label: 'Tout' },
+          { id: 'reorder', label: 'À commander' },
+          { id: 'dead', label: 'Inactif' },
+          { id: 'top', label: 'Top ventes' },
+        ].map((filter) => (
+          <button
+            key={filter.id}
+            type="button"
+            onClick={() => setInventoryFocusFilter(filter.id as 'all' | 'reorder' | 'dead' | 'top')}
+            className={`group relative overflow-hidden rounded-full px-2 text-xs font-semibold ${M3_FOCUS} ${inventoryFocusFilter === filter.id ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]'}`}
+          >
+            <M3StateLayer />
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
+      {(reorderList.length > 0 || deadStockList.length > 0 || topSellers.length > 0) && (
+        <div className="mb-4 grid gap-2 sm:grid-cols-3">
+          {reorderList.length > 0 && (
+            <div className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
+              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">À commander</div>
+              <div className="mt-2 text-sm font-medium">{reorderList.slice(0, 2).map((product) => product.nom).join(' • ')}</div>
+            </div>
+          )}
+          {deadStockList.length > 0 && (
+            <div className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
+              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">Inactif 30j</div>
+              <div className="mt-2 text-sm font-medium">{deadStockList.slice(0, 2).map((product) => product.nom).join(' • ')}</div>
+            </div>
+          )}
+          {topSellers.length > 0 && (
+            <div className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
+              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">Top ventes</div>
+              <div className="mt-2 text-sm font-medium">{topSellers.slice(0, 2).map((product) => `${product.nom} (${productSummaries[product.id]?.sales30 ?? 0})`).join(' • ')}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Product cards — tonal surfaces, state layers, tap to expand (1 column on phone, grid on desktop) */}
+      <div className="grid grid-cols-1 items-start gap-2 pb-24    ">
+          {filteredProducts.map((product) => {
+            const soldToday = soldByProductToday[product.id] ?? 0;
+            const restockValue = restockByProduct[product.id] ?? 0;
+            const isLowStock = product.stockFermeture <= product.seuil;
+            const isOutOfStock = product.stockFermeture <= 0;
+            const editing = isEditing(product.id);
+            const saving = isSaving(product.id);
+            const open = editing || expandedId === product.id;
+            const showHistory = selectedHistoryProduct?.id === product.id;
+            const tone = isOutOfStock ? M3_STATUS.out : isLowStock ? M3_STATUS.low : M3_STATUS.ok;
+            const statusLabel = isOutOfStock ? 'Rupture de stock' : isLowStock ? 'Stock bas' : 'En stock';
+            const CategoryIcon = categoryIcon(product.categorie);
+            const btn =
+              `group relative flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full px-2 text-sm font-medium tracking-[0.01em] ${M3_FOCUS}`;
+            return (
+              <div
+                key={product.id}
+                className={
+                  'overflow-hidden transition-[background-color,border-radius] duration-300 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ' +
+                  (open
+                    ? 'rounded-[32px] bg-[var(--m3-surface-container-high)]'
+                    : 'rounded-2xl bg-[var(--m3-surface-container)]') +
+                  (editing ? ' ring-2 ring-[var(--m3-primary)]' : '')
+                }
+              >
+                {/* List item */}
+                {editing ? (
+                  <div className="m3-in space-y-2 p-4 pb-2">
+                    <M3TextField
+                      label="Nom du produit"
+                      value={product.nom}
+                      placeholder="Nom du produit"
+                      onChange={(value) => onUpdateProduct(product.id, { nom: value })}
+                    />
+                    <M3TextField
+                      label="Catégorie"
+                      value={product.categorie}
+                      placeholder="Catégorie"
+                      onChange={(value) => onUpdateProduct(product.id, { categorie: value })}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId((prev) => (prev === product.id ? null : product.id))}
+                    aria-expanded={open}
+                    className={`group relative flex min-h-[72px] w-full items-center gap-4 px-4 py-3 text-left ${M3_FOCUS}`}
+                  >
+                    <M3StateLayer />
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}
+                    >
+                      <CategoryIcon size={20} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-base font-medium leading-6 text-[var(--m3-on-surface)]">
+                        {product.nom}
+                      </span>
+                      <span className="block truncate text-sm leading-5 text-[var(--m3-on-surface-variant)]">
+                        {product.categorie} · Prix {product.prix} · Vendu {soldToday}
+                      </span>
+                    </span>
+                    <span
+                      className={`flex h-8 min-w-[2rem] shrink-0 items-center justify-center gap-1 rounded-full px-3 text-sm font-medium tabular-nums ${tone.bg} ${tone.fg}`}
+                    >
+                      {(isLowStock || isOutOfStock) && <AlertTriangle size={14} aria-hidden="true" />}
+                      <span className="sr-only">{statusLabel} : </span>
+                      {product.stockFermeture}
+                    </span>
+                    <ChevronDown
+                      size={20}
+                      aria-hidden="true"
+                      className={
+                        'shrink-0 text-[var(--m3-on-surface-variant)] transition-transform duration-300 motion-reduce:transition-none ' +
+                        (open ? 'rotate-180' : '')
+                      }
+                    />
+                  </button>
+                )}
+
+                {/* Expanded details */}
+                {open && (
+                  <div className="m3-in px-4 pb-4 pt-1">
+                    {showHistory && !editing && (() => {
+                      const history = productHistoryById[product.id] ?? [];
+                      const metrics = productMetricsById[product.id] ?? { velocity: 0, daysLeft: null, sales30: 0 };
+                      const recent = history.slice(0, 3);
+                      return (
+                        <div className="mb-3 rounded-2xl bg-[var(--m3-surface)] p-3">
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            {[
+                              ['Vendu 30j', `${metrics.sales30}`],
+                              ['Vélocité', metrics.velocity > 0 ? `${metrics.velocity.toFixed(1)}/j` : '0/j'],
+                              ['Jours restants', metrics.daysLeft != null ? `${metrics.daysLeft.toFixed(1)} j` : '—'],
+                            ].map(([label, value]) => (
+                              <div key={label}>
+                                <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--m3-on-surface-variant)]">{label}</div>
+                                <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-3 space-y-1.5">
+                            {recent.length === 0 ? (
+                              <div className="text-xs text-[var(--m3-on-surface-variant)]">Aucun mouvement historique pour ce produit.</div>
+                            ) : recent.map((entry) => {
+                                const signed = entry.kind === 'sale' ? '-' : '+';
+                                const tone = entry.kind === 'sale' ? 'text-[#BA1A1A]' : 'text-[#2F6B4F]';
+                                return (
+                                  <div key={entry.id} className="flex items-center justify-between gap-2 rounded-xl bg-[var(--m3-surface-container)] px-2.5 py-1.5 text-xs">
+                                    <div className="min-w-0">
+                                      <div className="truncate font-medium text-[var(--m3-on-surface)]">{entry.note}</div>
+                                      <div className="text-[var(--m3-on-surface-variant)]">{entry.kind === 'sale' ? 'Vente' : entry.kind === 'purchase' ? 'Achat' : entry.kind === 'restock' ? 'Réappro.' : 'Ajustement'} · {entry.date.toLocaleDateString('fr-FR')}</div>
+                                    </div>
+                                    <div className={`tabular-nums font-semibold ${tone}`}>{signed}{entry.qty}</div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <ProductNumberField
+                        label="Prix vente"
+                        tone="green"
+                        decimal
+                        editing={editing}
+                        value={product.prix}
+                        onChange={(value) => onUpdateProduct(product.id, { prix: value })}
+                      />
+                      <ProductNumberField
+                        label="Prix achat"
+                        tone="steel"
+                        decimal
+                        editing={editing}
+                        value={product.prixAchat}
+                        onChange={(value) => onUpdateProduct(product.id, { prixAchat: value })}
+                      />
+                      <ProductNumberField
+                        label="Seuil"
+                        tone="yellow"
+                        editing={editing}
+                        value={product.seuil}
+                        onChange={(value) => onUpdateProduct(product.id, { seuil: value })}
+                      />
+                      <ProductNumberField
+                        label="Ouverture"
+                        editing={editing}
+                        value={product.stockOuverture}
+                        onChange={(value) => onUpdateProduct(product.id, { stockOuverture: value })}
+                      />
+                      <ProductNumberField
+                        label="Fermeture"
+                        editing={editing}
+                        value={product.stockFermeture}
+                        onChange={(value) => onUpdateProduct(product.id, { stockFermeture: value })}
+                      />
+                      <ProductNumberField
+                        label="Ajout stock"
+                        tone="green"
+                        placeholder="Qté"
+                        editing={editing}
+                        value={restockValue}
+                        onChange={(value) => setRestockByProduct((prev) => ({ ...prev, [product.id]: value }))}
+                      />
+                    </div>
+
+                    <div className={'mt-4 grid gap-2 ' + (editing ? 'grid-cols-2' : 'grid-cols-3')}>
+                      {editing ? (
+                        <>
+                          <button
+                            onClick={() => handleSaveClick(product.id)}
+                            disabled={saving}
+                            className={
+                              `${btn} bg-[var(--m3-primary)] text-[var(--m3-on-primary)] ` +
+                              (saving ? 'cursor-wait opacity-80' : '')
+                            }
+                            aria-label={saving ? 'Enregistrement...' : 'Enregistrer'}
+                          >
+                            <M3StateLayer />
+                            {saving ? <M3Loading size={18} /> : <Check size={18} />}
+                            {saving ? 'Envoi…' : 'Enregistrer'}
+                          </button>
+                          <button
+                            onClick={handleCancelClick}
+                            className={`${btn} border border-[var(--m3-outline)] text-[var(--m3-primary)]`}
+                            aria-label="Annuler"
+                          >
+                            <M3StateLayer />
+                            <X size={18} />
+                            Annuler
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => onViewHistory(product)}
+                            className={
+                              `${btn} ` +
+                              (showHistory
+                                ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
+                                : 'border border-[var(--m3-outline)] text-[var(--m3-primary)]')
+                            }
+                            aria-label="Historique"
+                            aria-pressed={showHistory}
+                          >
+                            <M3StateLayer />
+                            <History size={18} />
+                            Histo.
+                          </button>
+                          <button
+                            onClick={() => {
+                              setExpandedId(product.id);
+                              handleEditClick(product.id);
+                            }}
+                            className={`${btn} bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]`}
+                            aria-label="Modifier"
+                          >
+                            <M3StateLayer />
+                            <Pencil size={18} />
+                            Modifier
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Supprimer « ${product.nom} » ?`)) onDeleteProduct(product);
+                            }}
+                            className={`${btn} text-[#BA1A1A]`}
+                            aria-label="Supprimer"
+                          >
+                            <M3StateLayer />
+                            <Trash2 size={18} />
+                            Suppr.
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {filteredProducts.length === 0 && (
+            <div className="rounded-[32px] bg-[var(--m3-surface-container)] px-6 py-10 text-center ">
+              <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+                <PackagePlus size={28} />
+              </span>
+              <p className="text-base font-medium">Aucun produit ne correspond aux filtres.</p>
+              <p className="mt-1 text-sm text-[var(--m3-on-surface-variant)]">
+                Essayez de modifier vos critères de recherche.
+              </p>
+            </div>
+          )}
+      </div>
+    </div>
+
+      {/* ===================== Desktop (sm and up): table + side sheet ===================== */}
+      <div style={M3_VARS} className="hidden font-sans text-[var(--m3-on-surface)] sm:block">
+        <div className="mb-5 flex items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[32px] font-bold leading-10 tracking-tight">Produits</h2>
+            <p className="text-sm text-[var(--m3-on-surface-variant)]">
+              {branchProducts.length} article{branchProducts.length !== 1 ? 's' : ''}
+              {lowOnlyCount > 0 ? ` · ${lowOnlyCount} en stock bas` : ''}
+              {outOfStockCount > 0 ? ` · ${outOfStockCount} en rupture` : ''}
+            </p>
+          </div>
+          <button
+            onClick={() => setAddProductOpen(true)}
+            className={`group relative flex h-12 shrink-0 items-center gap-2 overflow-hidden rounded-[20px] bg-[var(--m3-primary)] px-6 text-sm font-semibold text-[var(--m3-on-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.15)] transition-[box-shadow,transform] hover:shadow-[0_2px_6px_2px_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.3)] active:scale-[0.96] motion-reduce:transition-none ${M3_FOCUS}`}
+          >
+            <M3StateLayer />
+            <Plus size={20} />
+            Nouveau produit
+          </button>
+        </div>
+
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <div className="flex h-12 min-w-[240px] max-w-md flex-1 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none">
+            <Search className="h-5 w-5 shrink-0 text-[var(--m3-on-surface-variant)]" />
+            <input
+              type="text"
+              value={inventorySearch}
+              onChange={(event) => setInventorySearch(event.target.value)}
+              placeholder="Rechercher un produit..."
+              className="w-full min-w-0 border-none bg-transparent text-sm text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
+            />
+            {inventorySearch && (
+              <button
+                type="button"
+                onClick={() => setInventorySearch('')}
+                aria-label="Effacer la recherche"
+                className={`group relative -mr-2 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+              >
+                <M3StateLayer />
+                <X size={18} />
+              </button>
+            )}
+          </div>
+
+          <div role="group" aria-label="Filtrer par stock" className="grid h-12 w-[420px] max-w-full grid-cols-3 gap-0.5">
+            {[
+              { id: 'all', label: 'Tous', count: branchProducts.length },
+              { id: 'low', label: 'En stock bas', count: lowStockCount },
+              { id: 'normal', label: 'Normal', count: branchProducts.length - lowStockCount },
+            ].map((status, idx, arr) => {
+              const selected = inventoryStatusFilter === status.id;
+              const shape = selected
+                ? 'rounded-full'
+                : idx === 0
+                  ? 'rounded-l-full rounded-r-lg'
+                  : idx === arr.length - 1
+                    ? 'rounded-r-full rounded-l-lg'
+                    : 'rounded-lg';
+              return (
+                <button
+                  key={status.id}
+                  onClick={() => setInventoryStatusFilter(status.id as 'all' | 'low' | 'normal')}
+                  aria-pressed={selected}
+                  className={
+                    `group relative flex items-center justify-center gap-1.5 overflow-hidden px-2 text-sm font-semibold m3-morph ${shape} ${M3_FOCUS} ` +
+                    (selected
+                      ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]'
+                      : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]')
+                  }
+                >
+                  <M3StateLayer />
+                  {selected && <Check size={16} />}
+                  {status.label}
+                  <span className="text-xs font-medium tabular-nums opacity-70">{status.count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="ml-auto text-sm tabular-nums text-[var(--m3-on-surface-variant)]" aria-live="polite">
+            {filteredProducts.length} sur {branchProducts.length}
+          </div>
+        </div>
+
+        <div className="mb-4 grid grid-cols-4 gap-2">
+          {[
+            { id: 'all', label: 'Tout' },
+            { id: 'reorder', label: 'À commander' },
+            { id: 'dead', label: 'Inactif' },
+            { id: 'top', label: 'Top ventes' },
+          ].map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => setInventoryFocusFilter(filter.id as 'all' | 'reorder' | 'dead' | 'top')}
+              className={`group relative h-10 overflow-hidden rounded-full px-3 text-sm font-medium ${M3_FOCUS} ${inventoryFocusFilter === filter.id ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]'}`}
+            >
+              <M3StateLayer />
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mb-4 grid grid-cols-3 gap-2">
+          {[
+            ['Valeur stock', fmtHTG(totalStockValueCost)],
+            ['Valeur vente', fmtHTG(totalStockValueSale)],
+            ['Profit potentiel', fmtHTG(potentialProfit)],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
+              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">{label}</div>
+              <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div role="group" aria-label="Filtrer par catégorie" className="mb-5 flex flex-wrap gap-2">
+          {['Tout', ...presentCategories].map((category) => {
+            const selected = inventoryCategoryFilter === category;
+            return (
+              <button
+                key={category}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setInventoryCategoryFilter(category)}
+                className={`group relative shrink-0 ${M3_FOCUS}`}
+              >
+                <span
+                  className={`relative flex h-8 items-center gap-1.5 overflow-hidden px-3 text-sm font-medium m3-morph ${
+                    selected ? 'rounded-full' : 'rounded-lg'
+                  } ${
+                    selected
+                      ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                      : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+                  }`}
+                >
+                  <M3StateLayer />
+                  {selected && <Check size={14} />}
+                  {category}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="overflow-hidden rounded-[28px] bg-[var(--m3-surface-container)]">
+          <div className="max-h-[62vh] overflow-auto">
+            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-[var(--m3-surface-container-high)] text-xs text-[var(--m3-on-surface-variant)] shadow-[0_1px_0_var(--m3-outline-variant)]">
+                <tr>
+                  {sortHead('nom', 'Produit', 'left')}
+                  {sortHead('vendu', 'Vendu auj.')}
+                  {sortHead('prix', 'Prix vente')}
+                  {sortHead('prixAchat', 'Prix achat')}
+                  {sortHead('marge', 'Marge')}
+                  {sortHead('stock', 'Stock')}
+                  {sortHead('valeur', 'Valeur')}
+                  {sortHead('seuil', 'Seuil')}
+                  <th scope="col" className="w-40 px-3 py-3 text-right font-medium">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedProducts.map((product) => {
+                  const soldToday = soldByProductToday[product.id] ?? 0;
+                  const isLowStock = product.stockFermeture <= product.seuil;
+                  const isOutOfStock = product.stockFermeture <= 0;
+                  const tone = isOutOfStock ? M3_STATUS.out : isLowStock ? M3_STATUS.low : M3_STATUS.ok;
+                  const statusLabel = isOutOfStock ? 'Rupture de stock' : isLowStock ? 'Stock bas' : 'En stock';
+                  const CategoryIcon = categoryIcon(product.categorie);
+                  const active = drawerId === product.id;
+                  const iconBtn = `group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`;
+                  return (
+                    <tr
+                      key={product.id}
+                      tabIndex={0}
+                      onClick={() => openDrawer(product.id)}
+                      onKeyDown={(event) => {
+                        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+                          event.preventDefault();
+                          openDrawer(product.id);
+                        }
+                      }}
+                      className={
+                        'cursor-pointer border-b border-[var(--m3-outline-variant)]/60 transition-colors last:border-b-0 focus-visible:bg-[var(--m3-surface-container-high)] focus-visible:outline-none motion-reduce:transition-none ' +
+                        (active
+                          ? 'bg-[var(--m3-secondary-container)]'
+                          : isOutOfStock
+                            ? 'bg-[#FFDAD6]/40 hover:bg-[#FFDAD6]/60'
+                            : 'hover:bg-[var(--m3-surface-container-high)]')
+                      }
+                    >
+                      <td className="max-w-[320px] px-4 py-2.5">
+                        <div className="flex items-center gap-3">
+                          <span aria-hidden="true" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}>
+                            <CategoryIcon size={18} />
+                          </span>
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{product.nom}</div>
+                            <div className="truncate text-xs text-[var(--m3-on-surface-variant)]">{product.categorie}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--m3-on-surface-variant)]">{soldToday}</td>
+                      <td className="px-4 py-2.5 text-right font-medium tabular-nums text-[var(--m3-primary)]">{fmtHTG(product.prix)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--m3-on-surface-variant)]">{fmtHTG(product.prixAchat)}</td>
+                      <td className="px-4 py-2.5 text-right font-medium tabular-nums text-[var(--m3-on-surface)]">{fmtHTG(product.prix - product.prixAchat)}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <span className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-medium tabular-nums ${tone.bg} ${tone.fg}`}>
+                          {(isLowStock || isOutOfStock) && <AlertTriangle size={14} aria-hidden="true" />}
+                          <span className="sr-only">{statusLabel} : </span>
+                          {product.stockFermeture}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--m3-on-surface-variant)]">{fmtHTG(product.prixAchat * product.stockFermeture)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--m3-on-surface-variant)]">{product.seuil}</td>
+                      <td className="px-3 py-2.5" onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => openDrawer(product.id, 'restock')} className={iconBtn} aria-label="Ajouter du stock" title="Ajouter du stock">
+                            <M3StateLayer />
+                            <PackagePlus size={18} />
+                          </button>
+                          <button onClick={() => openDrawer(product.id)} className={iconBtn} aria-label="Modifier" title="Modifier">
+                            <M3StateLayer />
+                            <Pencil size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Supprimer « ${product.nom} » ?`)) onDeleteProduct(product);
+                            }}
+                            className={`${iconBtn} !text-[#BA1A1A]`}
+                            aria-label="Supprimer"
+                            title="Supprimer"
+                          >
+                            <M3StateLayer />
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {sortedProducts.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-16 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+                          <PackagePlus size={28} />
+                        </span>
+                        <span className="text-base font-medium">Aucun produit ne correspond aux filtres.</span>
+                        <span className="text-sm text-[var(--m3-on-surface-variant)]">Essayez de modifier vos critères de recherche.</span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {drawerProduct &&
+        (() => {
+          const p = drawerProduct;
+          const isOut = p.stockFermeture <= 0;
+          const isLow = p.stockFermeture <= p.seuil;
+          const tone = isOut ? M3_STATUS.out : isLow ? M3_STATUS.low : M3_STATUS.ok;
+          const statusLabel = isOut ? 'Rupture de stock' : isLow ? 'Stock bas' : 'En stock';
+          const CategoryIcon = categoryIcon(p.categorie);
+          const marge = p.prix - p.prixAchat;
+          const margePct = p.prix > 0 ? Math.round((marge / p.prix) * 100) : 0;
+          const saving = isSaving(p.id);
+          const footBtn = `group relative flex h-11 items-center justify-center gap-2 overflow-hidden rounded-full px-5 text-sm font-medium ${M3_FOCUS}`;
+          const sectionTitle = 'mb-2 text-xs font-medium tracking-[0.03em] text-[var(--m3-on-surface-variant)]';
+          return createPortal(
+            <>
+              <div aria-hidden="true" onClick={() => setDrawerId(null)} className="fixed inset-0 z-[80] hidden bg-black/30 sm:block" />
+              <aside
+                key={p.id}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Modifier ${p.nom}`}
+                style={M3_VARS}
+                className="m3-side fixed inset-y-0 right-0 z-[81] hidden w-[440px] max-w-full flex-col rounded-l-[28px] bg-[var(--m3-surface-container-low)] text-[var(--m3-on-surface)] shadow-[-8px_0_24px_rgba(0,0,0,0.16)] sm:flex"
+              >
+                <div className="flex shrink-0 items-start gap-4 px-6 pb-4 pt-6">
+                  <span aria-hidden="true" className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}>
+                    <CategoryIcon size={22} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xl font-medium leading-7">{p.nom || 'Sans nom'}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--m3-on-surface-variant)]">
+                      <span className="truncate">{p.categorie}</span>
+                      <span className={`inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-xs font-medium ${tone.bg} ${tone.fg}`}>
+                        {(isLow || isOut) && <AlertTriangle size={12} aria-hidden="true" />}
+                        {statusLabel}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDrawerId(null)}
+                    aria-label="Fermer"
+                    className={`group relative -mr-2 -mt-1 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+                  >
+                    <M3StateLayer />
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-4">
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      ['Vendu auj.', String(soldByProductToday[p.id] ?? 0)],
+                      ['Marge unitaire', `${fmtHTG(marge)} · ${margePct}%`],
+                      ['Valeur du stock', fmtHTG(p.prixAchat * p.stockFermeture)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-2xl bg-[var(--m3-surface-container)] px-3 py-2.5">
+                        <div className="text-xs text-[var(--m3-on-surface-variant)]">{label}</div>
+                        <div className="mt-0.5 text-sm font-medium tabular-nums">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <section>
+                    <h3 className={sectionTitle}>Informations</h3>
+                    <div className="space-y-2">
+                      <M3TextField label="Nom du produit" value={p.nom} placeholder="Nom du produit" onChange={(value) => onUpdateProduct(p.id, { nom: value })} />
+                      <M3TextField label="Catégorie" value={p.categorie} placeholder="Catégorie" onChange={(value) => onUpdateProduct(p.id, { categorie: value })} />
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className={sectionTitle}>Prix (HTG)</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <ProductNumberField label="Prix vente" tone="green" decimal editing value={p.prix} onChange={(value) => onUpdateProduct(p.id, { prix: value })} />
+                      <ProductNumberField label="Prix achat" tone="steel" decimal editing value={p.prixAchat} onChange={(value) => onUpdateProduct(p.id, { prixAchat: value })} />
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className={sectionTitle}>Correction de stock</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="block min-w-0 rounded-xl bg-[var(--m3-surface)] px-3 pb-1 pt-2 ring-1 ring-[var(--m3-outline)] focus-within:ring-2 focus-within:ring-[var(--m3-primary)]">
+                        <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">Raison</span>
+                        <select value={stockAdjustment.reason} onChange={(event) => setStockAdjustment((prev) => ({ ...prev, reason: event.target.value }))} className="h-8 w-full bg-transparent text-base text-[var(--m3-on-surface)] outline-none">
+                          {['Inventaire', 'Casse', 'Perte', 'Vol', 'Autre'].map((option) => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <ProductNumberField
+                        label="Quantité"
+                        editing
+                        value={stockAdjustment.delta}
+                        onChange={(value) => setStockAdjustment((prev) => ({ ...prev, delta: value }))}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleManualAdjustment(p, stockAdjustment.delta, stockAdjustment.reason);
+                        setStockAdjustment({ delta: 0, reason: 'Inventaire' });
+                      }}
+                      className={`${footBtn} mt-3 w-full bg-[var(--m3-primary)] text-[var(--m3-on-primary)]`}
+                    >
+                      <M3StateLayer />
+                      <PackagePlus size={18} />
+                      Enregistrer la correction
+                    </button>
+                  </section>
+
+                  <section>
+                    <h3 className={sectionTitle}>Tendance</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(() => {
+                        const daysLeft = productSummaries[p.id]?.daysLeft;
+                        return [
+                          ['7 jours', `${productSummaries[p.id]?.sales7 ?? 0}`],
+                          ['30 jours', `${productSummaries[p.id]?.sales30 ?? 0}`],
+                          ['≈ jours stock', daysLeft != null ? `${daysLeft.toFixed(1)} j` : '—'],
+                        ];
+                      })().map(([label, value]) => (
+                        <div key={label} className="rounded-2xl bg-[var(--m3-surface-container)] px-3 py-2.5 text-center">
+                          <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--m3-on-surface-variant)]">{label}</div>
+                          <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className={sectionTitle}>Historique produit</h3>
+                    <div className="space-y-2 rounded-[20px] bg-[var(--m3-surface-container)] p-3">
+                      {(productHistoryById[p.id] ?? []).slice(0, 5).map((entry) => (
+                        <div key={entry.id} className="flex items-center justify-between gap-2 rounded-2xl bg-[var(--m3-surface)] px-2.5 py-2 text-xs">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium text-[var(--m3-on-surface)]">{entry.note}</div>
+                            <div className="text-[var(--m3-on-surface-variant)]">{entry.kind === 'sale' ? 'Vente' : entry.kind === 'purchase' ? 'Achat' : entry.kind === 'restock' ? 'Réappro.' : entry.kind === 'manual' ? 'Correction' : 'Mouvement'} · {entry.date.toLocaleDateString('fr-FR')}</div>
+                          </div>
+                          <div className={`tabular-nums font-semibold ${entry.kind === 'sale' ? 'text-[#BA1A1A]' : 'text-[#2F6B4F]'}`}>
+                            {entry.kind === 'sale' ? '-' : '+'}{entry.qty}
+                          </div>
+                        </div>
+                      ))}
+                      {!(productHistoryById[p.id] ?? []).length && (
+                        <div className="text-xs text-[var(--m3-on-surface-variant)]">Aucun mouvement historique pour ce produit.</div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className={sectionTitle}>Stock ({p.unite})</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <ProductNumberField label="Ouverture" editing value={p.stockOuverture} onChange={(value) => onUpdateProduct(p.id, { stockOuverture: value })} />
+                      <ProductNumberField label="Fermeture" editing value={p.stockFermeture} onChange={(value) => onUpdateProduct(p.id, { stockFermeture: value })} />
+                      <ProductNumberField label="Seuil d'alerte" tone="yellow" editing value={p.seuil} onChange={(value) => onUpdateProduct(p.id, { seuil: value })} />
+                      <ProductNumberField
+                        label="Ajout stock"
+                        tone="green"
+                        placeholder="Qté"
+                        editing
+                        autoFocus={drawerFocus === 'restock'}
+                        value={restockByProduct[p.id] ?? 0}
+                        onChange={(value) => setRestockByProduct((prev) => ({ ...prev, [p.id]: value }))}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-[var(--m3-on-surface-variant)]">
+                      Les champs s'appliquent immédiatement. « Ajout stock » est ajouté au stock actuel quand vous cliquez sur Enregistrer.
+                    </p>
+                  </section>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2 border-t border-[var(--m3-outline-variant)] px-6 py-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Supprimer « ${p.nom} » ?`)) {
+                        setDrawerId(null);
+                        onDeleteProduct(p);
+                      }
+                    }}
+                    className={`${footBtn} -ml-2 text-[#BA1A1A]`}
+                  >
+                    <M3StateLayer />
+                    <Trash2 size={18} />
+                    Supprimer
+                  </button>
+                  <div className="flex-1" />
+                  <button type="button" onClick={() => setDrawerId(null)} className={`${footBtn} border border-[var(--m3-outline)] text-[var(--m3-primary)]`}>
+                    <M3StateLayer />
+                    Fermer
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={async () => {
+                      await handleSaveClick(p.id);
+                      setDrawerId(null);
+                    }}
+                    className={`${footBtn} bg-[var(--m3-primary)] text-[var(--m3-on-primary)] ${saving ? 'cursor-wait opacity-80' : ''}`}
+                  >
+                    <M3StateLayer />
+                    {saving ? <M3Loading size={18} /> : <Check size={18} />}
+                    {saving ? 'Envoi…' : 'Enregistrer'}
+                  </button>
+                </div>
+              </aside>
+            </>,
+            document.body
+          );
+        })()}
+
+      {addProductOpen && createPortal(
+        <>
+          <div aria-hidden="true" onClick={() => setAddProductOpen(false)} className="fixed inset-0 z-[80] bg-black/40" />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Ajouter un produit"
+            style={M3_VARS}
+            className="m3-dialog fixed left-1/2 top-1/2 z-[81] w-[min(92vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-[28px] bg-[var(--m3-surface-container-low)] p-5 text-[var(--m3-on-surface)] shadow-[0_24px_50px_rgba(0,0,0,0.2)]"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">Inventaire</div>
+                <h3 className="mt-1 text-[24px] leading-8">Ajouter un produit</h3>
+              </div>
+              <button type="button" onClick={() => setAddProductOpen(false)} className={`group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}>
+                <M3StateLayer />
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <M3TextField label="Nom du produit" value={addProductDraft.nom} placeholder="Ex: Ciment gris 50kg" onChange={(value) => setAddProductDraft((prev) => ({ ...prev, nom: value }))} />
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block min-w-0 rounded-xl bg-[var(--m3-surface)] px-4 pb-1.5 pt-2 ring-1 ring-[var(--m3-outline)] focus-within:ring-2 focus-within:ring-[var(--m3-primary)]">
+                  <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">Catégorie</span>
+                  <select value={addProductDraft.categorie} onChange={(event) => setAddProductDraft((prev) => ({ ...prev, categorie: event.target.value }))} className="h-8 w-full min-w-0 bg-transparent p-0 text-base text-[var(--m3-on-surface)] outline-none">
+                    {['Autre', ...presentCategories.filter((c) => c !== 'Tout')].map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </label>
+                <M3TextField label="Unité" value={addProductDraft.unite} placeholder="Ex: sac" onChange={(value) => setAddProductDraft((prev) => ({ ...prev, unite: value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <ProductNumberField label="Prix vente" tone="green" decimal editing value={addProductDraft.prix} onChange={(value) => setAddProductDraft((prev) => ({ ...prev, prix: value }))} />
+                <ProductNumberField label="Prix achat" tone="steel" decimal editing value={addProductDraft.prixAchat} onChange={(value) => setAddProductDraft((prev) => ({ ...prev, prixAchat: value }))} />
+                <ProductNumberField label="Stock initial" editing value={addProductDraft.stockFermeture} onChange={(value) => setAddProductDraft((prev) => ({ ...prev, stockFermeture: value }))} />
+                <ProductNumberField label="Seuil" tone="yellow" editing value={addProductDraft.seuil} onChange={(value) => setAddProductDraft((prev) => ({ ...prev, seuil: value }))} />
+              </div>
+            </div>
+
+            {addProductError && <div className="mt-3 rounded-2xl bg-[#FFDAD6] px-3 py-2 text-sm text-[#410002]">{addProductError}</div>}
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row">
+              <button type="button" onClick={() => setAddProductOpen(false)} className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-sm font-semibold text-[var(--m3-on-secondary-container)] ${M3_FOCUS}`}>
+                <M3StateLayer />
+                Annuler
+              </button>
+              <button type="button" onClick={submitNewProduct} className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-primary)] text-sm font-semibold text-[var(--m3-on-primary)] ${M3_FOCUS}`}>
+                <M3StateLayer />
+                Créer le produit
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
+    </>
+  );
+}
