@@ -55,6 +55,7 @@ type SaleLine = {
   qte: number;
   prix: number;
   sousTotal: number;
+  cout?: number; // prix d'achat unitaire au moment de la vente (sert au calcul de la marge)
 };
 
 type PaymentMethodId = 'especes' | 'moncash' | 'natcash' | 'credit';
@@ -283,7 +284,7 @@ function buildMockSales(): SaleRecord[] {
         const chosen = [...branchProducts].sort(() => rand() - 0.5).slice(0, randInt(1, 3));
         const lignes: SaleLine[] = chosen.map((produit) => {
           const qte = produit.prix < 150 ? randInt(10, 60) : randInt(1, 5);
-          return { produitId: produit.id, nom: produit.nom, qte, prix: produit.prix, sousTotal: qte * produit.prix };
+          return { produitId: produit.id, nom: produit.nom, qte, prix: produit.prix, sousTotal: qte * produit.prix, cout: produit.prixAchat };
         });
         const subtotal = lignes.reduce((sum, l) => sum + l.sousTotal, 0);
         // About 1 sale in 4 gets a 5 / 10 / 15 % discount, rounded to 5 HTG
@@ -1071,6 +1072,7 @@ function GestionMateriaux() {
         qte: l.qte,
         prix: l.produit.prix,
         sousTotal: l.sousTotal,
+        cout: l.produit.prixAchat,
       })),
       total: totalNet,
       remise,
@@ -3173,7 +3175,7 @@ function OwnerBoard({
             )}
 
             {activeSection === 'sales' && (
-              <BranchSalesSection sales={branchVentesAll} selectedDate={selectedDate} onCancelSale={handleCancelSale} />
+              <BranchSalesSection sales={branchVentesAll} products={products} selectedDate={selectedDate} onCancelSale={handleCancelSale} />
             )}
 
             {activeSection === 'purchases' && (
@@ -3504,7 +3506,7 @@ function BranchManagementSections({
       )}
 
       {view === 'ventes' && (
-        <BranchSalesSection sales={branchVentesAll} selectedDate={selectedDate} onCancelSale={handleCancelSale} />
+        <BranchSalesSection sales={branchVentesAll} products={products} selectedDate={selectedDate} onCancelSale={handleCancelSale} />
       )}
 
       {view === 'achats' && (
@@ -4803,10 +4805,15 @@ const fromDateInput = (value: string) => {
    ancrée sur la date choisie dans le sélecteur de date de l'en-tête. */
 function BranchSalesSection({
   sales: allSales,
+  products,
+  showMargin = true,
   selectedDate,
   onCancelSale,
 }: {
   sales: SaleRecord[];
+  products: Product[];
+  /** Affiche la marge brute (prix de vente net − prix d'achat). */
+  showMargin?: boolean;
   selectedDate: Date;
   onCancelSale: (sale: SaleRecord) => void;
 }) {
@@ -4857,6 +4864,27 @@ function BranchSalesSection({
   const paymentLabel = (id: string) => PAYMENT_METHODS.find((m) => m.id === id)?.label || id;
   const qtyOf = (sale: SaleRecord) => sale.lignes.reduce((n, l) => n + l.qte, 0);
 
+  /* Marge brute d'une vente = total net (remise déduite) − Σ prix d'achat × quantité.
+     Le coût figé sur la ligne (cout) est prioritaire ; sinon on retombe sur le prix d'achat actuel du produit.
+     Un prix d'achat absent ou à 0 rend la marge inconnue plutôt que de la gonfler. */
+  const unitCost = (l: SaleLine): number | null => {
+    const unit = l.cout ?? products.find((p) => (l.produitId ? p.id === l.produitId : p.nom === l.nom))?.prixAchat;
+    return unit != null && unit > 0 ? unit : null;
+  };
+  const marginOf = (sale: SaleRecord): { margin: number; pct: number | null } | null => {
+    let cost = 0;
+    for (const l of sale.lignes) {
+      const unit = unitCost(l);
+      if (unit == null) return null;
+      cost += unit * l.qte;
+    }
+    const margin = sale.total - cost;
+    return { margin, pct: sale.total > 0 ? (margin / sale.total) * 100 : null };
+  };
+  const fmtPct = (n: number) => `${(Math.round(n * 10) / 10).toLocaleString('fr-FR')} %`;
+  const fmtSigned = (n: number) => `${n < 0 ? '− ' : ''}${fmtHTG(Math.abs(n))}`;
+  const marginTone = (n: number) => (n < 0 ? 'text-[#BA1A1A]' : 'text-[#2F6B4F]');
+
   // Number sales chronologically within each day (1 = first sale of that day), then show newest first.
   const numbered = useMemo(() => {
     const counters = new Map<string, number>();
@@ -4896,12 +4924,29 @@ function BranchSalesSection({
   const totalDiscount = countedRows.reduce((sum, { sale }) => sum + (sale.remise ?? 0), 0);
   const isFiltering = query !== '' || paymentFilter !== 'all';
 
-  const dayStats = new Map<string, { count: number; total: number }>();
+  let totalMargin = 0;
+  let marginBase = 0;
+  let marginUnknown = 0;
+  const dayStats = new Map<string, { count: number; total: number; margin: number; hasMargin: boolean }>();
   countedRows.forEach(({ sale }) => {
     const key = dayKey(sale.date);
-    const cur = dayStats.get(key) ?? { count: 0, total: 0 };
-    dayStats.set(key, { count: cur.count + 1, total: cur.total + sale.total });
+    const cur = dayStats.get(key) ?? { count: 0, total: 0, margin: 0, hasMargin: false };
+    const m = marginOf(sale);
+    if (m) {
+      totalMargin += m.margin;
+      marginBase += sale.total;
+    } else {
+      marginUnknown += 1;
+    }
+    dayStats.set(key, {
+      count: cur.count + 1,
+      total: cur.total + sale.total,
+      margin: cur.margin + (m?.margin ?? 0),
+      hasMargin: cur.hasMargin || m != null,
+    });
   });
+  const marginPct = marginBase > 0 ? (totalMargin / marginBase) * 100 : null;
+  const colCount = showMargin ? 11 : 10;
   const isFirstOfDay = (index: number) =>
     multiDay && (index === 0 || dayKey(rows[index - 1].sale.date) !== dayKey(rows[index].sale.date));
   const dayTitle = (d: Date) => d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -5009,6 +5054,12 @@ function BranchSalesSection({
           <span className="rounded-full bg-[var(--m3-surface-container-lowest)] px-3.5 py-1.5 text-xs font-semibold text-[var(--m3-on-surface)]">
             {plural(totalQty, 'article')}
           </span>
+          {showMargin && marginBase > 0 && (
+            <span className="rounded-full bg-[#D7EBDD] px-3.5 py-1.5 text-xs font-semibold text-[#0F2E1C]">
+              Marge {fmtSigned(totalMargin)}
+              {marginPct != null ? ` · ${fmtPct(marginPct)}` : ''}
+            </span>
+          )}
           {totalDiscount > 0 && (
             <span className="rounded-full bg-[var(--m3-tertiary-container)] px-3.5 py-1.5 text-xs font-semibold text-[var(--m3-on-tertiary-container)]">
               Remises − {fmtHTG(totalDiscount)}
@@ -5085,7 +5136,8 @@ function BranchSalesSection({
           const PayIcon = paymentIcon(sale.paiement);
           const discount = sale.remise ?? 0;
           const pct = discount > 0 ? Math.round((discount / (sale.total + discount)) * 1000) / 10 : 0;
-          const dayHeader = isFirstOfDay(rowIndex) ? dayStats.get(dayKey(sale.date)) ?? { count: 0, total: 0 } : null;
+          const dayHeader = isFirstOfDay(rowIndex) ? dayStats.get(dayKey(sale.date)) ?? { count: 0, total: 0, margin: 0, hasMargin: false } : null;
+          const saleMargin = showMargin ? marginOf(sale) : null;
           return (
             <Fragment key={sale.id}>
               {dayHeader && (
@@ -5093,6 +5145,7 @@ function BranchSalesSection({
                   <span className="text-sm font-semibold capitalize text-[var(--m3-on-surface)]">{dayTitle(sale.date)}</span>
                   <span className="text-xs tabular-nums text-[var(--m3-on-surface-variant)]">
                     {plural(dayHeader.count, 'vente')} · {fmtHTG(dayHeader.total)}
+                    {showMargin && dayHeader.hasMargin && ` · marge ${fmtSigned(dayHeader.margin)}`}
                   </span>
                 </li>
               )}
@@ -5149,6 +5202,17 @@ function BranchSalesSection({
                   {discount > 0 && (
                     <div className={'mt-0.5 text-xs font-medium tabular-nums ' + (cancelled ? 'line-through' : 'text-[var(--m3-tertiary)]')}>
                       − {fmtHTG(discount)} · {pct} %
+                    </div>
+                  )}
+                  {saleMargin && (
+                    <div
+                      className={
+                        'mt-0.5 text-xs font-medium tabular-nums ' +
+                        (cancelled ? 'text-[var(--m3-on-surface-variant)] line-through' : marginTone(saleMargin.margin))
+                      }
+                    >
+                      Marge {fmtSigned(saleMargin.margin)}
+                      {saleMargin.pct != null ? ` · ${fmtPct(saleMargin.pct)}` : ''}
                     </div>
                   )}
                 </div>
@@ -5221,8 +5285,8 @@ function BranchSalesSection({
 
       {/* ── Desktop (≥ sm): M3 summary cards, search, payment segmented filter, tonal table ── */}
       <div className="hidden space-y-5 sm:block">
-        <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-3">
-          <div className="flex items-center gap-4 rounded-[28px] bg-[var(--m3-primary-container)] px-6 py-5 text-[var(--m3-on-primary-container)]">
+        <div className={`grid grid-cols-2 gap-3 ${showMargin ? 'lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]' : 'lg:grid-cols-[1.5fr_1fr_1fr_1fr]'}`}>
+          <div className="col-span-2 flex items-center gap-4 rounded-[28px] bg-[var(--m3-primary-container)] px-6 py-5 text-[var(--m3-on-primary-container)] lg:col-span-1">
             <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/40">
               <TrendingUp size={26} />
             </span>
@@ -5233,14 +5297,31 @@ function BranchSalesSection({
           </div>
           {[
             { label: 'Ventes', value: String(countedRows.length), Icon: Receipt, tone: 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]' },
-            { label: 'Articles vendus', value: String(totalQty), Icon: ShoppingCart, tone: 'bg-[var(--m3-surface-container)] text-[var(--m3-on-surface)]' },
+            { label: 'Articles vendus', value: String(totalQty), Icon: ShoppingCart, tone: 'bg-[var(--m3-surface-container)] text-[var(--m3-on-surface)]', hint: undefined as string | undefined },
+            ...(showMargin
+              ? [
+                  {
+                    label: 'Marge brute',
+                    value: marginBase > 0 ? fmtSigned(totalMargin) : '—',
+                    Icon: Coins,
+                    tone: 'bg-[#D7EBDD] text-[#0F2E1C]',
+                    hint:
+                      marginBase > 0
+                        ? `${marginPct != null ? fmtPct(marginPct) + ' du total' : ''}${marginUnknown > 0 ? `${marginPct != null ? ' · ' : ''}${marginUnknown} sans prix d'achat` : ''}`
+                        : marginUnknown > 0
+                          ? `${marginUnknown} sans prix d'achat`
+                          : undefined,
+                  },
+                ]
+              : []),
             {
               label: 'Remises',
               value: totalDiscount > 0 ? `− ${fmtHTG(totalDiscount)}` : '—',
               Icon: Tag,
               tone: 'bg-[var(--m3-tertiary-container)] text-[var(--m3-on-tertiary-container)]',
+              hint: undefined as string | undefined,
             },
-          ].map(({ label, value, Icon, tone }) => (
+          ].map(({ label, value, Icon, tone, hint }) => (
             <div key={label} className={`flex items-center gap-4 rounded-[28px] px-5 py-5 ${tone}`}>
               <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface)]/60">
                 <Icon size={22} />
@@ -5248,6 +5329,7 @@ function BranchSalesSection({
               <div className="min-w-0">
                 <div className="truncate text-sm opacity-80">{label}</div>
                 <div className="truncate text-2xl font-semibold leading-8 tabular-nums">{value}</div>
+                {hint && <div className="truncate text-xs opacity-80">{hint}</div>}
               </div>
             </div>
           ))}
@@ -5310,7 +5392,7 @@ function BranchSalesSection({
 
         <div className="overflow-hidden rounded-[28px] bg-[var(--m3-surface-container)]">
           <div className="max-h-[62vh] overflow-auto">
-            <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+            <table className={`w-full border-collapse text-left text-sm ${showMargin ? 'min-w-[1080px]' : 'min-w-[980px]'}`}>
               <thead className="sticky top-0 z-10 bg-[var(--m3-surface-container-high)] text-xs text-[var(--m3-on-surface-variant)] shadow-[0_1px_0_var(--m3-outline-variant)]">
                 <tr>
                   <th scope="col" className="px-4 py-3 text-left font-medium">N°</th>
@@ -5320,6 +5402,7 @@ function BranchSalesSection({
                   <th scope="col" className="px-4 py-3 text-left font-medium">Paiement</th>
                   <th scope="col" className="px-4 py-3 text-right font-medium">Remise</th>
                   <th scope="col" className="px-4 py-3 text-right font-medium">Total</th>
+                  {showMargin && <th scope="col" className="px-4 py-3 text-right font-medium">Marge</th>}
                   <th scope="col" className="px-4 py-3 text-right font-medium">Reçu / Monnaie</th>
                   <th scope="col" className="px-4 py-3 text-left font-medium">Statut</th>
                   <th scope="col" className="w-36 px-3 py-3 text-right font-medium"><span className="sr-only">Actions</span></th>
@@ -5331,16 +5414,23 @@ function BranchSalesSection({
                   const PayIcon = paymentIcon(sale.paiement);
                   const discount = sale.remise ?? 0;
                   const pct = discount > 0 ? Math.round((discount / (sale.total + discount)) * 1000) / 10 : 0;
-                  const dayHeader = isFirstOfDay(rowIndex) ? dayStats.get(dayKey(sale.date)) ?? { count: 0, total: 0 } : null;
+                  const dayHeader = isFirstOfDay(rowIndex) ? dayStats.get(dayKey(sale.date)) ?? { count: 0, total: 0, margin: 0, hasMargin: false } : null;
+          const saleMargin = showMargin ? marginOf(sale) : null;
                   return (
                     <Fragment key={sale.id}>
                     {dayHeader && (
                       <tr className="bg-[var(--m3-surface-container-high)]">
-                        <td colSpan={10} className="px-4 py-2.5">
+                        <td colSpan={colCount} className="px-4 py-2.5">
                           <div className="flex items-baseline justify-between gap-4">
                             <span className="text-sm font-semibold capitalize text-[var(--m3-on-surface)]">{dayTitle(sale.date)}</span>
                             <span className="text-xs tabular-nums text-[var(--m3-on-surface-variant)]">
                               {plural(dayHeader.count, 'vente')} · <span className="font-semibold text-[var(--m3-primary)]">{fmtHTG(dayHeader.total)}</span>
+                              {showMargin && dayHeader.hasMargin && (
+                                <>
+                                  {' · marge '}
+                                  <span className={'font-semibold ' + marginTone(dayHeader.margin)}>{fmtSigned(dayHeader.margin)}</span>
+                                </>
+                              )}
                             </span>
                           </div>
                         </td>
@@ -5406,6 +5496,20 @@ function BranchSalesSection({
                       >
                         {fmtHTG(sale.total)}
                       </td>
+                      {showMargin && (
+                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+                          {saleMargin ? (
+                            <div className={cancelled ? 'line-through' : marginTone(saleMargin.margin)}>
+                              <div className="font-medium">{fmtSigned(saleMargin.margin)}</div>
+                              {saleMargin.pct != null && <div className="text-xs">{fmtPct(saleMargin.pct)}</div>}
+                            </div>
+                          ) : (
+                            <span title="Prix d'achat inconnu" className="text-[var(--m3-on-surface-variant)]">
+                              —
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td className="whitespace-nowrap px-4 py-3 text-right text-xs tabular-nums text-[var(--m3-on-surface-variant)]">
                         {sale.paiement === 'credit' ? (
                           '—'
@@ -5455,7 +5559,7 @@ function BranchSalesSection({
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-4 py-16 text-center">
+                    <td colSpan={colCount} className="px-4 py-16 text-center">
                       <div className="flex flex-col items-center gap-1">
                         <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
                           <ShoppingCart size={28} />
