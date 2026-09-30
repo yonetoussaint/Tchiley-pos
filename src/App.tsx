@@ -6335,65 +6335,66 @@ function BranchAnalyticsSection({
         </section>
       </div>
 
-    <div className="hidden space-y-6 sm:block">
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
-          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Revenu Total</div>
-          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{fmtHTG(totalRevenue)}</div>
+    <div style={M3_VARS} className="hidden space-y-5 font-sans text-[var(--m3-on-surface)] sm:block">
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="flex items-center gap-4 rounded-[28px] bg-[var(--m3-primary-container)] px-6 py-5 text-[var(--m3-on-primary-container)] md:order-2">
+          <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/40">
+            <TrendingUp size={24} />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-medium opacity-80">Profit net estimé</div>
+            <div className="break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(totalProfit)}</div>
+          </div>
         </div>
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
-          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Profit Net Estimé</div>
-          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl text-[#2F6B4F]">{fmtHTG(totalProfit)}</div>
+        <div className="rounded-[28px] bg-[var(--m3-surface-container)] px-6 py-5 md:order-1">
+          <div className="text-sm text-[var(--m3-on-surface-variant)]">Revenu total</div>
+          <div className="mt-1 break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(totalRevenue)}</div>
         </div>
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
-          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Nombre de Ventes</div>
-          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{ventes.length}</div>
+        <div className="rounded-[28px] bg-[var(--m3-surface-container)] px-6 py-5 md:order-3">
+          <div className="text-sm text-[var(--m3-on-surface-variant)]">Nombre de ventes</div>
+          <div className="mt-1 break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">{ventes.length}</div>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[4px_4px_0_#C1440E] sm:p-5 sm:shadow-[8px_8px_0_#C1440E]">
-          <h2 className="mb-6 font-serif text-2xl">Revenus — 7 derniers jours</h2>
-          <div className="flex h-48 items-end gap-3 px-2">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="rounded-[28px] bg-[var(--m3-surface-container)] p-5">
+          <h3 className="text-base font-medium">Revenus — 7 derniers jours</h3>
+          <div className="mt-5 flex h-48 items-stretch gap-3">
             {revenueByDay.map((d, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                <div
-                  className="w-full border-2 border-[#16181A] bg-[#C1440E]"
-                  style={{ height: `${(d.total / maxDayRevenue) * 100}%` }}
-                />
-                <div className="text-[9px] uppercase tracking-tight">{d.label}</div>
+              <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-2" title={fmtHTG(d.total)}>
+                <div className="flex w-full flex-1 items-end">
+                  <div
+                    className={'w-full rounded-t-[12px] rounded-b-[4px] transition-[height] duration-500 motion-reduce:transition-none ' + (d.total > 0 && d.total === maxDayRevenue ? 'bg-[var(--m3-primary)]' : 'bg-[var(--m3-outline-variant)]')}
+                    style={{ height: `${Math.max((d.total / maxDayRevenue) * 100, d.total > 0 ? 4 : 2)}%` }}
+                  />
+                </div>
+                <div className="text-xs capitalize text-[var(--m3-on-surface-variant)]">{d.label}</div>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
-        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[4px_4px_0_#C1440E] sm:p-5 sm:shadow-[8px_8px_0_#C1440E]">
-          <h2 className="mb-6 font-serif text-2xl">Performance — {branch.nom.split(' ').pop()}</h2>
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <div className="mb-3 text-[11px] font-bold uppercase text-[#2F6B4F]">Meilleures Ventes</div>
-              <div className="space-y-2">
-                {topSellers.map((p) => (
-                  <div key={p.nom} className="flex justify-between text-[11px]">
-                    <span className="mr-2 truncate">{p.nom}</span>
-                    <span className="font-bold">{p.qte} u.</span>
-                  </div>
-                ))}
+        <section className="rounded-[28px] bg-[var(--m3-surface-container)] p-5">
+          <h3 className="text-base font-medium">Performance — {branch.nom.split(' ').pop()}</h3>
+          <div className="mt-4 grid grid-cols-2 gap-5">
+            {[
+              { title: 'Meilleures ventes', tone: 'text-[var(--m3-primary)]', list: topSellers },
+              { title: 'Ventes faibles', tone: 'text-[#BA1A1A]', list: slowestMovers },
+            ].map((g) => (
+              <div key={g.title} className="min-w-0">
+                <div className={'mb-1 text-xs font-medium ' + g.tone}>{g.title}</div>
+                <div className="divide-y divide-[var(--m3-outline-variant)]">
+                  {g.list.map((p) => (
+                    <div key={p.nom} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                      <span className="min-w-0 truncate">{p.nom}</span>
+                      <span className="shrink-0 rounded-full bg-[var(--m3-surface-container-high)] px-2.5 py-0.5 text-xs font-medium tabular-nums">{p.qte} u.</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="mb-3 text-[11px] font-bold uppercase text-[#C1440E]">Ventes Faibles</div>
-              <div className="space-y-2">
-                {slowestMovers.map((p) => (
-                  <div key={p.nom} className="flex justify-between text-[11px]">
-                    <span className="mr-2 truncate">{p.nom}</span>
-                    <span className="font-bold">{p.qte} u.</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
-        </div>
+        </section>
       </div>
     </div>
     </>
@@ -6408,87 +6409,6 @@ function BranchAnalyticsSection({
 
 const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
-function CashEntryForm({
-  onAdd,
-  date,
-}: {
-  onAdd: (entry: Omit<CashEntry, 'id' | 'branchId'>) => void;
-  date: Date;
-}) {
-  const [type, setType] = useState<CashEntryType>('consommation');
-  const [montant, setMontant] = useState('');
-  const [note, setNote] = useState('');
-  const value = Number(montant);
-  const valid = Number.isFinite(value) && value > 0;
-
-  const submit = () => {
-    if (!valid) return;
-    const when = new Date(date);
-    const now = new Date();
-    when.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0);
-    onAdd({ date: when, type, montant: value, note: note.trim() || undefined });
-    setMontant('');
-    setNote('');
-  };
-
-  return (
-    <div className="border-2 border-[#16181A] bg-white">
-      <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
-        Nouveau mouvement de caisse
-      </div>
-      <div className="space-y-3 p-4">
-        <div className="grid grid-cols-2 gap-1.5">
-          {(Object.keys(CASH_ENTRY_META) as CashEntryType[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setType(t)}
-              className={
-                'border-2 px-2 py-2 text-[10px] uppercase tracking-[0.12em] ' +
-                (type === t
-                  ? 'border-[#16181A] bg-[#16181A] text-white'
-                  : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
-              }
-            >
-              {CASH_ENTRY_META[t].sign === -1 ? '− ' : '+ '}
-              {CASH_ENTRY_META[t].label}
-            </button>
-          ))}
-        </div>
-        <input
-          type="number"
-          min={0}
-          inputMode="numeric"
-          value={montant}
-          onChange={(e) => setMontant(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder="Montant (HTG)"
-          className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
-        />
-        <input
-          type="text"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder="Note (optionnel)"
-          className="w-full border-2 border-[#16181A] bg-white px-3 py-2 text-sm outline-none focus:border-[#C1440E]"
-        />
-        <button
-          onClick={submit}
-          disabled={!valid}
-          className={
-            'flex w-full items-center justify-center gap-2 border-2 px-4 py-2.5 text-[11px] uppercase tracking-[0.18em] ' +
-            (valid
-              ? 'border-[#C1440E] bg-[#C1440E] text-white hover:bg-[#a53a0b]'
-              : 'cursor-not-allowed border-[#9CA3AF] bg-[#E5E7EB] text-[#6B7280]')
-          }
-        >
-          <Plus size={14} /> Ajouter
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function DailyReportDesktop({
   ventes,
   entries,
@@ -6502,6 +6422,7 @@ function DailyReportDesktop({
   onAddEntry: (entry: Omit<CashEntry, 'id' | 'branchId'>) => void;
   onDeleteEntry: (id: string) => void;
 }) {
+  const [sheetOpen, setSheetOpen] = useState(false);
   const inDay = (d: Date) => isSameDay(d, selectedDate);
   const sum = useMemo(() => summarizeCash(ventes, entries, inDay), [ventes, entries, selectedDate]); // eslint-disable-line
   const dayEntries = entries.filter((e) => inDay(e.date)).sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -6522,21 +6443,15 @@ function DailyReportDesktop({
   });
   const maxMode = Math.max(...byMode.map((m) => m.total), 1);
 
-  const kpis: Array<{ label: string; value: number; sign?: string; tone: string; box: string }> = [
-    { label: 'Total brut', value: sum.brut, tone: '', box: 'border-[#16181A] bg-white' },
-    { label: 'Déductions', value: totalDeductions, sign: '−', tone: 'text-[#C1440E]', box: 'border-[#16181A] bg-white' },
-    { label: 'Additions', value: totalAdditions, sign: '+', tone: 'text-[#2F6B4F]', box: 'border-[#16181A] bg-white' },
-    { label: 'Cash net', value: sum.cashNet, tone: '', box: 'border-[#16181A] bg-[#ECE7DC]' },
-    { label: 'Cash en main', value: sum.cashEnMain, tone: 'text-[#2F6B4F]', box: 'border-[#2F6B4F] bg-[#E9F5EF]' },
-  ];
+  const rowBtn = `group relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`;
 
   const ledgerRow = (label: string, value: number, sign: '-' | '+', hint?: string) => (
-    <div key={label} className="flex items-baseline justify-between gap-3 border-b border-dashed border-[#4B5560]/40 py-2.5 last:border-b-0">
+    <div key={label} className="flex items-center justify-between gap-3 py-3">
       <div className="min-w-0">
-        <div className="text-[11px] uppercase tracking-[0.1em]">{label}</div>
-        {hint && <div className="text-[10px] leading-tight text-[#4B5560]">{hint}</div>}
+        <div className="text-sm">{label}</div>
+        {hint && <div className="text-xs leading-4 text-[var(--m3-on-surface-variant)]">{hint}</div>}
       </div>
-      <div className={'shrink-0 font-mono text-[13px] tabular-nums ' + (sign === '-' ? 'text-[#C1440E]' : 'text-[#2F6B4F]')}>
+      <div className={'shrink-0 text-sm font-medium tabular-nums ' + (sign === '-' ? 'text-[#BA1A1A]' : 'text-[var(--m3-primary)]')}>
         {sign === '-' ? '−' : '+'} {fmtHTG(value)}
       </div>
     </div>
@@ -6545,173 +6460,209 @@ function DailyReportDesktop({
   return (
     <div className="space-y-5">
       {/* Title bar */}
-      <div className="flex flex-wrap items-end justify-between gap-2 border-b-2 border-[#16181A] pb-3">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.22em] text-[#4B5560]">Rapport journalier</div>
-          <h2 className="font-serif text-2xl capitalize">{dateLabel}</h2>
+      <div className="flex items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[32px] font-bold leading-10 tracking-tight">Rapport journalier</h2>
+          <p className="truncate text-sm capitalize text-[var(--m3-on-surface-variant)]">
+            {dateLabel} · {sum.nbVentes} vente{sum.nbVentes !== 1 ? 's' : ''} validée{sum.nbVentes !== 1 ? 's' : ''}
+          </p>
         </div>
-        <div className="text-[11px] uppercase tracking-[0.14em] text-[#4B5560]">{sum.nbVentes} vente(s) validée(s)</div>
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          className={`group relative flex h-12 shrink-0 items-center gap-2 overflow-hidden rounded-[20px] bg-[var(--m3-primary)] px-6 text-sm font-semibold text-[var(--m3-on-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.15)] transition-[box-shadow,transform] hover:shadow-[0_2px_6px_2px_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.3)] active:scale-[0.96] motion-reduce:transition-none ${M3_FOCUS}`}
+        >
+          <M3StateLayer />
+          <Plus size={20} />
+          Nouveau mouvement
+        </button>
       </div>
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        {kpis.map((k, i) => (
-          <div
-            key={k.label}
-            className={
-              'border-2 p-4 shadow-[4px_4px_0_#16181A] ' +
-              k.box +
-              (i === kpis.length - 1 ? ' col-span-2 lg:col-span-1' : '')
-            }
-          >
-            <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">{k.label}</div>
-            <div className={'mt-1.5 font-serif text-xl tabular-nums xl:text-2xl ' + k.tone}>
-              {k.sign ? k.sign + ' ' : ''}
-              {fmtHTG(k.value)}
-            </div>
+        <div className="col-span-2 flex items-center gap-4 rounded-[28px] bg-[var(--m3-primary-container)] px-6 py-5 text-[var(--m3-on-primary-container)] lg:col-span-1">
+          <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/40">
+            <Banknote size={24} />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-medium opacity-80">Cash en main</div>
+            <div className="break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(sum.cashEnMain)}</div>
           </div>
-        ))}
+        </div>
+        <div className="rounded-[28px] bg-[var(--m3-surface-container)] px-5 py-5">
+          <div className="text-sm text-[var(--m3-on-surface-variant)]">Total brut</div>
+          <div className="mt-1 truncate text-xl font-semibold leading-7 tabular-nums">{fmtHTG(sum.brut)}</div>
+        </div>
+        <div className={`rounded-[28px] px-5 py-5 ${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`}>
+          <div className="flex items-center gap-1.5 text-sm opacity-80">
+            <ArrowUpRight size={14} /> Déductions
+          </div>
+          <div className="mt-1 truncate text-xl font-semibold leading-7 tabular-nums">− {fmtHTG(totalDeductions)}</div>
+        </div>
+        <div className="rounded-[28px] bg-[var(--m3-secondary-container)] px-5 py-5 text-[var(--m3-on-secondary-container)]">
+          <div className="flex items-center gap-1.5 text-sm opacity-80">
+            <ArrowDownLeft size={14} /> Additions
+          </div>
+          <div className="mt-1 truncate text-xl font-semibold leading-7 tabular-nums">+ {fmtHTG(totalAdditions)}</div>
+        </div>
+        <div className="col-span-2 rounded-[28px] bg-[var(--m3-surface-container)] px-5 py-5 lg:col-span-1">
+          <div className="text-sm text-[var(--m3-on-surface-variant)]">Cash net</div>
+          <div className="mt-1 truncate text-xl font-semibold leading-7 tabular-nums">{fmtHTG(sum.cashNet)}</div>
+        </div>
       </div>
 
       {/* Ledger (left) + payment modes (right) */}
-      <div className="grid gap-5 xl:grid-cols-3">
-        <div className="border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#C1440E] xl:col-span-2">
-          <div className="flex items-center justify-between border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3">
-            <span className="text-[11px] uppercase tracking-[0.18em]">Détail de la caisse</span>
-            <span className="font-mono text-[12px] tabular-nums">Brut {fmtHTG(sum.brut)}</span>
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="rounded-[28px] bg-[var(--m3-surface-container)] p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-base font-medium">Détail de la caisse</h3>
+            <span className="rounded-full bg-[var(--m3-surface-container-high)] px-3 py-1 text-xs font-medium tabular-nums">Brut {fmtHTG(sum.brut)}</span>
           </div>
 
-          <div className="grid divide-[#16181A] md:grid-cols-2 md:divide-x-2">
-            <div className="p-4">
-              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#C1440E]">Déductions</div>
-              {ledgerRow('Crédits', sum.credits, '-', 'Ventes à crédit non encaissées')}
-              {ledgerRow('Consommations internes', sum.consommations, '-')}
-              {ledgerRow('Achats', sum.achats, '-')}
-              <div className="mt-2 flex justify-between border-t-2 border-[#16181A] pt-2 text-[11px] font-bold uppercase tracking-[0.1em]">
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="rounded-[20px] bg-[var(--m3-surface-container-low)] p-4">
+              <div className="text-xs font-medium text-[#BA1A1A]">Déductions</div>
+              <div className="divide-y divide-[var(--m3-outline-variant)]">
+                {ledgerRow('Crédits', sum.credits, '-', 'Ventes à crédit non encaissées')}
+                {ledgerRow('Consommations internes', sum.consommations, '-')}
+                {ledgerRow('Achats', sum.achats, '-')}
+              </div>
+              <div className="flex items-center justify-between border-t border-[var(--m3-outline)] pt-3 text-sm font-medium">
                 <span>Total déductions</span>
-                <span className="font-mono tabular-nums text-[#C1440E]">− {fmtHTG(totalDeductions)}</span>
+                <span className="tabular-nums text-[#BA1A1A]">− {fmtHTG(totalDeductions)}</span>
               </div>
             </div>
-            <div className="border-t-2 border-[#16181A] p-4 md:border-t-0">
-              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#2F6B4F]">Additions</div>
-              {ledgerRow('Renflouement', sum.renflouements, '+')}
-              {ledgerRow('Remboursement', sum.remboursements, '+', 'Crédits reçus + saisies manuelles')}
-              <div className="mt-2 flex justify-between border-t-2 border-[#16181A] pt-2 text-[11px] font-bold uppercase tracking-[0.1em]">
+            <div className="rounded-[20px] bg-[var(--m3-surface-container-low)] p-4">
+              <div className="text-xs font-medium text-[var(--m3-primary)]">Additions</div>
+              <div className="divide-y divide-[var(--m3-outline-variant)]">
+                {ledgerRow('Renflouement', sum.renflouements, '+')}
+                {ledgerRow('Remboursement', sum.remboursements, '+', 'Crédits reçus + saisies manuelles')}
+              </div>
+              <div className="flex items-center justify-between border-t border-[var(--m3-outline)] pt-3 text-sm font-medium">
                 <span>Total additions</span>
-                <span className="font-mono tabular-nums text-[#2F6B4F]">+ {fmtHTG(totalAdditions)}</span>
+                <span className="tabular-nums text-[var(--m3-primary)]">+ {fmtHTG(totalAdditions)}</span>
               </div>
             </div>
           </div>
 
           {/* Equation strip */}
-          <div className="grid border-t-2 border-[#16181A] sm:grid-cols-3 sm:divide-x-2 sm:divide-[#16181A]">
-            <div className="p-4">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">Cash net</div>
-              <div className="font-serif text-xl tabular-nums">{fmtHTG(sum.cashNet)}</div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="min-w-0 rounded-[20px] bg-[var(--m3-surface-container-high)] p-4">
+              <div className="text-xs text-[var(--m3-on-surface-variant)]">Cash net</div>
+              <div className="mt-1 truncate text-lg font-semibold tabular-nums">{fmtHTG(sum.cashNet)}</div>
             </div>
-            <div className="border-t-2 border-[#16181A] p-4 sm:border-t-0">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-[#4B5560]">− Paiements mobiles</div>
-              <div className="font-serif text-xl tabular-nums text-[#C1440E]">{fmtHTG(sum.mobile)}</div>
-              <div className="text-[10px] text-[#4B5560]">MonCash / NatCash</div>
+            <div className={`min-w-0 rounded-[20px] p-4 ${M3_STATUS.out.bg} ${M3_STATUS.out.fg}`}>
+              <div className="text-xs opacity-80">− Paiements mobiles</div>
+              <div className="mt-1 truncate text-lg font-semibold tabular-nums">{fmtHTG(sum.mobile)}</div>
+              <div className="text-[11px] opacity-80">MonCash / NatCash</div>
             </div>
-            <div className="border-t-2 border-[#2F6B4F] bg-[#E9F5EF] p-4 sm:border-t-0">
-              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#2F6B4F]">= Cash en main</div>
-              <div className="font-serif text-2xl tabular-nums text-[#2F6B4F]">{fmtHTG(sum.cashEnMain)}</div>
+            <div className="min-w-0 rounded-[20px] bg-[var(--m3-primary-container)] p-4 text-[var(--m3-on-primary-container)]">
+              <div className="text-xs opacity-80">= Cash en main</div>
+              <div className="mt-1 truncate text-lg font-bold tabular-nums">{fmtHTG(sum.cashEnMain)}</div>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="border-2 border-[#16181A] bg-white">
-          <div className="border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
-            Ventes par mode de paiement
-          </div>
-          <div className="space-y-4 p-4">
+        <section className="rounded-[28px] bg-[var(--m3-surface-container)] p-5">
+          <h3 className="text-base font-medium">Ventes par mode de paiement</h3>
+          <div className="mt-4 space-y-4">
             {byMode.map((m) => {
               const Icon = m.icon;
+              const bar = m.id === 'credit' ? 'bg-[var(--m3-tertiary)]' : m.id === 'especes' ? 'bg-[var(--m3-primary)]' : 'bg-[var(--m3-outline)]';
               return (
                 <div key={m.id}>
-                  <div className="mb-1 flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.1em]">
-                    <span className="flex items-center gap-2">
-                      <Icon size={13} /> {m.label}
-                      <span className="text-[#4B5560]">({m.count})</span>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+                      <Icon size={18} />
                     </span>
-                    <span className="font-mono tabular-nums">{fmtHTG(m.total)}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{m.label}</div>
+                      <div className="text-xs text-[var(--m3-on-surface-variant)]">
+                        {m.count} vente{m.count !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-sm font-medium tabular-nums">{fmtHTG(m.total)}</div>
                   </div>
-                  <div className="h-3 border-2 border-[#16181A] bg-[#FBFAF6]">
-                    <div
-                      className={'h-full ' + (m.id === 'credit' ? 'bg-[#F2B705]' : m.id === 'especes' ? 'bg-[#2F6B4F]' : 'bg-[#C1440E]')}
-                      style={{ width: `${(m.total / maxMode) * 100}%` }}
-                    />
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--m3-surface-container-highest)]">
+                    <div className={'h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none ' + bar} style={{ width: `${(m.total / maxMode) * 100}%` }} />
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        </section>
       </div>
 
-      {/* Entry form (left) + movements table (right) */}
-      <div className="grid gap-5 xl:grid-cols-5">
-        <div className="xl:col-span-2">
-          <CashEntryForm onAdd={onAddEntry} date={selectedDate} />
+      {/* Movements table */}
+      <div className="overflow-hidden rounded-[28px] bg-[var(--m3-surface-container)]">
+        <div className="flex items-center justify-between px-5 pb-2 pt-4">
+          <h3 className="text-base font-medium">Mouvements du jour</h3>
+          <span className="rounded-full bg-[var(--m3-surface-container-high)] px-2.5 py-0.5 text-xs font-medium tabular-nums">{dayEntries.length}</span>
         </div>
-
-        <div className="border-2 border-[#16181A] bg-white xl:col-span-3">
-          <div className="flex items-center justify-between border-b-2 border-[#16181A] bg-[#ECE7DC] px-4 py-3 text-[11px] uppercase tracking-[0.18em]">
-            <span>Mouvements du jour</span>
-            <span className="text-[#4B5560]">{dayEntries.length}</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[12px]">
-              <thead>
-                <tr className="border-b-2 border-[#16181A] text-left text-[10px] uppercase tracking-[0.12em] text-[#4B5560]">
-                  <th className="px-3 py-2.5">Heure</th>
-                  <th className="px-3 py-2.5">Type</th>
-                  <th className="px-3 py-2.5">Note</th>
-                  <th className="px-3 py-2.5 text-right">Montant</th>
-                  <th className="w-10 px-3 py-2.5" />
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] border-collapse text-left text-sm">
+            <thead className="bg-[var(--m3-surface-container-high)] text-xs text-[var(--m3-on-surface-variant)]">
+              <tr>
+                <th scope="col" className="px-4 py-3 font-medium">Heure</th>
+                <th scope="col" className="px-4 py-3 font-medium">Type</th>
+                <th scope="col" className="px-4 py-3 font-medium">Note</th>
+                <th scope="col" className="px-4 py-3 text-right font-medium">Montant</th>
+                <th scope="col" className="w-16 px-3 py-3"><span className="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {dayEntries.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-14 text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+                        <Banknote size={28} />
+                      </span>
+                      <span className="text-base font-medium">Aucun mouvement pour cette date.</span>
+                      <span className="text-sm text-[var(--m3-on-surface-variant)]">Ajoutez une consommation, un achat ou un renflouement.</span>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {dayEntries.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-10 text-center text-sm text-[#4B5560]">
-                      Aucun mouvement pour cette date.
+              )}
+              {dayEntries.map((e) => {
+                const meta = CASH_ENTRY_META[e.type];
+                const out = meta.sign === -1;
+                return (
+                  <tr key={e.id} className="border-b border-[var(--m3-outline-variant)]/60 transition-colors last:border-b-0 hover:bg-[var(--m3-surface-container-high)] motion-reduce:transition-none">
+                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-[var(--m3-on-surface-variant)]">{fmtTime12(e.date)}</td>
+                    <td className="px-4 py-3">
+                      <span className="flex items-center gap-2.5">
+                        <span
+                          aria-hidden="true"
+                          className={
+                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-full ' +
+                            (out ? `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}` : 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]')
+                          }
+                        >
+                          {out ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
+                        </span>
+                        <span className="font-medium">{meta.label}</span>
+                      </span>
+                    </td>
+                    <td className="max-w-[260px] truncate px-4 py-3 text-[var(--m3-on-surface-variant)]">{e.note ?? '—'}</td>
+                    <td className={'whitespace-nowrap px-4 py-3 text-right font-medium tabular-nums ' + (out ? 'text-[#BA1A1A]' : 'text-[var(--m3-primary)]')}>
+                      {out ? '−' : '+'} {fmtHTG(e.montant)}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <button type="button" onClick={() => onDeleteEntry(e.id)} aria-label="Supprimer" className={rowBtn}>
+                        <M3StateLayer />
+                        <Trash2 size={18} />
+                      </button>
                     </td>
                   </tr>
-                )}
-                {dayEntries.map((e) => {
-                  const meta = CASH_ENTRY_META[e.type];
-                  return (
-                    <tr key={e.id} className="border-b border-[#16181A]/15 hover:bg-[#FBFAF6]">
-                      <td className="px-3 py-2.5 font-mono text-[11px] text-[#4B5560]">{fmtTime12(e.date)}</td>
-                      <td className="px-3 py-2.5 uppercase tracking-[0.08em]">{meta.label}</td>
-                      <td className="max-w-[180px] truncate px-3 py-2.5 text-[#4B5560]">{e.note ?? '—'}</td>
-                      <td
-                        className={
-                          'px-3 py-2.5 text-right font-mono tabular-nums ' +
-                          (meta.sign === -1 ? 'text-[#C1440E]' : 'text-[#2F6B4F]')
-                        }
-                      >
-                        {meta.sign === -1 ? '−' : '+'} {fmtHTG(e.montant)}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <button
-                          onClick={() => onDeleteEntry(e.id)}
-                          aria-label="Supprimer"
-                          className="flex h-7 w-7 items-center justify-center border-2 border-[#16181A] bg-white hover:bg-[#ECE7DC]"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
+
+      {sheetOpen && <CashEntrySheet date={selectedDate} onAdd={onAddEntry} onClose={() => setSheetOpen(false)} />}
     </div>
   );
 }
@@ -6756,80 +6707,89 @@ function PeriodReportDesktop({
   const title = mode === 'monthly' ? `${MONTHS_FR[month]} ${year}` : String(year);
   const visibleRows = rows.filter((r) => r.sum.nbVentes > 0 || r.sum.achats + r.sum.consommations + r.sum.renflouements + r.sum.remboursements > 0);
 
+  const err = 'text-[#BA1A1A]';
+  const pos = 'text-[var(--m3-primary)]';
   const cols: Array<{ key: string; label: string; get: (s: CashSummary) => number; tone?: string }> = [
     { key: 'brut', label: 'Total brut', get: (s) => s.brut },
-    { key: 'credits', label: 'Crédits', get: (s) => s.credits, tone: 'text-[#C1440E]' },
-    { key: 'conso', label: 'Conso. internes', get: (s) => s.consommations, tone: 'text-[#C1440E]' },
-    { key: 'achats', label: 'Achats', get: (s) => s.achats, tone: 'text-[#C1440E]' },
-    { key: 'renf', label: 'Renflouement', get: (s) => s.renflouements, tone: 'text-[#2F6B4F]' },
-    { key: 'remb', label: 'Remboursement', get: (s) => s.remboursements, tone: 'text-[#2F6B4F]' },
+    { key: 'credits', label: 'Crédits', get: (s) => s.credits, tone: err },
+    { key: 'conso', label: 'Conso. internes', get: (s) => s.consommations, tone: err },
+    { key: 'achats', label: 'Achats', get: (s) => s.achats, tone: err },
+    { key: 'renf', label: 'Renflouement', get: (s) => s.renflouements, tone: pos },
+    { key: 'remb', label: 'Remboursement', get: (s) => s.remboursements, tone: pos },
     { key: 'net', label: 'Cash net', get: (s) => s.cashNet },
-    { key: 'main', label: 'Cash en main', get: (s) => s.cashEnMain, tone: 'font-bold text-[#2F6B4F]' },
+    { key: 'main', label: 'Cash en main', get: (s) => s.cashEnMain, tone: 'font-semibold ' + pos },
   ];
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
-          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Total brut — {title}</div>
-          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{fmtHTG(total.brut)}</div>
+      <div className="min-w-0">
+        <h2 className="text-[32px] font-bold leading-10 tracking-tight">{mode === 'monthly' ? 'Rapport mensuel' : 'Rapport annuel'}</h2>
+        <p className="truncate text-sm text-[var(--m3-on-surface-variant)]">
+          {title} · {mode === 'monthly' ? 'Change le mois avec le sélecteur de date en haut.' : "Change l'année avec le sélecteur de date en haut."}
+        </p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="flex items-center gap-4 rounded-[28px] bg-[var(--m3-primary-container)] px-6 py-5 text-[var(--m3-on-primary-container)] md:order-last">
+          <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/40">
+            <Banknote size={24} />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-medium opacity-80">Cash en main — {title}</div>
+            <div className="break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(total.cashEnMain)}</div>
+          </div>
         </div>
-        <div className="border-2 border-[#16181A] bg-white p-5 shadow-[4px_4px_0_#16181A]">
-          <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Cash net</div>
-          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{fmtHTG(total.cashNet)}</div>
+        <div className="rounded-[28px] bg-[var(--m3-surface-container)] px-6 py-5">
+          <div className="text-sm text-[var(--m3-on-surface-variant)]">Total brut — {title}</div>
+          <div className="mt-1 break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(total.brut)}</div>
         </div>
-        <div className="border-2 border-[#2F6B4F] bg-[#E9F5EF] p-5 shadow-[4px_4px_0_#2F6B4F]">
-          <div className="text-[11px] uppercase tracking-wide text-[#2F6B4F]">Cash en main</div>
-          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl text-[#2F6B4F]">{fmtHTG(total.cashEnMain)}</div>
+        <div className="rounded-[28px] bg-[var(--m3-surface-container)] px-6 py-5">
+          <div className="text-sm text-[var(--m3-on-surface-variant)]">Cash net</div>
+          <div className="mt-1 break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(total.cashNet)}</div>
         </div>
       </div>
 
-      <div className="border-2 border-[#16181A] bg-white shadow-[8px_8px_0_#C1440E]">
-        <div className="border-b-2 border-[#16181A] px-4 py-3">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-[#4B5560]">
-            {mode === 'monthly' ? 'Rapport mensuel' : 'Rapport annuel'}
-          </div>
-          <h2 className="font-serif text-2xl">{title}</h2>
-          <div className="text-[11px] text-[#4B5560]">
-            {mode === 'monthly'
-              ? 'Change le mois avec le sélecteur de date en haut.'
-              : "Change l'année avec le sélecteur de date en haut."}
-          </div>
+      <div className="overflow-hidden rounded-[28px] bg-[var(--m3-surface-container)]">
+        <div className="flex items-baseline justify-between px-5 pb-2 pt-4">
+          <h3 className="text-base font-medium">{mode === 'monthly' ? 'Par jour' : 'Par mois'}</h3>
+          <span className="text-sm tabular-nums text-[var(--m3-on-surface-variant)]">
+            {visibleRows.length} {mode === 'monthly' ? 'jour' : 'mois'}{visibleRows.length !== 1 && mode === 'monthly' ? 's' : ''} actif{visibleRows.length !== 1 ? 's' : ''}
+          </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-right text-[12px] tabular-nums">
-            <thead>
-              <tr className="border-b-2 border-[#16181A] bg-[#ECE7DC] text-[10px] uppercase tracking-[0.12em]">
-                <th className="px-3 py-3 text-left">{mode === 'monthly' ? 'Jour' : 'Mois'}</th>
+        <div className="max-h-[62vh] overflow-auto">
+          <table className="w-full min-w-[860px] border-collapse text-right text-sm tabular-nums">
+            <thead className="sticky top-0 z-10 bg-[var(--m3-surface-container-high)] text-xs text-[var(--m3-on-surface-variant)] shadow-[0_1px_0_var(--m3-outline-variant)]">
+              <tr>
+                <th scope="col" className="px-4 py-3 text-left font-medium">{mode === 'monthly' ? 'Jour' : 'Mois'}</th>
                 {cols.map((c) => (
-                  <th key={c.key} className="px-3 py-3">{c.label}</th>
+                  <th key={c.key} scope="col" className="px-4 py-3 font-medium">{c.label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {visibleRows.length === 0 && (
                 <tr>
-                  <td colSpan={cols.length + 1} className="px-3 py-8 text-center text-sm text-[#4B5560]">
+                  <td colSpan={cols.length + 1} className="px-4 py-12 text-center text-sm text-[var(--m3-on-surface-variant)]">
                     Aucune activité sur cette période.
                   </td>
                 </tr>
               )}
               {visibleRows.map((r) => (
-                <tr key={r.label} className="border-b border-[#16181A]/15 hover:bg-[#FBFAF6]">
-                  <td className="px-3 py-2.5 text-left font-medium">{r.label}</td>
+                <tr key={r.label} className="border-b border-[var(--m3-outline-variant)]/60 transition-colors last:border-b-0 hover:bg-[var(--m3-surface-container-high)] motion-reduce:transition-none">
+                  <td className="px-4 py-3 text-left font-medium">{r.label}</td>
                   {cols.map((c) => (
-                    <td key={c.key} className={'px-3 py-2.5 ' + (c.tone ?? '')}>
-                      {c.get(r.sum) === 0 ? '—' : fmtHTG(c.get(r.sum))}
+                    <td key={c.key} className={'px-4 py-3 ' + (c.tone ?? '')}>
+                      {c.get(r.sum) === 0 ? <span className="text-[var(--m3-outline)]">—</span> : fmtHTG(c.get(r.sum))}
                     </td>
                   ))}
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-[#16181A] bg-[#16181A] text-[#FBFAF6]">
-                <td className="px-3 py-3 text-left text-[10px] uppercase tracking-[0.16em]">Total</td>
+              <tr className="bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
+                <td className="px-4 py-3.5 text-left text-sm font-semibold">Total</td>
                 {cols.map((c) => (
-                  <td key={c.key} className="px-3 py-3 font-bold">{fmtHTG(c.get(total))}</td>
+                  <td key={c.key} className="px-4 py-3.5 font-semibold">{fmtHTG(c.get(total))}</td>
                 ))}
               </tr>
             </tfoot>
@@ -6840,9 +6800,9 @@ function PeriodReportDesktop({
   );
 }
 
-/* ---------- Phone (Material 3) versions of the Rapports tab ----------
-   Desktop keeps the brutalist tables/cards below (DailyReportDesktop / PeriodReportDesktop);
-   below the `sm` breakpoint these lighter, thumb-friendly layouts are shown instead. */
+/* ---------- Phone versions of the Rapports tab ----------
+   Both phone and desktop are Material 3 Expressive: DailyReportDesktop / PeriodReportDesktop above
+   are the roomy tables/cards; below the `sm` breakpoint these thumb-friendly layouts are shown instead. */
 
 /* Bottom sheet to record a cash movement (replaces the inline form on the phone). */
 function CashEntrySheet({
@@ -6883,15 +6843,15 @@ function CashEntrySheet({
 
   return createPortal(
     <>
-      <div aria-hidden="true" onClick={onClose} className="m3-scrim fixed inset-0 z-[80] bg-black/40 sm:hidden" />
+      <div aria-hidden="true" onClick={onClose} className="m3-scrim fixed inset-0 z-[80] bg-black/40" />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Nouveau mouvement de caisse"
         style={M3_VARS}
-        className="m3-sheet fixed inset-x-0 bottom-0 z-[81] max-h-[90vh] w-full overflow-y-auto rounded-t-[28px] bg-[var(--m3-surface-container-low)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 text-[var(--m3-on-surface)] shadow-[0_-8px_24px_rgba(0,0,0,0.16)] sm:hidden"
+        className="m3-sheet fixed inset-x-0 bottom-0 z-[81] max-h-[90vh] w-full overflow-y-auto rounded-t-[28px] bg-[var(--m3-surface-container-low)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 text-[var(--m3-on-surface)] shadow-[0_-8px_24px_rgba(0,0,0,0.16)] sm:inset-x-auto sm:inset-y-0 sm:bottom-auto sm:right-0 sm:h-full sm:max-h-none sm:w-[480px] sm:max-w-full sm:rounded-l-[28px] sm:rounded-tr-none sm:px-6 sm:pt-6 sm:shadow-[-8px_0_24px_rgba(0,0,0,0.16)] sm:[animation:m3-side-in_.4s_var(--m3-spring-effects)]"
       >
-        <div className="mx-auto mb-3 mt-1 h-1 w-8 rounded-full bg-[var(--m3-outline-variant)]" />
+        <div className="mx-auto mb-3 mt-1 h-1 w-8 rounded-full bg-[var(--m3-outline-variant)] sm:hidden" />
         <div className="px-2 pb-3">
           <div className="text-xs font-medium text-[var(--m3-on-surface-variant)]">Caisse</div>
           <div className="mt-1 text-[24px] font-normal leading-8">Nouveau mouvement</div>
@@ -7405,23 +7365,39 @@ function BranchReportsSection({
         {period === 'annual' && <PeriodReportMobile mode="annual" ventes={ventes} entries={entries} selectedDate={selectedDate} />}
       </div>
 
-      {/* Desktop: unchanged brutalist layout */}
-      <div className="hidden space-y-5 sm:block">
-        <div className="flex flex-wrap gap-1.5">
-          {REPORT_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setPeriod(tab.id)}
-              className={
-                'border-2 px-4 py-2 text-[11px] uppercase tracking-[0.16em] ' +
-                (period === tab.id
-                  ? 'border-[#16181A] bg-[#16181A] text-white'
-                  : 'border-[#16181A] bg-white hover:bg-[#ECE7DC]')
-              }
-            >
-              {tab.label}
-            </button>
-          ))}
+      {/* Desktop: Material 3 Expressive */}
+      <div style={M3_VARS} className="hidden space-y-5 font-sans text-[var(--m3-on-surface)] sm:block">
+        <div
+          role="group"
+          aria-label="Période du rapport"
+          className="grid h-12 w-[380px] max-w-full gap-0.5"
+          style={{ gridTemplateColumns: `repeat(${REPORT_TABS.length}, minmax(0, 1fr))` }}
+        >
+          {REPORT_TABS.map((tab, idx) => {
+            const selected = period === tab.id;
+            const shape = selected
+              ? 'rounded-full'
+              : idx === 0
+                ? 'rounded-l-full rounded-r-lg'
+                : idx === REPORT_TABS.length - 1
+                  ? 'rounded-r-full rounded-l-lg'
+                  : 'rounded-lg';
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setPeriod(tab.id)}
+                className={`group relative flex items-center justify-center gap-1.5 overflow-hidden px-2 text-sm font-semibold m3-morph ${shape} ${M3_FOCUS} ${
+                  selected ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]'
+                }`}
+              >
+                <M3StateLayer />
+                {selected && <Check size={16} />}
+                {PERIOD_SHORT[tab.id]}
+              </button>
+            );
+          })}
         </div>
 
         {period === 'daily' && (
@@ -9203,7 +9179,6 @@ function BranchPetiteCaisseSection({
   const sortedCounts = useMemo(() => [...counts].sort((a, b) => b.date.getTime() - a.date.getTime()), [counts]);
 
   const num = (n: number) => fmtHTG(n).replace(' HTG', '');
-  const net = totalReappro - totalDepenses;
   const gaugeColor = ratio < 0.2 ? '#BA1A1A' : ratio < 0.5 ? 'var(--m3-tertiary)' : 'var(--m3-primary)';
   const heroTone = balance < 0 ? `${M3_STATUS.out.bg} ${M3_STATUS.out.fg}` : 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]';
   const ecartLabel = (ecart: number) => (ecart === 0 ? 'Aucun' : (ecart > 0 ? '+ ' : '− ') + fmtHTG(Math.abs(ecart)));
