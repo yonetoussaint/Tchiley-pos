@@ -9,7 +9,7 @@ import {
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
   Users, Loader2, CalendarDays, Eye, EyeOff, Undo2, ChevronDown,
   Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt, ExternalLink, Copy, Wrench, CupSoda, Wheat,
-  MapPin, UserRound, TrendingUp, MoreHorizontal, LogOut, RotateCcw, KeyRound, Lock, Store, type LucideIcon
+  MapPin, UserRound, Tag, TrendingUp, MoreHorizontal, LogOut, RotateCcw, KeyRound, Lock, Store, type LucideIcon
 } from 'lucide-react';
 
 /* =========================================================================
@@ -4771,24 +4771,22 @@ function BranchSalesSection({
   const paymentIcon = (id: string) => PAYMENT_METHODS.find((m) => m.id === id)?.icon ?? Banknote;
   const plural = (n: number, word: string) => `${n} ${word}${n !== 1 ? 's' : ''}`;
 
-  const cellBase = 'px-3 py-2.5 text-center';
-  const iconButton =
-    'flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent text-[#4B5560] transition-all duration-150 hover:border-[#16181A] hover:bg-[#ECE7DC] hover:text-[#16181A]';
+  const deskIconBtn = `group relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] disabled:cursor-not-allowed ${M3_FOCUS}`;
 
   return (
     <div
       style={M3_VARS}
-      className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-8 pt-4 font-sans text-[var(--m3-on-surface)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:border-2 sm:border-[#16181A] sm:bg-[#FBFAF6] sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#C1440E]"
+      className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-8 pt-4 font-sans text-[var(--m3-on-surface)] sm:mx-0 sm:mb-0 sm:min-h-0 sm:bg-transparent sm:p-0"
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
         <div className="min-w-0">
-          <h2 className="text-[32px] font-bold leading-10 tracking-tight sm:font-serif sm:text-2xl sm:font-normal sm:leading-normal sm:tracking-normal">Ventes</h2>
-          <div className="text-sm capitalize text-[var(--m3-on-surface-variant)] sm:text-[12px] sm:text-[#4B5560]">
+          <h2 className="text-[32px] font-bold leading-10 tracking-tight">Ventes</h2>
+          <div className="text-sm capitalize text-[var(--m3-on-surface-variant)]">
             {selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
         </div>
-        <span className="hidden border-2 border-[#16181A] bg-[#ECE7DC] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em] sm:inline-block">
-          {rows.length} vente{rows.length !== 1 ? 's' : ''}
+        <span className="hidden h-8 items-center rounded-full bg-[var(--m3-secondary-container)] px-3.5 text-sm font-medium tabular-nums text-[var(--m3-on-secondary-container)] sm:inline-flex" aria-live="polite">
+          {plural(rows.length, 'vente')}
         </span>
       </div>
 
@@ -5006,208 +5004,276 @@ function BranchSalesSection({
         </div>
       )}
 
-      {/* ── Desktop (≥ sm): original house-style search + table ── */}
-      <div className="mb-4 hidden flex-wrap items-center justify-between gap-3 sm:flex">
-        <div className="flex min-w-[220px] flex-1 items-center gap-2 border-2 border-[#16181A] bg-white px-3 py-2 transition-shadow focus-within:shadow-[4px_4px_0_#C1440E]">
-          <Search className="h-4 w-4 shrink-0 text-[#4B5560]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Rechercher une vente, un article..."
-            className="w-full border-none bg-transparent text-sm text-[#16181A] outline-none placeholder:text-[#4B5560]"
-          />
-          <select
-            value={paymentFilter}
-            onChange={(event) => setPaymentFilter(event.target.value)}
-            className="shrink-0 border-2 border-[#16181A] bg-[#F3F4F6] px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-[#16181A] outline-none"
-            aria-label="Filtrer par mode de paiement"
-          >
-            <option value="all">Tous paiements</option>
-            {PAYMENT_METHODS.map((method) => (
-              <option key={method.id} value={method.id}>
-                {method.label}
-              </option>
-            ))}
-          </select>
+      {/* ── Desktop (≥ sm): M3 summary cards, search, payment segmented filter, tonal table ── */}
+      <div className="hidden space-y-5 sm:block">
+        <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-3">
+          <div className="flex items-center gap-4 rounded-[28px] bg-[var(--m3-primary-container)] px-6 py-5 text-[var(--m3-on-primary-container)]">
+            <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/40">
+              <TrendingUp size={26} />
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-medium opacity-80">{isFiltering ? 'Total (résultats)' : 'Total du jour'}</div>
+              <div className="break-words text-[32px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(totalAmount)}</div>
+            </div>
+          </div>
+          {[
+            { label: 'Ventes', value: String(countedRows.length), Icon: Receipt, tone: 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]' },
+            { label: 'Articles vendus', value: String(totalQty), Icon: ShoppingCart, tone: 'bg-[var(--m3-surface-container)] text-[var(--m3-on-surface)]' },
+            {
+              label: 'Remises',
+              value: totalDiscount > 0 ? `− ${fmtHTG(totalDiscount)}` : '—',
+              Icon: Tag,
+              tone: 'bg-[var(--m3-tertiary-container)] text-[var(--m3-on-tertiary-container)]',
+            },
+          ].map(({ label, value, Icon, tone }) => (
+            <div key={label} className={`flex items-center gap-4 rounded-[28px] px-5 py-5 ${tone}`}>
+              <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--m3-surface)]/60">
+                <Icon size={22} />
+              </span>
+              <div className="min-w-0">
+                <div className="truncate text-sm opacity-80">{label}</div>
+                <div className="truncate text-2xl font-semibold leading-8 tabular-nums">{value}</div>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
 
-      <div className="hidden overflow-hidden border-2 border-[#16181A] bg-white sm:block">
-        <div className="max-h-[65vh] overflow-auto">
-          <table className="w-full min-w-[1080px] border-collapse text-left" role="grid">
-            <thead className="sticky top-0 z-10 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[10.5px] font-medium uppercase tracking-[0.16em] text-[#4B5560] shadow-[0_2px_0_#16181A]">
-              <tr className="divide-x divide-[#d3cbb6]">
-                <th className="px-3 py-3 text-center" title="Numéro de la vente dans la journée">N°</th>
-                <th className="px-3 py-3 text-center" title="Heure de la vente">Heure</th>
-                <th className="px-3 py-3 text-center" title="Articles vendus">Articles</th>
-                <th className="px-3 py-3 text-center" title="Nombre total d'unités vendues">Qté</th>
-                <th className="px-3 py-3 text-center" title="Mode de paiement">Paiement</th>
-                <th className="px-3 py-3 text-center" title="Remise accordée au client">Remise</th>
-                <th className="px-3 py-3 text-center" title="Montant total de la vente, après remise">Total</th>
-                <th className="px-3 py-3 text-center" title="Montant reçu du client">Reçu</th>
-                <th className="px-3 py-3 text-center" title="Monnaie rendue au client">Monnaie</th>
-                <th className="px-3 py-3 text-center" title="Statut de la vente">Statut</th>
-                <th className="px-3 py-3 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(({ sale, number }) => {
-                const cancelled = sale.statut === 'annulee';
-                return (
-                  <tr
-                    key={sale.id}
-                    className={
-                      'divide-x divide-[#e4ded0] border-b border-[#e4ded0] align-middle text-[13px] transition-all duration-150 ' +
-                      (cancelled ? 'bg-[#FDF1EC] text-[#8b929a]' : 'odd:bg-white even:bg-[#FBFAF6] hover:bg-[#F3EFE3]')
-                    }
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex h-12 min-w-[240px] max-w-md flex-1 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none">
+            <Search className="h-5 w-5 shrink-0 text-[var(--m3-on-surface-variant)]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Rechercher une vente, un article..."
+              aria-label="Rechercher une vente"
+              className="w-full min-w-0 border-none bg-transparent text-sm text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Effacer la recherche"
+                className={`group relative -mr-2 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+              >
+                <M3StateLayer />
+                <X size={18} />
+              </button>
+            )}
+          </div>
+
+          <div role="group" aria-label="Filtrer par mode de paiement" className="flex flex-wrap gap-2">
+            {[{ id: 'all', label: 'Tous', icon: null as LucideIcon | null }, ...PAYMENT_METHODS].map((method) => {
+              const selected = paymentFilter === method.id;
+              const Icon = method.icon;
+              return (
+                <button
+                  key={method.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setPaymentFilter(method.id)}
+                  className={`group relative ${M3_FOCUS}`}
+                >
+                  <span
+                    className={`relative flex h-10 items-center gap-2 overflow-hidden px-4 text-sm font-medium m3-morph ${
+                      selected ? 'rounded-full' : 'rounded-xl'
+                    } ${
+                      selected
+                        ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                        : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+                    }`}
                   >
-                    <td className={cellBase + ' font-medium tabular-nums text-[#4B5560]'}>{number}</td>
-                    <td className={cellBase + ' whitespace-nowrap tabular-nums'}>{fmtTime12(sale.date)}</td>
-                    <td className="px-3 py-2.5 text-left">
-                      <div className="space-y-0.5">
-                        {sale.lignes.map((ligne, lineIndex) => (
-                          <div key={lineIndex} className="flex justify-between gap-4">
-                            <span className={cancelled ? 'line-through' : ''}>
-                              <span className="tabular-nums text-[#4B5560]">{ligne.qte} ×</span> {ligne.nom}
-                            </span>
-                            <span className="tabular-nums text-[#4B5560]">{fmtHTG(ligne.sousTotal)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td className={cellBase + ' font-medium tabular-nums'}>{qtyOf(sale)}</td>
-                    <td className={cellBase}>
-                      <span className="inline-block border-2 border-[#16181A] px-2 py-0.5 text-[10px] uppercase tracking-wide">
-                        {paymentLabel(sale.paiement)}
-                      </span>
-                      {sale.client && <div className="mt-1 text-[11px] text-[#4B5560]">{sale.client}</div>}
-                    </td>
-                    <td className={cellBase + ' tabular-nums'}>
-                      {(sale.remise ?? 0) > 0 ? (
-                        <div className={cancelled ? 'line-through' : 'text-[#C1440E]'}>
-                          <div className="font-medium">- {fmtHTG(sale.remise ?? 0)}</div>
-                          <div className="text-[11px]">
-                            {Math.round(((sale.remise ?? 0) / (sale.total + (sale.remise ?? 0))) * 1000) / 10} %
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-[#b5b9be]">—</span>
-                      )}
-                    </td>
-                    <td
+                    <M3StateLayer />
+                    {selected ? <Check size={16} /> : Icon ? <Icon size={16} /> : null}
+                    {method.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-[28px] bg-[var(--m3-surface-container)]">
+          <div className="max-h-[62vh] overflow-auto">
+            <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-[var(--m3-surface-container-high)] text-xs text-[var(--m3-on-surface-variant)] shadow-[0_1px_0_var(--m3-outline-variant)]">
+                <tr>
+                  <th scope="col" className="px-4 py-3 text-left font-medium">N°</th>
+                  <th scope="col" className="px-4 py-3 text-left font-medium">Heure</th>
+                  <th scope="col" className="px-4 py-3 text-left font-medium">Articles</th>
+                  <th scope="col" className="px-4 py-3 text-right font-medium">Qté</th>
+                  <th scope="col" className="px-4 py-3 text-left font-medium">Paiement</th>
+                  <th scope="col" className="px-4 py-3 text-right font-medium">Remise</th>
+                  <th scope="col" className="px-4 py-3 text-right font-medium">Total</th>
+                  <th scope="col" className="px-4 py-3 text-right font-medium">Reçu / Monnaie</th>
+                  <th scope="col" className="px-4 py-3 text-left font-medium">Statut</th>
+                  <th scope="col" className="w-36 px-3 py-3 text-right font-medium"><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ sale, number }) => {
+                  const cancelled = sale.statut === 'annulee';
+                  const PayIcon = paymentIcon(sale.paiement);
+                  const discount = sale.remise ?? 0;
+                  const pct = discount > 0 ? Math.round((discount / (sale.total + discount)) * 1000) / 10 : 0;
+                  return (
+                    <tr
+                      key={sale.id}
                       className={
-                        cellBase +
-                        ' font-serif text-[15px] tabular-nums ' +
-                        (cancelled ? 'text-[#8b929a] line-through' : 'text-[#2F6B4F]')
+                        'border-b border-[var(--m3-outline-variant)]/60 align-top transition-colors last:border-b-0 motion-reduce:transition-none ' +
+                        (cancelled ? 'bg-[var(--m3-surface-container-low)] text-[var(--m3-on-surface-variant)]' : 'hover:bg-[var(--m3-surface-container-high)]')
                       }
                     >
-                      {fmtHTG(sale.total)}
-                    </td>
-                    <td className={cellBase + ' tabular-nums text-[#4B5560]'}>{fmtHTG(sale.recu)}</td>
-                    <td className={cellBase + ' tabular-nums text-[#4B5560]'}>{fmtHTG(sale.monnaie)}</td>
-                    <td className={cellBase}>
-                      <span
+                      <td className="px-4 py-3">
+                        <span
+                          className={
+                            'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold tabular-nums ' +
+                            (cancelled ? 'bg-[#FFDAD6] text-[#410002]' : 'bg-[var(--m3-tertiary-container)] text-[var(--m3-on-tertiary-container)]')
+                          }
+                        >
+                          {number}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 tabular-nums">{fmtTime12(sale.date)}</td>
+                      <td className="min-w-[240px] px-4 py-3">
+                        <div className="space-y-0.5">
+                          {sale.lignes.map((ligne, lineIndex) => (
+                            <div key={lineIndex} className="flex justify-between gap-4">
+                              <span className={cancelled ? 'line-through' : ''}>
+                                <span className="tabular-nums text-[var(--m3-on-surface-variant)]">{ligne.qte} ×</span> {ligne.nom}
+                              </span>
+                              <span className="tabular-nums text-[var(--m3-on-surface-variant)]">{fmtHTG(ligne.sousTotal)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">{qtyOf(sale)}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-[var(--m3-secondary-container)] px-3 text-xs font-medium text-[var(--m3-on-secondary-container)]">
+                          <PayIcon size={14} />
+                          {paymentLabel(sale.paiement)}
+                        </span>
+                        {sale.client && (
+                          <div className="mt-1 flex items-center gap-1 text-xs text-[var(--m3-on-surface-variant)]">
+                            <UserRound size={12} className="shrink-0" />
+                            <span className="max-w-[140px] truncate">{sale.client}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {discount > 0 ? (
+                          <div className={cancelled ? 'line-through' : 'text-[var(--m3-tertiary)]'}>
+                            <div className="font-medium">− {fmtHTG(discount)}</div>
+                            <div className="text-xs">{pct} %</div>
+                          </div>
+                        ) : (
+                          <span className="text-[var(--m3-on-surface-variant)]">—</span>
+                        )}
+                      </td>
+                      <td
                         className={
-                          'inline-block border-2 px-2 py-0.5 text-[10px] uppercase tracking-wide ' +
-                          (cancelled
-                            ? 'border-[#C1440E] bg-[#FDF1EC] text-[#C1440E]'
-                            : 'border-[#2F6B4F] bg-[#E9F5EF] text-[#2F6B4F]')
+                          'whitespace-nowrap px-4 py-3 text-right text-base font-semibold tabular-nums ' +
+                          (cancelled ? 'line-through' : 'text-[var(--m3-primary)]')
                         }
                       >
-                        {cancelled ? 'Annulée' : 'Validée'}
-                      </span>
-                    </td>
-                    <td className={cellBase}>
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button onClick={() => setReceiptSale(sale)} className={iconButton} aria-label="Voir le reçu" title="Voir le reçu">
-                          <Eye size={14} />
-                        </button>
-                        <button onClick={() => printSale(sale)} className={iconButton} aria-label="Imprimer le reçu" title="Imprimer le reçu">
-                          <Printer size={14} />
-                        </button>
-                        <button
-                          onClick={() => setSaleToCancel({ sale, number })}
-                          disabled={cancelled}
+                        {fmtHTG(sale.total)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right text-xs tabular-nums text-[var(--m3-on-surface-variant)]">
+                        {sale.paiement === 'credit' ? (
+                          '—'
+                        ) : (
+                          <>
+                            <div>{fmtHTG(sale.recu)}</div>
+                            <div>{fmtHTG(sale.monnaie)}</div>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
                           className={
-                            'flex h-9 w-9 items-center justify-center border-2 border-transparent bg-transparent transition-all duration-150 ' +
-                            (cancelled
-                              ? 'cursor-not-allowed text-[#c4c8cd]'
-                              : 'text-[#C1440E] hover:border-[#C1440E] hover:bg-[#FDF1EC]')
+                            'inline-flex h-7 items-center rounded-full px-3 text-xs font-medium ' +
+                            (cancelled ? 'bg-[#FFDAD6] text-[#410002]' : 'bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]')
                           }
-                          aria-label="Annuler la vente"
-                          title={cancelled ? 'Vente déjà annulée' : 'Annuler / rembourser la vente'}
                         >
-                          <Undo2 size={14} />
-                        </button>
+                          {cancelled ? 'Annulée' : 'Validée'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button type="button" onClick={() => setReceiptSale(sale)} className={deskIconBtn} aria-label="Voir le reçu" title="Voir le reçu">
+                            <M3StateLayer />
+                            <Eye size={18} />
+                          </button>
+                          <button type="button" onClick={() => printSale(sale)} className={deskIconBtn} aria-label="Imprimer le reçu" title="Imprimer le reçu">
+                            <M3StateLayer />
+                            <Printer size={18} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSaleToCancel({ sale, number })}
+                            disabled={cancelled}
+                            className={`${deskIconBtn} ${cancelled ? 'opacity-40' : 'text-[#BA1A1A]'}`}
+                            aria-label="Annuler la vente"
+                            title={cancelled ? 'Vente déjà annulée' : 'Annuler / rembourser la vente'}
+                          >
+                            <M3StateLayer />
+                            <Undo2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-16 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+                          <ShoppingCart size={28} />
+                        </span>
+                        <span className="text-base font-medium">
+                          {isFiltering ? 'Aucune vente ne correspond à votre recherche.' : 'Aucune vente pour cette date.'}
+                        </span>
                       </div>
                     </td>
                   </tr>
-                );
-              })}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={11} className="py-14 text-center text-[#4B5560]">
-                    <ShoppingCart size={32} className="mx-auto mb-3 opacity-40" />
-                    <div className="text-sm">
-                      {isFiltering ? 'Aucune vente ne correspond à votre recherche.' : 'Aucune vente pour cette date.'}
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-            {countedRows.length > 0 && (
-              <tfoot className="sticky bottom-0 bg-gradient-to-b from-[#ECE7DC] to-[#E3DCCC] text-[13px] font-medium shadow-[0_-2px_0_#16181A]">
-                <tr className="divide-x divide-[#d3cbb6]">
-                  <td colSpan={3} className="px-3 py-3 text-right text-[10.5px] uppercase tracking-[0.16em] text-[#4B5560]">
-                    {isFiltering ? 'Total (résultats)' : 'Total du jour'}
-                  </td>
-                  <td className="px-3 py-3 text-center tabular-nums">{totalQty}</td>
-                  <td className="px-3 py-3" />
-                  <td className="px-3 py-3 text-center tabular-nums text-[#C1440E]">
-                    {totalDiscount > 0 ? `- ${fmtHTG(totalDiscount)}` : '—'}
-                  </td>
-                  <td className="px-3 py-3 text-center font-serif text-[15px] tabular-nums text-[#2F6B4F]">{fmtHTG(totalAmount)}</td>
-                  <td colSpan={4} className="px-3 py-3" />
-                </tr>
-              </tfoot>
-            )}
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {receiptSale && <ReceiptModal sale={receiptSale} onClose={() => setReceiptSale(null)} />}
 
       {saleToCancel && (
-        <div className="m3-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 sm:bg-black/55">
+        <div className="m3-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
           <div
             role="alertdialog"
             aria-modal="true"
             aria-label={`Annuler la vente n° ${saleToCancel.number}`}
             style={M3_VARS}
-            className="m3-pop w-full max-w-sm rounded-[32px] bg-[var(--m3-surface-container-high)] p-6 text-[var(--m3-on-surface)] shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14)] sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:p-5 sm:text-[#16181A] sm:shadow-[8px_8px_0_#C1440E]"
+            className="m3-pop w-full max-w-sm rounded-[32px] bg-[var(--m3-surface-container-high)] p-6 text-[var(--m3-on-surface)] shadow-[0_8px_10px_-6px_rgba(0,0,0,0.2),0_16px_24px_2px_rgba(0,0,0,0.14)]"
           >
-            <span className="mb-4 flex h-14 w-14 -rotate-6 items-center justify-center rounded-[20px] bg-[#FFDAD6] text-[#410002] sm:hidden">
+            <span className="mb-4 flex h-14 w-14 -rotate-6 items-center justify-center rounded-[20px] bg-[#FFDAD6] text-[#410002]">
               <Undo2 size={26} />
             </span>
-            <div className="text-2xl font-bold leading-8 sm:font-serif sm:text-xl sm:font-normal sm:leading-normal">
-              Annuler la vente n° {saleToCancel.number} ?
-            </div>
-            <p className="mt-3 text-sm leading-5 text-[var(--m3-on-surface-variant)] sm:mt-2 sm:text-[13px] sm:text-[#4B5560]">
+            <div className="text-2xl font-bold leading-8">Annuler la vente n° {saleToCancel.number} ?</div>
+            <p className="mt-3 text-sm leading-5 text-[var(--m3-on-surface-variant)]">
               {fmtHTG(saleToCancel.sale.total)} • {qtyOf(saleToCancel.sale)} article{qtyOf(saleToCancel.sale) !== 1 ? 's' : ''}.
               Le stock sera remis en inventaire et la vente ne comptera plus dans les totaux.
             </p>
             {saleToCancel.sale.paiement === 'credit' && creditPaid(saleToCancel.sale) > 0 && (
-              <p className="mt-3 rounded-2xl bg-[var(--m3-tertiary-container)] px-4 py-3 text-sm text-[var(--m3-on-tertiary-container)] sm:mt-2 sm:rounded-none sm:border-2 sm:border-[#F2B705] sm:bg-[#FDF6DC] sm:px-3 sm:py-2 sm:text-[12px] sm:text-[#8a6d00]">
+              <p className="mt-3 rounded-2xl bg-[var(--m3-tertiary-container)] px-4 py-3 text-sm text-[var(--m3-on-tertiary-container)]">
                 {fmtHTG(creditPaid(saleToCancel.sale))} ont déjà été payés sur ce crédit : pensez à les rembourser au client.
               </p>
             )}
-            <div className="mt-6 flex flex-col-reverse gap-2 sm:mt-5 sm:flex-row">
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row">
               <button
                 onClick={() => setSaleToCancel(null)}
-                className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-sm font-semibold text-[var(--m3-on-secondary-container)] m3-press motion-reduce:transition-none sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-white sm:py-2.5 sm:text-[14px] sm:font-normal sm:text-[#16181A] sm:hover:bg-[#ECE7DC] ${M3_FOCUS}`}
+                className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-sm font-semibold text-[var(--m3-on-secondary-container)] m3-press motion-reduce:transition-none ${M3_FOCUS}`}
               >
-                <M3StateLayer className="sm:hidden" />
+                <M3StateLayer />
                 Retour
               </button>
               <button
@@ -5215,9 +5281,9 @@ function BranchSalesSection({
                   onCancelSale(saleToCancel.sale);
                   setSaleToCancel(null);
                 }}
-                className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[#BA1A1A] text-sm font-semibold text-white m3-press motion-reduce:transition-none sm:h-auto sm:rounded-none sm:border-2 sm:border-[#16181A] sm:bg-[#C1440E] sm:py-2.5 sm:text-[14px] sm:font-medium sm:hover:bg-[#a53a0b] ${M3_FOCUS}`}
+                className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[#BA1A1A] text-sm font-semibold text-white m3-press motion-reduce:transition-none ${M3_FOCUS}`}
               >
-                <M3StateLayer className="sm:hidden" />
+                <M3StateLayer />
                 Annuler la vente
               </button>
             </div>
