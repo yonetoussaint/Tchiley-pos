@@ -7,7 +7,7 @@ import {
   ShoppingCart, Boxes, History, Gauge, AlertTriangle,
   Plus, Minus, Trash2, X, Search, Printer, ChevronRight, Banknote,
   Smartphone, FileClock, PackagePlus, Pencil, Check, Menu, BarChart3,
-  Users, Loader2, CalendarDays, Eye, Undo2, ChevronDown,
+  Users, Loader2, CalendarDays, Eye, EyeOff, Undo2, ChevronDown,
   Vault, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Coins, Download, Paperclip, FileText, Package, Receipt, ExternalLink, Copy, Wrench, CupSoda, Wheat,
   MapPin, UserRound, TrendingUp, MoreHorizontal, LogOut, RotateCcw, KeyRound, Lock, Store, type LucideIcon
 } from 'lucide-react';
@@ -9883,6 +9883,73 @@ function BranchPetiteCaisseSection({
   );
 }
 
+function BranchUserCard({
+  user,
+  onUpdateUser,
+}: {
+  user: User;
+  onUpdateUser: (userId: string, patch: Partial<User>) => void;
+}) {
+  const [showPwd, setShowPwd] = useState(false);
+  const field =
+    'block min-w-0 rounded-xl bg-[var(--m3-surface)] px-4 pb-1.5 pt-2 ring-1 ring-[var(--m3-outline)] transition-shadow focus-within:ring-2 focus-within:ring-[var(--m3-primary)] motion-reduce:transition-none';
+  const input = 'h-8 w-full min-w-0 bg-transparent p-0 text-base text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]';
+  const label = 'block text-xs leading-4 text-[var(--m3-on-surface-variant)]';
+
+  return (
+    <li className="rounded-[28px] bg-[var(--m3-surface-container)] p-4 md:p-5">
+      <div className="mb-4 flex items-center gap-3">
+        {user.profilePic ? (
+          <img src={user.profilePic} alt="" className="h-14 w-14 shrink-0 rounded-full bg-[var(--m3-surface-container-high)] object-cover" />
+        ) : (
+          <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+            <UserRound size={26} />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-base font-medium">{user.name || 'Sans nom'}</div>
+          <span className="mt-1 inline-flex items-center gap-1 rounded-lg bg-[var(--m3-secondary-container)] px-2 py-0.5 text-xs font-medium text-[var(--m3-on-secondary-container)]">
+            <Store size={12} /> Vendeur
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className={field}>
+          <span className={label}>Nom</span>
+          <input
+            value={user.name}
+            onChange={(event) => onUpdateUser(user.id, { name: event.target.value })}
+            autoComplete="off"
+            className={input}
+          />
+        </label>
+
+        <label className={field + ' relative pr-14'}>
+          <span className={label}>Mot de passe</span>
+          <input
+            type={showPwd ? 'text' : 'password'}
+            value={user.password}
+            onChange={(event) => onUpdateUser(user.id, { password: event.target.value })}
+            autoComplete="new-password"
+            className={input}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPwd((v) => !v)}
+            aria-label={showPwd ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+            aria-pressed={showPwd}
+            className={`group absolute right-1 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}
+          >
+            <M3StateLayer />
+            {showPwd ? <EyeOff size={20} /> : <Eye size={20} />}
+          </button>
+        </label>
+      </div>
+    </li>
+  );
+}
+
 function BranchUsersSection({
   branchUsers,
   onUpdateUser,
@@ -9891,41 +9958,30 @@ function BranchUsersSection({
   onUpdateUser: (userId: string, patch: Partial<User>) => void;
 }) {
   return (
-    <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#2F6B4F] sm:p-5 sm:shadow-[8px_8px_0_#2F6B4F]">
-      <h2 className="mb-4 font-serif text-2xl">Utilisateurs de la succursale</h2>
+    <div style={M3_VARS} className="space-y-4 font-sans text-[var(--m3-on-surface)]">
+      <div className="hidden md:block">
+        <h2 className="text-[32px] font-bold leading-10 tracking-tight">Utilisateurs</h2>
+        <p className="text-sm text-[var(--m3-on-surface-variant)]">
+          {branchUsers.length} vendeur{branchUsers.length !== 1 ? 's' : ''} dans cette succursale
+        </p>
+      </div>
+      <p className="px-1 text-sm text-[var(--m3-on-surface-variant)] md:hidden">
+        {branchUsers.length} vendeur{branchUsers.length !== 1 ? 's' : ''} dans cette succursale
+      </p>
+
       {branchUsers.length === 0 ? (
-        <div className="text-[13px] text-[#4B5560]">Aucun vendeur assigné à cette succursale.</div>
-      ) : (
-        <div className="space-y-3">
-          {branchUsers.map((user) => (
-            <div key={user.id} className="border-2 border-[#16181A] bg-white p-3">
-              <div className="mb-3 flex items-center gap-3">
-                <img src={user.profilePic} alt={user.name} className="h-10 w-10 border-2 border-[#16181A] object-cover" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{user.name}</div>
-                  <div className="text-[11px] uppercase tracking-wide text-[#4B5560]">Vendeur</div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Nom</label>
-                <input
-                  value={user.name}
-                  onChange={(event) => onUpdateUser(user.id, { name: event.target.value })}
-                  className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
-                />
-
-                <label className="block text-[11px] uppercase tracking-wide text-[#4B5560]">Mot de passe</label>
-                <input
-                  type="password"
-                  value={user.password}
-                  onChange={(event) => onUpdateUser(user.id, { password: event.target.value })}
-                  className="w-full border-2 border-[#16181A] bg-[#FBFAF6] px-2 py-2 text-sm outline-none focus:border-[#C1440E]"
-                />
-              </div>
-            </div>
-          ))}
+        <div className="flex flex-col items-center gap-1 rounded-[28px] bg-[var(--m3-surface-container-low)] px-4 py-14 text-center">
+          <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+            <Users size={28} />
+          </span>
+          <span className="text-base font-medium">Aucun vendeur assigné à cette succursale.</span>
         </div>
+      ) : (
+        <ul className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+          {branchUsers.map((user) => (
+            <BranchUserCard key={user.id} user={user} onUpdateUser={onUpdateUser} />
+          ))}
+        </ul>
       )}
     </div>
   );
