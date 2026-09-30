@@ -14,7 +14,7 @@ const PRODUCT_FIELD_TONES: Record<ProductFieldTone, { text: string }> = {
   green: { text: 'text-[var(--m3-primary)]' },
   steel: { text: 'text-[var(--m3-on-surface-variant)]' },
   ink: { text: 'text-[var(--m3-on-surface)]' },
-  yellow: { text: 'text-[#7A5900]' },
+  yellow: { text: 'text-[var(--m3-tertiary,#7A5900)]' },
 };
 
 type M3TextFieldProps = {
