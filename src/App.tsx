@@ -39,6 +39,21 @@ type Product = {
   image?: string;
 };
 
+type ProductMovementKind = 'sale' | 'purchase' | 'restock' | 'manual';
+
+type ProductHistoryEntry = {
+  id: string;
+  branchId: string;
+  productId: string;
+  date: Date;
+  kind: ProductMovementKind;
+  qty: number;
+  note: string;
+  amount: number;
+};
+
+type ProductMovement = ProductHistoryEntry;
+
 type CartItem = {
   id: string;
   qte: number;
@@ -941,6 +956,7 @@ function GestionMateriaux() {
   const [isReadOnly, setIsReadOnly] = useState<boolean>(false);
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [productMovements, setProductMovements] = useState<ProductMovement[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [categorie, setCategorie] = useState<string>('Tout');
   const [recherche, setRecherche] = useState<string>('');
@@ -1234,6 +1250,8 @@ function GestionMateriaux() {
         setPettyCounts={setPettyCounts}
         pettyFloats={pettyFloats}
         setPettyFloats={setPettyFloats}
+        productMovements={productMovements}
+        setProductMovements={setProductMovements}
         products={products}
         selectedBranchId={selectedBranchId}
         branchInventoryIds={branchInventoryIds}
@@ -1434,6 +1452,8 @@ function GestionMateriaux() {
                 setVentes={setVentes}
                 achats={achats}
                 setAchats={setAchats}
+                productMovements={productMovements}
+                setProductMovements={setProductMovements}
                 cashEntries={cashEntries}
                 setCashEntries={setCashEntries}
                 coffreEntries={coffreEntries}
@@ -2801,6 +2821,8 @@ function OwnerBoard({
   setPettyCounts,
   pettyFloats,
   setPettyFloats,
+  productMovements,
+  setProductMovements,
   products,
   selectedBranchId,
   branchInventoryIds,
@@ -2825,6 +2847,8 @@ function OwnerBoard({
   setPettyCounts: Dispatch<SetStateAction<PettyCount[]>>;
   pettyFloats: Record<string, number>;
   setPettyFloats: Dispatch<SetStateAction<Record<string, number>>>;
+  productMovements: ProductMovement[];
+  setProductMovements: Dispatch<SetStateAction<ProductMovement[]>>;
   products: Product[];
   selectedBranchId: string | null;
   branchInventoryIds: Record<string, string[]>;
@@ -2908,20 +2932,20 @@ function OwnerBoard({
     setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, ...patch } : user)));
   };
 
-  const handleAddProduct = () => {
+  const handleAddProduct = (draft: Partial<Product> = {}) => {
     const branchName = activeBranch?.nom ?? 'Succursale';
     const createdId = `p${Date.now()}`;
-    const newProduct: Product = {
-      id: createdId,
-      nom: `${branchName} - Nouveau produit`,
-      categorie: 'Autre',
-      prix: 0,
-      prixAchat: 0,
-      stockOuverture: 0,
-      stockFermeture: 0,
-      seuil: 5,
-      unite: 'unité',
+    const normalizedDraft = {
+      nom: (draft.nom ?? `${branchName} - Nouveau produit`).trim() || `${branchName} - Nouveau produit`,
+      categorie: draft.categorie || 'Autre',
+      prix: Number(draft.prix) || 0,
+      prixAchat: Number(draft.prixAchat) || 0,
+      stockOuverture: Math.max(0, Number(draft.stockOuverture) || 0),
+      stockFermeture: Math.max(0, Number(draft.stockFermeture) || 0),
+      seuil: Math.max(0, Number(draft.seuil) || 5),
+      unite: draft.unite?.trim() || 'unité',
     };
+    const newProduct: Product = { id: createdId, ...normalizedDraft };
 
     setProducts((prev) => [newProduct, ...prev]);
     setBranchInventoryIds((prev) => ({
@@ -2935,6 +2959,19 @@ function OwnerBoard({
     if (qty <= 0) return;
 
     updateProduct(product.id, { stockFermeture: product.stockFermeture + qty });
+    setProductMovements((prev) => [
+      {
+        id: `restock-${Date.now()}-${product.id}`,
+        branchId: activeBranchId,
+        productId: product.id,
+        date: new Date(),
+        kind: 'restock',
+        qty,
+        note: 'Réapprovisionnement',
+        amount: Number((qty * product.prixAchat).toFixed(2)),
+      },
+      ...prev,
+    ]);
     setRestockByProduct((prev) => ({ ...prev, [product.id]: 0 }));
   };
 
@@ -3008,6 +3045,73 @@ function OwnerBoard({
 
   const isCurrentDateSelected = selectedDate.toDateString() === new Date().toDateString();
   const selectedHistoryProduct = branchProducts.find((p) => p.id === historyProductId) ?? null;
+  const productHistoryById = useMemo(() => {
+    const map: Record<string, ProductHistoryEntry[]> = {};
+    const add = (productId: string, entry: ProductHistoryEntry) => {
+      if (!map[productId]) map[productId] = [];
+      map[productId].push(entry);
+    };
+
+    branchVentesAll.forEach((sale) => {
+      sale.lignes.forEach((line, index) => {
+        const productId = line.produitId ?? products.find((item) => item.nom.toLowerCase() === line.nom.toLowerCase())?.id;
+        if (!productId) return;
+        add(productId, {
+          id: `sale-${sale.id}-${index}`,
+          branchId: sale.branchId,
+          productId,
+          date: sale.date,
+          kind: 'sale',
+          qty: line.qte,
+          note: sale.id,
+          amount: line.sousTotal,
+        });
+      });
+    });
+
+    achats
+      .filter((purchase) => purchase.branchId === activeBranchId)
+      .forEach((purchase) => {
+        purchase.lignes.forEach((line, index) => {
+          add(line.produitId, {
+            id: `purchase-${purchase.id}-${index}`,
+            branchId: purchase.branchId,
+            productId: line.produitId,
+            date: purchase.date,
+            kind: 'purchase',
+            qty: line.qte,
+            note: purchase.fournisseur,
+            amount: line.sousTotal,
+          });
+        });
+      });
+
+    productMovements
+      .filter((entry) => entry.branchId === activeBranchId)
+      .forEach((entry) => {
+        add(entry.productId, entry);
+      });
+
+    Object.values(map).forEach((entries) => entries.sort((a, b) => b.date.getTime() - a.date.getTime()));
+    return map;
+  }, [achats, activeBranchId, branchVentesAll, productMovements, products]);
+
+  const productMetricsById = useMemo(() => {
+    const now = Date.now();
+    const windowMs = 30 * 24 * 60 * 60 * 1000;
+    const metrics: Record<string, { velocity: number; daysLeft: number | null; sales30: number }> = {};
+
+    branchProducts.forEach((product) => {
+      const sales30 = (productHistoryById[product.id] ?? []).filter(
+        (entry) => entry.kind === 'sale' && entry.date.getTime() >= now - windowMs
+      ).reduce((sum, entry) => sum + entry.qty, 0);
+      const velocity = sales30 / 30;
+      const daysLeft = velocity > 0 ? product.stockFermeture / velocity : null;
+      metrics[product.id] = { velocity, daysLeft, sales30 };
+    });
+
+    return metrics;
+  }, [branchProducts, productHistoryById]);
 
   const selectBranchTab = (branchId: string) => {
     setActiveBranchId(branchId);
@@ -3155,6 +3259,7 @@ function OwnerBoard({
 
             {activeSection === 'products' && (
               <BranchProductsSection
+                branchId={activeBranchId}
                 branchProducts={branchProducts}
                 inventorySearch={inventorySearch}
                 setInventorySearch={setInventorySearch}
@@ -3166,10 +3271,13 @@ function OwnerBoard({
                 restockByProduct={restockByProduct}
                 setRestockByProduct={setRestockByProduct}
                 selectedHistoryProduct={selectedHistoryProduct}
+                productHistoryById={productHistoryById}
+                productMetricsById={productMetricsById}
                 onAddProduct={handleAddProduct}
                 onUpdateProduct={updateProduct}
                 onRestockProduct={handleRestockProduct}
                 onDeleteProduct={handleDeleteProduct}
+                onRecordMovement={(entry) => setProductMovements((prev) => [{ ...entry, id: `M${Date.now()}-${entry.productId}` }, ...prev])}
                 onViewHistory={handleViewHistory}
               />
             )}
@@ -3330,6 +3438,8 @@ function BranchManagementSections({
   setVentes,
   achats,
   setAchats,
+  productMovements,
+  setProductMovements,
   cashEntries,
   setCashEntries,
   coffreEntries,
@@ -3354,6 +3464,8 @@ function BranchManagementSections({
   setVentes: Dispatch<SetStateAction<SaleRecord[]>>;
   achats: PurchaseRecord[];
   setAchats: Dispatch<SetStateAction<PurchaseRecord[]>>;
+  productMovements: ProductMovement[];
+  setProductMovements: Dispatch<SetStateAction<ProductMovement[]>>;
   cashEntries: CashEntry[];
   setCashEntries: Dispatch<SetStateAction<CashEntry[]>>;
   coffreEntries: CoffreEntry[];
@@ -3382,6 +3494,70 @@ function BranchManagementSections({
   const branchVentesAll = useMemo(() => ventes.filter((v) => v.branchId === branchId), [ventes, branchId]);
   const branchVentes = useMemo(() => branchVentesAll.filter((v) => v.statut !== 'annulee'), [branchVentesAll]);
   const selectedHistoryProduct = branchProducts.find((p) => p.id === historyProductId) ?? null;
+  const productHistoryById = useMemo(() => {
+    const map: Record<string, ProductHistoryEntry[]> = {};
+    const add = (productId: string, entry: ProductHistoryEntry) => {
+      if (!map[productId]) map[productId] = [];
+      map[productId].push(entry);
+    };
+
+    branchVentesAll.forEach((sale) => {
+      sale.lignes.forEach((line, index) => {
+        const productId = line.produitId ?? products.find((item) => item.nom.toLowerCase() === line.nom.toLowerCase())?.id;
+        if (!productId) return;
+        add(productId, {
+          id: `sale-${sale.id}-${index}`,
+          branchId: sale.branchId,
+          productId,
+          date: sale.date,
+          kind: 'sale',
+          qty: line.qte,
+          note: sale.id,
+          amount: line.sousTotal,
+        });
+      });
+    });
+
+    achats
+      .filter((purchase) => purchase.branchId === branchId)
+      .forEach((purchase) => {
+        purchase.lignes.forEach((line, index) => {
+          add(line.produitId, {
+            id: `purchase-${purchase.id}-${index}`,
+            branchId: purchase.branchId,
+            productId: line.produitId,
+            date: purchase.date,
+            kind: 'purchase',
+            qty: line.qte,
+            note: purchase.fournisseur,
+            amount: line.sousTotal,
+          });
+        });
+      });
+
+    const restockEntries = productMovements.filter((entry) => entry.branchId === branchId);
+    restockEntries.forEach((entry) => add(entry.productId, entry));
+
+    Object.values(map).forEach((entries) => entries.sort((a, b) => b.date.getTime() - a.date.getTime()));
+    return map;
+  }, [achats, branchId, branchVentesAll, productMovements, products]);
+
+  const productMetricsById = useMemo(() => {
+    const now = Date.now();
+    const windowMs = 30 * 24 * 60 * 60 * 1000;
+    const metrics: Record<string, { velocity: number; daysLeft: number | null; sales30: number }> = {};
+
+    branchProducts.forEach((product) => {
+      const sales30 = (productHistoryById[product.id] ?? []).filter(
+        (entry) => entry.kind === 'sale' && entry.date.getTime() >= now - windowMs
+      ).reduce((sum, entry) => sum + entry.qty, 0);
+      const velocity = sales30 / 30;
+      const daysLeft = velocity > 0 ? product.stockFermeture / velocity : null;
+      metrics[product.id] = { velocity, daysLeft, sales30 };
+    });
+
+    return metrics;
+  }, [branchProducts, productHistoryById]);
 
   const soldByProductToday = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -3400,19 +3576,19 @@ function BranchManagementSections({
     setProducts((prev) => prev.map((product) => (product.id === productId ? { ...product, ...patch } : product)));
   };
 
-  const handleAddProduct = () => {
+  const handleAddProduct = (draft: Partial<Product> = {}) => {
     const createdId = `p${Date.now()}`;
-    const newProduct: Product = {
-      id: createdId,
-      nom: `${branch.nom} - Nouveau produit`,
-      categorie: 'Autre',
-      prix: 0,
-      prixAchat: 0,
-      stockOuverture: 0,
-      stockFermeture: 0,
-      seuil: 5,
-      unite: 'unité',
+    const normalizedDraft = {
+      nom: (draft.nom ?? `${branch.nom} - Nouveau produit`).trim() || `${branch.nom} - Nouveau produit`,
+      categorie: draft.categorie || 'Autre',
+      prix: Number(draft.prix) || 0,
+      prixAchat: Number(draft.prixAchat) || 0,
+      stockOuverture: Math.max(0, Number(draft.stockOuverture) || 0),
+      stockFermeture: Math.max(0, Number(draft.stockFermeture) || 0),
+      seuil: Math.max(0, Number(draft.seuil) || 5),
+      unite: draft.unite?.trim() || 'unité',
     };
+    const newProduct: Product = { id: createdId, ...normalizedDraft };
     setProducts((prev) => [newProduct, ...prev]);
     setBranchInventoryIds((prev) => ({ ...prev, [branchId]: [createdId, ...(prev[branchId] ?? [])] }));
   };
@@ -3421,6 +3597,19 @@ function BranchManagementSections({
     const qty = restockByProduct[product.id] ?? 0;
     if (qty <= 0) return;
     updateProduct(product.id, { stockFermeture: product.stockFermeture + qty });
+    setProductMovements((prev) => [
+      {
+        id: `restock-${Date.now()}-${product.id}`,
+        branchId: branchId,
+        productId: product.id,
+        date: new Date(),
+        kind: 'restock',
+        qty,
+        note: 'Réapprovisionnement',
+        amount: Number((qty * product.prixAchat).toFixed(2)),
+      },
+      ...prev,
+    ]);
     setRestockByProduct((prev) => ({ ...prev, [product.id]: 0 }));
   };
 
@@ -3486,6 +3675,7 @@ function BranchManagementSections({
     <div className="space-y-5">
       {view === 'produits' && (
         <BranchProductsSection
+          branchId={branchId}
           branchProducts={branchProducts}
           inventorySearch={inventorySearch}
           setInventorySearch={setInventorySearch}
@@ -3497,10 +3687,13 @@ function BranchManagementSections({
           restockByProduct={restockByProduct}
           setRestockByProduct={setRestockByProduct}
           selectedHistoryProduct={selectedHistoryProduct}
+          productHistoryById={productHistoryById}
+          productMetricsById={productMetricsById}
           onAddProduct={handleAddProduct}
           onUpdateProduct={updateProduct}
           onRestockProduct={handleRestockProduct}
           onDeleteProduct={handleDeleteProduct}
+          onRecordMovement={(entry) => setProductMovements((prev) => [{ ...entry, id: `M${Date.now()}-${entry.productId}` }, ...prev])}
           onViewHistory={(product) => setHistoryProductId((prev) => (prev === product.id ? null : product.id))}
         />
       )}
@@ -3859,6 +4052,16 @@ function M3TextField({
 
 type ProductFieldTone = 'green' | 'ink' | 'steel' | 'yellow';
 
+type ProductDraft = {
+  nom: string;
+  categorie: string;
+  prix: number;
+  prixAchat: number;
+  stockFermeture: number;
+  seuil: number;
+  unite: string;
+};
+
 const PRODUCT_FIELD_TONES: Record<ProductFieldTone, { text: string }> = {
   green: { text: 'text-[var(--m3-primary)]' },
   steel: { text: 'text-[var(--m3-on-surface-variant)]' },
@@ -3912,9 +4115,10 @@ function ProductNumberField({
   );
 }
 
-type ProductSortKey = 'nom' | 'vendu' | 'prix' | 'prixAchat' | 'stock' | 'seuil';
+type ProductSortKey = 'nom' | 'vendu' | 'prix' | 'prixAchat' | 'stock' | 'seuil' | 'marge' | 'valeur';
 
 function BranchProductsSection({
+  branchId,
   branchProducts,
   inventorySearch,
   setInventorySearch,
@@ -3926,12 +4130,16 @@ function BranchProductsSection({
   restockByProduct,
   setRestockByProduct,
   selectedHistoryProduct,
+  productHistoryById,
+  productMetricsById,
   onAddProduct,
   onUpdateProduct,
   onRestockProduct,
   onDeleteProduct,
+  onRecordMovement,
   onViewHistory,
 }: {
+  branchId: string;
   branchProducts: Product[];
   inventorySearch: string;
   setInventorySearch: Dispatch<SetStateAction<string>>;
@@ -3943,27 +4151,91 @@ function BranchProductsSection({
   restockByProduct: Record<string, number>;
   setRestockByProduct: Dispatch<SetStateAction<Record<string, number>>>;
   selectedHistoryProduct: Product | null;
-  onAddProduct: () => void;
+  productHistoryById: Record<string, ProductHistoryEntry[]>;
+  productMetricsById: Record<string, { velocity: number; daysLeft: number | null; sales30: number }>;
+  onAddProduct: (draft?: Partial<Product>) => void;
   onUpdateProduct: (productId: string, patch: Partial<Product>) => void;
   onRestockProduct: (product: Product) => void;
   onDeleteProduct: (product: Product) => void;
+  onRecordMovement: (entry: ProductMovement) => void;
   onViewHistory: (product: Product) => void;
 }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [inventoryFocusFilter, setInventoryFocusFilter] = useState<'all' | 'reorder' | 'dead' | 'top'>('all');
+  const [stockAdjustment, setStockAdjustment] = useState({ delta: 0, reason: 'Inventaire' });
+  const [addProductOpen, setAddProductOpen] = useState(false);
+
+  const productSummaries = useMemo(() => {
+    const map: Record<string, { unitMargin: number; stockCost: number; stockSale: number; sales7: number; sales30: number; velocity: number; daysLeft: number | null }> = {};
+    branchProducts.forEach((product) => {
+      const history = productHistoryById[product.id] ?? [];
+      const sales7 = history.filter((entry) => entry.kind === 'sale' && entry.date.getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000).reduce((sum, entry) => sum + entry.qty, 0);
+      const sales30 = history.filter((entry) => entry.kind === 'sale' && entry.date.getTime() >= Date.now() - 30 * 24 * 60 * 60 * 1000).reduce((sum, entry) => sum + entry.qty, 0);
+      const velocity = sales30 / 30;
+      const daysLeft = velocity > 0 ? product.stockFermeture / velocity : null;
+      map[product.id] = {
+        unitMargin: product.prix - product.prixAchat,
+        stockCost: product.prixAchat * product.stockFermeture,
+        stockSale: product.prix * product.stockFermeture,
+        sales7,
+        sales30,
+        velocity,
+        daysLeft,
+      };
+    });
+    return map;
+  }, [branchProducts, productHistoryById]);
+
   const filteredProducts = branchProducts.filter((product) => {
     const matchesCategory = inventoryCategoryFilter === 'Tout' || product.categorie === inventoryCategoryFilter;
     const matchesStatus =
       inventoryStatusFilter === 'all' ||
       (inventoryStatusFilter === 'low' && product.stockFermeture <= product.seuil) ||
       (inventoryStatusFilter === 'normal' && product.stockFermeture > product.seuil);
+    const matchesFocus =
+      inventoryFocusFilter === 'all' ||
+      (inventoryFocusFilter === 'reorder' && product.stockFermeture <= product.seuil) ||
+      (inventoryFocusFilter === 'dead' && productSummaries[product.id]?.sales30 === 0) ||
+      (inventoryFocusFilter === 'top' && (productSummaries[product.id]?.sales30 ?? 0) >= 3);
     const matchesSearch =
       product.nom.toLowerCase().includes(inventorySearch.toLowerCase()) ||
       product.categorie.toLowerCase().includes(inventorySearch.toLowerCase());
-    return matchesCategory && matchesStatus && matchesSearch;
+    return matchesCategory && matchesStatus && matchesFocus && matchesSearch;
   });
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const totalStockValueCost = branchProducts.reduce((sum, product) => sum + product.prixAchat * product.stockFermeture, 0);
+  const totalStockValueSale = branchProducts.reduce((sum, product) => sum + product.prix * product.stockFermeture, 0);
+  const potentialProfit = totalStockValueSale - totalStockValueCost;
+  const reorderList = branchProducts.filter((product) => product.stockFermeture <= product.seuil).sort((a, b) => {
+    const aPriority = (a.seuil - a.stockFermeture) + (productSummaries[a.id]?.sales30 ?? 0) * 0.1;
+    const bPriority = (b.seuil - b.stockFermeture) + (productSummaries[b.id]?.sales30 ?? 0) * 0.1;
+    return bPriority - aPriority;
+  });
+  const deadStockList = branchProducts.filter((product) => (productSummaries[product.id]?.sales30 ?? 0) === 0).slice(0, 6);
+  const topSellers = [...branchProducts].sort((a, b) => (productSummaries[b.id]?.sales30 ?? 0) - (productSummaries[a.id]?.sales30 ?? 0)).slice(0, 5);
+
+  const lowStockCount = branchProducts.filter((product) => product.stockFermeture <= product.seuil).length;
+  const outOfStockCount = branchProducts.filter((product) => product.stockFermeture <= 0).length;
+  const lowOnlyCount = lowStockCount - outOfStockCount;
+  const presentCategories = Array.from(new Set(branchProducts.map((product) => product.categorie))).sort(
+    (a, b) => {
+      const ia = (CATEGORIES as readonly string[]).indexOf(a);
+      const ib = (CATEGORIES as readonly string[]).indexOf(b);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    }
+  );
+  const [addProductDraft, setAddProductDraft] = useState<ProductDraft>({
+    nom: '',
+    categorie: presentCategories[0] && presentCategories[0] !== 'Tout' ? presentCategories[0] : 'Autre',
+    prix: 0,
+    prixAchat: 0,
+    stockFermeture: 0,
+    seuil: 5,
+    unite: 'unité',
+  });
+  const [addProductError, setAddProductError] = useState<string | null>(null);
 
   /* Desktop: sortable table + side sheet for editing. */
   const [sort, setSort] = useState<{ key: ProductSortKey; dir: 'asc' | 'desc' } | null>(null);
@@ -3994,17 +4266,6 @@ function BranchProductsSection({
   };
 
 
-  const lowStockCount = branchProducts.filter((product) => product.stockFermeture <= product.seuil).length;
-  const outOfStockCount = branchProducts.filter((product) => product.stockFermeture <= 0).length;
-  const lowOnlyCount = lowStockCount - outOfStockCount;
-  const presentCategories = Array.from(new Set(branchProducts.map((product) => product.categorie))).sort(
-    (a, b) => {
-      const ia = (CATEGORIES as readonly string[]).indexOf(a);
-      const ib = (CATEGORIES as readonly string[]).indexOf(b);
-      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-    }
-  );
-
   const openDrawer = (id: string, focus: 'restock' | null = null) => {
     setDrawerFocus(focus);
     setDrawerId(id);
@@ -4028,6 +4289,8 @@ function BranchProductsSection({
         case 'prix': return p.prix;
         case 'prixAchat': return p.prixAchat;
         case 'stock': return p.stockFermeture;
+        case 'marge': return p.prix - p.prixAchat;
+        case 'valeur': return p.prixAchat * p.stockFermeture;
         default: return p.seuil;
       }
     };
@@ -4038,6 +4301,62 @@ function BranchProductsSection({
       return (typeof vx === 'string' ? vx.localeCompare(String(vy), 'fr') : Number(vx) - Number(vy)) * dir;
     });
   })();
+
+  const handleManualAdjustment = (product: Product, delta: number, reason: string) => {
+    if (!delta) return;
+    const nextStock = Math.max(0, product.stockFermeture + delta);
+    onUpdateProduct(product.id, { stockFermeture: nextStock });
+    onRecordMovement({
+      id: `manual-${Date.now()}-${product.id}`,
+      branchId,
+      productId: product.id,
+      date: new Date(),
+      kind: 'manual',
+      qty: Math.abs(delta),
+      note: reason,
+      amount: 0,
+    });
+  };
+
+  const submitNewProduct = () => {
+    const name = addProductDraft.nom.trim();
+    if (!name) {
+      setAddProductError('Le nom du produit est obligatoire.');
+      return;
+    }
+
+    const salePrice = Number(addProductDraft.prix) || 0;
+    const purchasePrice = Number(addProductDraft.prixAchat) || 0;
+    if (salePrice <= 0) {
+      setAddProductError('Le prix de vente doit être supérieur à 0.');
+      return;
+    }
+    if (purchasePrice > 0 && salePrice < purchasePrice) {
+      setAddProductError('Le prix de vente ne peut pas être inférieur au prix d\'achat.');
+      return;
+    }
+
+    onAddProduct({
+      nom: name,
+      categorie: addProductDraft.categorie || 'Autre',
+      prix: salePrice,
+      prixAchat: purchasePrice,
+      stockFermeture: Math.max(0, Number(addProductDraft.stockFermeture) || 0),
+      seuil: Math.max(0, Number(addProductDraft.seuil) || 0),
+      unite: addProductDraft.unite.trim() || 'unité',
+    });
+    setAddProductError(null);
+    setAddProductOpen(false);
+    setAddProductDraft({
+      nom: '',
+      categorie: presentCategories[0] && presentCategories[0] !== 'Tout' ? presentCategories[0] : 'Autre',
+      prix: 0,
+      prixAchat: 0,
+      stockFermeture: 0,
+      seuil: 5,
+      unite: 'unité',
+    });
+  };
 
   const sortHead = (key: ProductSortKey, label: string, align: 'left' | 'right' = 'right') => {
     const active = sort?.key === key;
@@ -4079,7 +4398,7 @@ function BranchProductsSection({
           </p>
         </div>
         <button
-            onClick={onAddProduct}
+            onClick={() => setAddProductOpen(true)}
             className={`group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS}       `}
           >
             <M3StateLayer />
@@ -4184,6 +4503,61 @@ function BranchProductsSection({
 
       </div>
 
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        {[
+          ['Valeur stock', fmtHTG(totalStockValueCost)],
+          ['Valeur vente', fmtHTG(totalStockValueSale)],
+          ['Profit potentiel', fmtHTG(potentialProfit)],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-2xl bg-[var(--m3-surface-container)] p-3">
+            <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">{label}</div>
+            <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-4 grid h-12 grid-cols-4 gap-1.5">
+        {[
+          { id: 'all', label: 'Tout' },
+          { id: 'reorder', label: 'À commander' },
+          { id: 'dead', label: 'Inactif' },
+          { id: 'top', label: 'Top ventes' },
+        ].map((filter) => (
+          <button
+            key={filter.id}
+            type="button"
+            onClick={() => setInventoryFocusFilter(filter.id as 'all' | 'reorder' | 'dead' | 'top')}
+            className={`group relative overflow-hidden rounded-full px-2 text-xs font-semibold ${M3_FOCUS} ${inventoryFocusFilter === filter.id ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]'}`}
+          >
+            <M3StateLayer />
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
+      {(reorderList.length > 0 || deadStockList.length > 0 || topSellers.length > 0) && (
+        <div className="mb-4 grid gap-2 sm:grid-cols-3">
+          {reorderList.length > 0 && (
+            <div className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
+              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">À commander</div>
+              <div className="mt-2 text-sm font-medium">{reorderList.slice(0, 2).map((product) => product.nom).join(' • ')}</div>
+            </div>
+          )}
+          {deadStockList.length > 0 && (
+            <div className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
+              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">Inactif 30j</div>
+              <div className="mt-2 text-sm font-medium">{deadStockList.slice(0, 2).map((product) => product.nom).join(' • ')}</div>
+            </div>
+          )}
+          {topSellers.length > 0 && (
+            <div className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
+              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">Top ventes</div>
+              <div className="mt-2 text-sm font-medium">{topSellers.slice(0, 2).map((product) => `${product.nom} (${productSummaries[product.id]?.sales30 ?? 0})`).join(' • ')}</div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Product cards — tonal surfaces, state layers, tap to expand (1 column on phone, grid on desktop) */}
       <div className="grid grid-cols-1 items-start gap-2 pb-24    ">
           {filteredProducts.map((product) => {
@@ -4270,21 +4644,44 @@ function BranchProductsSection({
                 {/* Expanded details */}
                 {open && (
                   <div className="m3-in px-4 pb-4 pt-1">
-                    {showHistory && !editing && (
-                      <div className="mb-3 grid grid-cols-4 rounded-xl bg-[var(--m3-surface)] py-2 text-center">
-                        {[
-                          ['Vendu', soldToday],
-                          ['Ouv.', product.stockOuverture],
-                          ['Ferm.', product.stockFermeture],
-                          ['Seuil', product.seuil],
-                        ].map(([label, value]) => (
-                          <div key={label}>
-                            <div className="text-xs leading-4 text-[var(--m3-on-surface-variant)]">{label}</div>
-                            <div className="text-base font-medium tabular-nums">{value}</div>
+                    {showHistory && !editing && (() => {
+                      const history = productHistoryById[product.id] ?? [];
+                      const metrics = productMetricsById[product.id] ?? { velocity: 0, daysLeft: null, sales30: 0 };
+                      const recent = history.slice(0, 3);
+                      return (
+                        <div className="mb-3 rounded-2xl bg-[var(--m3-surface)] p-3">
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            {[
+                              ['Vendu 30j', `${metrics.sales30}`],
+                              ['Vélocité', metrics.velocity > 0 ? `${metrics.velocity.toFixed(1)}/j` : '0/j'],
+                              ['Jours restants', metrics.daysLeft != null ? `${metrics.daysLeft.toFixed(1)} j` : '—'],
+                            ].map(([label, value]) => (
+                              <div key={label}>
+                                <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--m3-on-surface-variant)]">{label}</div>
+                                <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                          <div className="mt-3 space-y-1.5">
+                            {recent.length === 0 ? (
+                              <div className="text-xs text-[var(--m3-on-surface-variant)]">Aucun mouvement historique pour ce produit.</div>
+                            ) : recent.map((entry) => {
+                                const signed = entry.kind === 'sale' ? '-' : '+';
+                                const tone = entry.kind === 'sale' ? 'text-[#BA1A1A]' : 'text-[#2F6B4F]';
+                                return (
+                                  <div key={entry.id} className="flex items-center justify-between gap-2 rounded-xl bg-[var(--m3-surface-container)] px-2.5 py-1.5 text-xs">
+                                    <div className="min-w-0">
+                                      <div className="truncate font-medium text-[var(--m3-on-surface)]">{entry.note}</div>
+                                      <div className="text-[var(--m3-on-surface-variant)]">{entry.kind === 'sale' ? 'Vente' : entry.kind === 'purchase' ? 'Achat' : entry.kind === 'restock' ? 'Réappro.' : 'Ajustement'} · {entry.date.toLocaleDateString('fr-FR')}</div>
+                                    </div>
+                                    <div className={`tabular-nums font-semibold ${tone}`}>{signed}{entry.qty}</div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     <div className="grid grid-cols-3 gap-2">
                       <ProductNumberField
@@ -4432,7 +4829,7 @@ function BranchProductsSection({
             </p>
           </div>
           <button
-            onClick={onAddProduct}
+            onClick={() => setAddProductOpen(true)}
             className={`group relative flex h-12 shrink-0 items-center gap-2 overflow-hidden rounded-[20px] bg-[var(--m3-primary)] px-6 text-sm font-semibold text-[var(--m3-on-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.15)] transition-[box-shadow,transform] hover:shadow-[0_2px_6px_2px_rgba(0,0,0,0.15),0_1px_2px_rgba(0,0,0,0.3)] active:scale-[0.96] motion-reduce:transition-none ${M3_FOCUS}`}
           >
             <M3StateLayer />
@@ -4504,6 +4901,38 @@ function BranchProductsSection({
           </div>
         </div>
 
+        <div className="mb-4 grid grid-cols-4 gap-2">
+          {[
+            { id: 'all', label: 'Tout' },
+            { id: 'reorder', label: 'À commander' },
+            { id: 'dead', label: 'Inactif' },
+            { id: 'top', label: 'Top ventes' },
+          ].map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => setInventoryFocusFilter(filter.id as 'all' | 'reorder' | 'dead' | 'top')}
+              className={`group relative h-10 overflow-hidden rounded-full px-3 text-sm font-medium ${M3_FOCUS} ${inventoryFocusFilter === filter.id ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'bg-[var(--m3-surface-container-high)] text-[var(--m3-on-surface)]'}`}
+            >
+              <M3StateLayer />
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mb-4 grid grid-cols-3 gap-2">
+          {[
+            ['Valeur stock', fmtHTG(totalStockValueCost)],
+            ['Valeur vente', fmtHTG(totalStockValueSale)],
+            ['Profit potentiel', fmtHTG(potentialProfit)],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-[22px] bg-[var(--m3-surface-container)] p-3">
+              <div className="text-[10px] uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">{label}</div>
+              <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+            </div>
+          ))}
+        </div>
+
         <div role="group" aria-label="Filtrer par catégorie" className="mb-5 flex flex-wrap gap-2">
           {['Tout', ...presentCategories].map((category) => {
             const selected = inventoryCategoryFilter === category;
@@ -4542,7 +4971,9 @@ function BranchProductsSection({
                   {sortHead('vendu', 'Vendu auj.')}
                   {sortHead('prix', 'Prix vente')}
                   {sortHead('prixAchat', 'Prix achat')}
+                  {sortHead('marge', 'Marge')}
                   {sortHead('stock', 'Stock')}
+                  {sortHead('valeur', 'Valeur')}
                   {sortHead('seuil', 'Seuil')}
                   <th scope="col" className="w-40 px-3 py-3 text-right font-medium">
                     <span className="sr-only">Actions</span>
@@ -4593,6 +5024,7 @@ function BranchProductsSection({
                       <td className="px-4 py-2.5 text-right tabular-nums text-[var(--m3-on-surface-variant)]">{soldToday}</td>
                       <td className="px-4 py-2.5 text-right font-medium tabular-nums text-[var(--m3-primary)]">{fmtHTG(product.prix)}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-[var(--m3-on-surface-variant)]">{fmtHTG(product.prixAchat)}</td>
+                      <td className="px-4 py-2.5 text-right font-medium tabular-nums text-[var(--m3-on-surface)]">{fmtHTG(product.prix - product.prixAchat)}</td>
                       <td className="px-4 py-2.5 text-right">
                         <span className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-medium tabular-nums ${tone.bg} ${tone.fg}`}>
                           {(isLowStock || isOutOfStock) && <AlertTriangle size={14} aria-hidden="true" />}
@@ -4601,6 +5033,7 @@ function BranchProductsSection({
                           <span className="text-xs font-normal opacity-70">{product.unite}</span>
                         </span>
                       </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--m3-on-surface-variant)]">{fmtHTG(product.prixAchat * product.stockFermeture)}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-[var(--m3-on-surface-variant)]">{product.seuil}</td>
                       <td className="px-3 py-2.5" onClick={(event) => event.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
@@ -4727,6 +5160,77 @@ function BranchProductsSection({
                   </section>
 
                   <section>
+                    <h3 className={sectionTitle}>Correction de stock</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="block min-w-0 rounded-xl bg-[var(--m3-surface)] px-3 pb-1 pt-2 ring-1 ring-[var(--m3-outline)] focus-within:ring-2 focus-within:ring-[var(--m3-primary)]">
+                        <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">Raison</span>
+                        <select value={stockAdjustment.reason} onChange={(event) => setStockAdjustment((prev) => ({ ...prev, reason: event.target.value }))} className="h-8 w-full bg-transparent text-base text-[var(--m3-on-surface)] outline-none">
+                          {['Inventaire', 'Casse', 'Perte', 'Vol', 'Autre'].map((option) => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <ProductNumberField
+                        label="Quantité"
+                        editing
+                        value={stockAdjustment.delta}
+                        onChange={(value) => setStockAdjustment((prev) => ({ ...prev, delta: value }))}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleManualAdjustment(p, stockAdjustment.delta, stockAdjustment.reason);
+                        setStockAdjustment({ delta: 0, reason: 'Inventaire' });
+                      }}
+                      className={`${footBtn} mt-3 w-full bg-[var(--m3-primary)] text-[var(--m3-on-primary)]`}
+                    >
+                      <M3StateLayer />
+                      <PackagePlus size={18} />
+                      Enregistrer la correction
+                    </button>
+                  </section>
+
+                  <section>
+                    <h3 className={sectionTitle}>Tendance</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(() => {
+                        const daysLeft = productSummaries[p.id]?.daysLeft;
+                        return [
+                          ['7 jours', `${productSummaries[p.id]?.sales7 ?? 0}`],
+                          ['30 jours', `${productSummaries[p.id]?.sales30 ?? 0}`],
+                          ['≈ jours stock', daysLeft != null ? `${daysLeft.toFixed(1)} j` : '—'],
+                        ];
+                      })().map(([label, value]) => (
+                        <div key={label} className="rounded-2xl bg-[var(--m3-surface-container)] px-3 py-2.5 text-center">
+                          <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--m3-on-surface-variant)]">{label}</div>
+                          <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className={sectionTitle}>Historique produit</h3>
+                    <div className="space-y-2 rounded-[20px] bg-[var(--m3-surface-container)] p-3">
+                      {(productHistoryById[p.id] ?? []).slice(0, 5).map((entry) => (
+                        <div key={entry.id} className="flex items-center justify-between gap-2 rounded-2xl bg-[var(--m3-surface)] px-2.5 py-2 text-xs">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium text-[var(--m3-on-surface)]">{entry.note}</div>
+                            <div className="text-[var(--m3-on-surface-variant)]">{entry.kind === 'sale' ? 'Vente' : entry.kind === 'purchase' ? 'Achat' : entry.kind === 'restock' ? 'Réappro.' : entry.kind === 'manual' ? 'Correction' : 'Mouvement'} · {entry.date.toLocaleDateString('fr-FR')}</div>
+                          </div>
+                          <div className={`tabular-nums font-semibold ${entry.kind === 'sale' ? 'text-[#BA1A1A]' : 'text-[#2F6B4F]'}`}>
+                            {entry.kind === 'sale' ? '-' : '+'}{entry.qty}
+                          </div>
+                        </div>
+                      ))}
+                      {!(productHistoryById[p.id] ?? []).length && (
+                        <div className="text-xs text-[var(--m3-on-surface-variant)]">Aucun mouvement historique pour ce produit.</div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section>
                     <h3 className={sectionTitle}>Stock ({p.unite})</h3>
                     <div className="grid grid-cols-2 gap-2">
                       <ProductNumberField label="Ouverture" editing value={p.stockOuverture} onChange={(value) => onUpdateProduct(p.id, { stockOuverture: value })} />
@@ -4787,6 +5291,65 @@ function BranchProductsSection({
             document.body
           );
         })()}
+
+      {addProductOpen && createPortal(
+        <>
+          <div aria-hidden="true" onClick={() => setAddProductOpen(false)} className="fixed inset-0 z-[80] bg-black/40" />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Ajouter un produit"
+            style={M3_VARS}
+            className="m3-dialog fixed left-1/2 top-1/2 z-[81] w-[min(92vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-[28px] bg-[var(--m3-surface-container-low)] p-5 text-[var(--m3-on-surface)] shadow-[0_24px_50px_rgba(0,0,0,0.2)]"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-[0.1em] text-[var(--m3-on-surface-variant)]">Inventaire</div>
+                <h3 className="mt-1 text-[24px] leading-8">Ajouter un produit</h3>
+              </div>
+              <button type="button" onClick={() => setAddProductOpen(false)} className={`group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`}>
+                <M3StateLayer />
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <M3TextField label="Nom du produit" value={addProductDraft.nom} placeholder="Ex: Ciment gris 50kg" onChange={(value) => setAddProductDraft((prev) => ({ ...prev, nom: value }))} />
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block min-w-0 rounded-xl bg-[var(--m3-surface)] px-4 pb-1.5 pt-2 ring-1 ring-[var(--m3-outline)] focus-within:ring-2 focus-within:ring-[var(--m3-primary)]">
+                  <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">Catégorie</span>
+                  <select value={addProductDraft.categorie} onChange={(event) => setAddProductDraft((prev) => ({ ...prev, categorie: event.target.value }))} className="h-8 w-full min-w-0 bg-transparent p-0 text-base text-[var(--m3-on-surface)] outline-none">
+                    {['Autre', ...presentCategories.filter((c) => c !== 'Tout')].map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </label>
+                <M3TextField label="Unité" value={addProductDraft.unite} placeholder="Ex: sac" onChange={(value) => setAddProductDraft((prev) => ({ ...prev, unite: value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <ProductNumberField label="Prix vente" tone="green" decimal editing value={addProductDraft.prix} onChange={(value) => setAddProductDraft((prev) => ({ ...prev, prix: value }))} />
+                <ProductNumberField label="Prix achat" tone="steel" decimal editing value={addProductDraft.prixAchat} onChange={(value) => setAddProductDraft((prev) => ({ ...prev, prixAchat: value }))} />
+                <ProductNumberField label="Stock initial" editing value={addProductDraft.stockFermeture} onChange={(value) => setAddProductDraft((prev) => ({ ...prev, stockFermeture: value }))} />
+                <ProductNumberField label="Seuil" tone="yellow" editing value={addProductDraft.seuil} onChange={(value) => setAddProductDraft((prev) => ({ ...prev, seuil: value }))} />
+              </div>
+            </div>
+
+            {addProductError && <div className="mt-3 rounded-2xl bg-[#FFDAD6] px-3 py-2 text-sm text-[#410002]">{addProductError}</div>}
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row">
+              <button type="button" onClick={() => setAddProductOpen(false)} className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] text-sm font-semibold text-[var(--m3-on-secondary-container)] ${M3_FOCUS}`}>
+                <M3StateLayer />
+                Annuler
+              </button>
+              <button type="button" onClick={submitNewProduct} className={`group relative h-12 flex-1 overflow-hidden rounded-full bg-[var(--m3-primary)] text-sm font-semibold text-[var(--m3-on-primary)] ${M3_FOCUS}`}>
+                <M3StateLayer />
+                Créer le produit
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
     </>
   );
 }
