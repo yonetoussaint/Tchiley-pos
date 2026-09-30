@@ -1417,7 +1417,13 @@ function GestionMateriaux() {
               />
             </main>
           ) : (
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch overflow-hidden border-2 border-[#16181A] bg-[#FBFAF6] shadow-[6px_6px_0_#16181A] md:mx-8 md:mb-6 md:rounded-[28px] md:border md:border-[var(--m3-outline-variant)] md:shadow-none">
+          <main
+            className={
+              view === 'dashboard'
+                ? 'flex min-h-0 min-w-0 flex-1 flex-col self-stretch overflow-hidden md:mx-8 md:mb-6'
+                : 'flex min-h-0 min-w-0 flex-1 flex-col self-stretch overflow-hidden border-2 border-[#16181A] bg-[#FBFAF6] shadow-[6px_6px_0_#16181A] md:mx-8 md:mb-6 md:rounded-[28px] md:border md:border-[var(--m3-outline-variant)] md:shadow-none'
+            }
+          >
             {view === 'vente' && (
               <VenteView
                 isReadOnly={isReadOnly}
@@ -3528,65 +3534,113 @@ function BranchDashboardSection({
   lowStockProducts: Product[];
   recentSales: SaleRecord[];
 }) {
+  const alertTone = stockAlertCount > 0 ? `${M3_STATUS.low.bg} ${M3_STATUS.low.fg}` : 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]';
+
   return (
-    <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[3px_3px_0_#16181A] sm:p-4 sm:shadow-[6px_6px_0_#16181A]">
-          <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Ventes du jour</div>
-          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{salesToday.length}</div>
+    <div style={M3_VARS} className="space-y-4 font-sans text-[var(--m3-on-surface)]">
+      <div className="hidden md:block">
+        <h2 className="text-[32px] font-bold leading-10 tracking-tight">Tableau de bord</h2>
+        <p className="truncate text-sm text-[var(--m3-on-surface-variant)]">
+          {branch.ville} · {branch.adresse} · {branchProducts.length} article{branchProducts.length !== 1 ? 's' : ''} en inventaire
+        </p>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <section className="col-span-2 flex items-center gap-4 rounded-[28px] bg-[var(--m3-primary-container)] p-5 text-[var(--m3-on-primary-container)] md:order-2 md:col-span-1">
+          <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/40">
+            <TrendingUp size={24} />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-medium opacity-80">Revenu total</div>
+            <div className="break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(totalRevenue)}</div>
+          </div>
+        </section>
+        <div className="min-w-0 rounded-[28px] bg-[var(--m3-surface-container)] p-5 md:order-1">
+          <div className="flex items-center gap-1.5 text-sm text-[var(--m3-on-surface-variant)]">
+            <Receipt size={14} /> Ventes du jour
+          </div>
+          <div className="mt-1 truncate text-[28px] font-bold leading-9 tracking-tight tabular-nums">{salesToday.length}</div>
         </div>
-        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[3px_3px_0_#C1440E] sm:p-4 sm:shadow-[6px_6px_0_#C1440E]">
-          <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Revenu total</div>
-          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl">{fmtHTG(totalRevenue)}</div>
-        </div>
-        <div className="border-2 border-[#16181A] bg-white p-3 shadow-[3px_3px_0_#2F6B4F] sm:p-4 sm:shadow-[6px_6px_0_#2F6B4F]">
-          <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Articles en stock bas</div>
-          <div className="mt-2 break-words font-serif text-2xl sm:text-3xl text-[#C1440E]">{stockAlertCount}</div>
+        <div className={'min-w-0 rounded-[28px] p-5 md:order-3 ' + alertTone}>
+          <div className="flex items-center gap-1.5 text-sm opacity-80">
+            <AlertTriangle size={14} /> Stock bas
+          </div>
+          <div className="mt-1 truncate text-[28px] font-bold leading-9 tracking-tight tabular-nums">{stockAlertCount}</div>
         </div>
       </div>
 
-      <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-4">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-[#4B5560]">Détails</div>
-        <div className="mt-1 text-[13px] text-[#4B5560]">
-          {branch.ville} • {branch.adresse} • {branchProducts.length} article{branchProducts.length !== 1 ? 's' : ''} en inventaire
+      {/* Branch details (phone: the header already names the branch) */}
+      <div className="flex items-center gap-3 rounded-[20px] bg-[var(--m3-surface-container-low)] px-4 py-3 md:hidden">
+        <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+          <MapPin size={18} />
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium">{branch.ville} · {branch.adresse}</div>
+          <div className="text-xs text-[var(--m3-on-surface-variant)]">
+            {branchProducts.length} article{branchProducts.length !== 1 ? 's' : ''} en inventaire
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#C1440E] sm:p-5 sm:shadow-[8px_8px_0_#C1440E]">
-          <h3 className="mb-3 font-serif text-2xl">Alertes Stock Bas</h3>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Low stock */}
+        <section className="rounded-[28px] bg-[var(--m3-surface-container-low)] p-4 md:p-5">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-base font-medium">Alertes stock bas</h3>
+            {stockAlertCount > 0 && (
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium tabular-nums ${M3_STATUS.low.bg} ${M3_STATUS.low.fg}`}>{stockAlertCount}</span>
+            )}
+          </div>
           {lowStockProducts.length === 0 ? (
-            <div className="text-[13px] text-[#4B5560]">Tous les stocks sont à un niveau sain.</div>
-          ) : (
-            <div className="space-y-2">
-              {lowStockProducts.map((product) => (
-                <div key={product.id} className="flex items-center justify-between border-b border-[#d9d2c5] pb-2 text-[12px]">
-                  <span>{product.nom}</span>
-                  <span className="font-bold text-[#C1440E]">{product.stockFermeture} en stock</span>
-                </div>
-              ))}
+            <div className="mt-3 flex items-center gap-3 rounded-[20px] bg-[var(--m3-primary-container)] px-4 py-3 text-sm text-[var(--m3-on-primary-container)]">
+              <Check size={18} className="shrink-0" /> Tous les stocks sont à un niveau sain.
             </div>
+          ) : (
+            <ul className="mt-2 divide-y divide-[var(--m3-outline-variant)]">
+              {lowStockProducts.map((product) => {
+                const out = product.stockFermeture <= 0;
+                const tone = out ? M3_STATUS.out : M3_STATUS.low;
+                return (
+                  <li key={product.id} className="flex items-center gap-3 py-2.5">
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}>
+                      <AlertTriangle size={18} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{product.nom}</span>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium tabular-nums ${tone.bg} ${tone.fg}`}>
+                      {out ? 'Rupture' : `${product.stockFermeture} en stock`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-        </div>
+        </section>
 
-        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-3 shadow-[4px_4px_0_#2F6B4F] sm:p-5 sm:shadow-[8px_8px_0_#2F6B4F]">
-          <h3 className="mb-3 font-serif text-2xl">Ventes récentes</h3>
+        {/* Recent sales */}
+        <section className="rounded-[28px] bg-[var(--m3-surface-container-low)] p-4 md:p-5">
+          <h3 className="text-base font-medium">Ventes récentes</h3>
           {recentSales.length === 0 ? (
-            <div className="text-[13px] text-[#4B5560]">Aucune vente enregistrée pour l'instant.</div>
-          ) : (
-            <div className="space-y-2">
-              {recentSales.map((sale) => (
-                <div key={sale.id} className="border-b border-[#d9d2c5] pb-2 text-[12px]">
-                  <div className="flex justify-between gap-3">
-                    <span className="font-medium">{sale.id}</span>
-                    <span>{fmtHTG(sale.total)}</span>
-                  </div>
-                  <div className="mt-1 text-[#4B5560]">{sale.date.toLocaleDateString('fr-HT')}</div>
-                </div>
-              ))}
+            <div className="mt-3 rounded-[20px] bg-[var(--m3-surface-container)] px-4 py-6 text-center text-sm text-[var(--m3-on-surface-variant)]">
+              Aucune vente enregistrée pour l&apos;instant.
             </div>
+          ) : (
+            <ul className="mt-2 divide-y divide-[var(--m3-outline-variant)]">
+              {recentSales.map((sale) => (
+                <li key={sale.id} className="flex items-center gap-3 py-2.5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]">
+                    <Receipt size={18} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{sale.id}</div>
+                    <div className="text-xs text-[var(--m3-on-surface-variant)]">{sale.date.toLocaleDateString('fr-HT')}</div>
+                  </div>
+                  <div className="shrink-0 text-sm font-medium tabular-nums">{fmtHTG(sale.total)}</div>
+                </li>
+              ))}
+            </ul>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );
@@ -11043,60 +11097,111 @@ function DashboardView({
   produitsStockBas: Product[];
   meilleuresVentes: [string, number][];
 }) {
-  return (
-    <div className="flex-1 overflow-y-auto px-6 py-6">
-      <h2 className="mb-4 font-serif text-xl">Tableau de Bord</h2>
+  const maxQte = Math.max(...meilleuresVentes.map(([, q]) => q), 1);
+  const alertTone = produitsStockBas.length > 0 ? `${M3_STATUS.low.bg} ${M3_STATUS.low.fg}` : 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]';
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-4">
-          <div className="text-[12px] text-[#4B5560]">Ventes du jour</div>
-          <div className="mt-1 font-serif text-2xl">{fmtHTG(totalAujourdhui)}</div>
+  return (
+    <div style={M3_VARS} className="min-h-0 flex-1 space-y-4 overflow-y-auto font-sans text-[var(--m3-on-surface)]">
+      <div className="hidden md:block">
+        <h2 className="text-[32px] font-bold leading-10 tracking-tight">Tableau de bord</h2>
+        <p className="text-sm text-[var(--m3-on-surface-variant)]">Vue d&apos;ensemble de la journée</p>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <section className="col-span-2 flex items-center gap-4 rounded-[28px] bg-[var(--m3-primary-container)] p-5 text-[var(--m3-on-primary-container)] md:col-span-1">
+          <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/40">
+            <TrendingUp size={24} />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-medium opacity-80">Ventes du jour</div>
+            <div className="break-words text-[28px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(totalAujourdhui)}</div>
+          </div>
+        </section>
+        <div className="min-w-0 rounded-[28px] bg-[var(--m3-surface-container)] p-5">
+          <div className="flex items-center gap-1.5 text-sm text-[var(--m3-on-surface-variant)]">
+            <Receipt size={14} /> Transactions
+          </div>
+          <div className="mt-1 truncate text-[28px] font-bold leading-9 tracking-tight tabular-nums">{nbVentesAujourdhui}</div>
         </div>
-        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-4">
-          <div className="text-[12px] text-[#4B5560]">Transactions aujourd'hui</div>
-          <div className="mt-1 font-serif text-2xl">{nbVentesAujourdhui}</div>
-        </div>
-        <div className="border-2 border-[#C1440E] bg-[#FBFAF6] p-4">
-          <div className="text-[12px] text-[#4B5560]">Articles en stock bas</div>
-          <div className="mt-1 font-serif text-2xl text-[#C1440E]">{produitsStockBas.length}</div>
+        <div className={'min-w-0 rounded-[28px] p-5 ' + alertTone}>
+          <div className="flex items-center gap-1.5 text-sm opacity-80">
+            <AlertTriangle size={14} /> Stock bas
+          </div>
+          <div className="mt-1 truncate text-[28px] font-bold leading-9 tracking-tight tabular-nums">{produitsStockBas.length}</div>
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-4">
-          <div className="mb-3 flex items-center gap-2 text-[14px] font-medium">
-            <AlertTriangle size={15} className="text-[#C1440E]" />
-            Alerte Stock Bas
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Low stock */}
+        <section className="rounded-[28px] bg-[var(--m3-surface-container-low)] p-4 md:p-5">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-base font-medium">Alerte stock bas</h3>
+            {produitsStockBas.length > 0 && (
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium tabular-nums ${M3_STATUS.low.bg} ${M3_STATUS.low.fg}`}>{produitsStockBas.length}</span>
+            )}
           </div>
           {produitsStockBas.length === 0 ? (
-            <div className="text-[13px] text-[#4B5560]">Tous les stocks sont à un niveau sain.</div>
-          ) : (
-            <div className="space-y-1.5">
-              {produitsStockBas.map((p) => (
-                <div key={p.id} className="flex justify-between text-[13px]">
-                  <span>{p.nom}</span>
-                  <span className="text-[#C1440E]">{p.stockFermeture} {p.unite}{p.stockFermeture !== 1 ? 's' : ''}</span>
-                </div>
-              ))}
+            <div className="mt-3 flex items-center gap-3 rounded-[20px] bg-[var(--m3-primary-container)] px-4 py-3 text-sm text-[var(--m3-on-primary-container)]">
+              <Check size={18} className="shrink-0" /> Tous les stocks sont à un niveau sain.
             </div>
+          ) : (
+            <ul className="mt-2 divide-y divide-[var(--m3-outline-variant)]">
+              {produitsStockBas.map((p) => {
+                const out = p.stockFermeture <= 0;
+                const tone = out ? M3_STATUS.out : M3_STATUS.low;
+                return (
+                  <li key={p.id} className="flex items-center gap-3 py-2.5">
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}>
+                      <AlertTriangle size={18} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.nom}</span>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium tabular-nums ${tone.bg} ${tone.fg}`}>
+                      {out ? 'Rupture' : `${p.stockFermeture} ${p.unite}${p.stockFermeture !== 1 ? 's' : ''}`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-        </div>
+        </section>
 
-        <div className="border-2 border-[#16181A] bg-[#FBFAF6] p-4">
-          <div className="mb-3 text-[14px] font-medium">Articles les Plus Vendus</div>
+        {/* Best sellers */}
+        <section className="rounded-[28px] bg-[var(--m3-surface-container-low)] p-4 md:p-5">
+          <h3 className="text-base font-medium">Articles les plus vendus</h3>
           {meilleuresVentes.length === 0 ? (
-            <div className="text-[13px] text-[#4B5560]">Aucune vente enregistrée pour l'instant.</div>
-          ) : (
-            <div className="space-y-1.5">
-              {meilleuresVentes.map(([nom, qte]) => (
-                <div key={nom} className="flex justify-between text-[13px]">
-                  <span>{nom}</span>
-                  <span className="text-[#4B5560]">{qte} vendu{qte !== 1 ? 's' : ''}</span>
-                </div>
-              ))}
+            <div className="mt-3 rounded-[20px] bg-[var(--m3-surface-container)] px-4 py-6 text-center text-sm text-[var(--m3-on-surface-variant)]">
+              Aucune vente enregistrée pour l&apos;instant.
             </div>
+          ) : (
+            <ol className="mt-3 space-y-3.5">
+              {meilleuresVentes.map(([nom, qte], i) => (
+                <li key={nom}>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums ' +
+                        (i === 0 ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)]' : 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]')
+                      }
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{nom}</span>
+                    <span className="shrink-0 text-sm tabular-nums text-[var(--m3-on-surface-variant)]">
+                      {qte} vendu{qte !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="ml-11 mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--m3-surface-container-highest)]">
+                    <div
+                      className={'h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none ' + (i === 0 ? 'bg-[var(--m3-primary)]' : 'bg-[var(--m3-outline)]')}
+                      style={{ width: `${(qte / maxQte) * 100}%` }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ol>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );
