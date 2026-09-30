@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
@@ -2880,7 +2880,6 @@ function OwnerBoard({
   const branchUsers = users.filter((u) => u.branchId === activeBranchId);
 
   const salesToday = branchVentes.filter((v) => isSameDay(v.date, selectedDate));
-  const salesOfSelectedDate = branchVentesAll.filter((v) => isSameDay(v.date, selectedDate));
   const stockAlertCount = branchProducts.filter((p) => p.stockFermeture <= p.seuil).length;
   const totalRevenueBranch = branchVentes.reduce((sum, v) => sum + v.total, 0);
   const lowStockProducts = branchProducts.filter((p) => p.stockFermeture <= p.seuil).slice(0, 5);
@@ -3174,7 +3173,7 @@ function OwnerBoard({
             )}
 
             {activeSection === 'sales' && (
-              <BranchSalesSection sales={salesOfSelectedDate} selectedDate={selectedDate} onCancelSale={handleCancelSale} />
+              <BranchSalesSection sales={branchVentesAll} selectedDate={selectedDate} onCancelSale={handleCancelSale} />
             )}
 
             {activeSection === 'purchases' && (
@@ -3380,7 +3379,6 @@ function BranchManagementSections({
   );
   const branchVentesAll = useMemo(() => ventes.filter((v) => v.branchId === branchId), [ventes, branchId]);
   const branchVentes = useMemo(() => branchVentesAll.filter((v) => v.statut !== 'annulee'), [branchVentesAll]);
-  const salesOfSelectedDate = branchVentesAll.filter((v) => isSameDay(v.date, selectedDate));
   const selectedHistoryProduct = branchProducts.find((p) => p.id === historyProductId) ?? null;
 
   const soldByProductToday = useMemo(() => {
@@ -3506,7 +3504,7 @@ function BranchManagementSections({
       )}
 
       {view === 'ventes' && (
-        <BranchSalesSection sales={salesOfSelectedDate} selectedDate={selectedDate} onCancelSale={handleCancelSale} />
+        <BranchSalesSection sales={branchVentesAll} selectedDate={selectedDate} onCancelSale={handleCancelSale} />
       )}
 
       {view === 'achats' && (
@@ -4790,8 +4788,21 @@ function BranchProductsSection({
     </>
   );
 }
+type SalesRangeId = 'day' | '7d' | 'month' | 'custom';
+
+const salesStartOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const salesAddDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const toDateInput = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const fromDateInput = (value: string) => {
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
+
+/* `sales` = toutes les ventes de la succursale ; la période affichée est calculée ici,
+   ancrée sur la date choisie dans le sélecteur de date de l'en-tête. */
 function BranchSalesSection({
-  sales,
+  sales: allSales,
   selectedDate,
   onCancelSale,
 }: {
@@ -4801,21 +4812,64 @@ function BranchSalesSection({
 }) {
   const [search, setSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  const [rangeId, setRangeId] = useState<SalesRangeId>('day');
+  const [customFrom, setCustomFrom] = useState(() => toDateInput(salesAddDays(selectedDate, -6)));
+  const [customTo, setCustomTo] = useState(() => toDateInput(selectedDate));
+
+  const { rangeStart, rangeEnd } = useMemo(() => {
+    const day = salesStartOfDay(selectedDate);
+    if (rangeId === 'day') return { rangeStart: day, rangeEnd: day };
+    if (rangeId === '7d') return { rangeStart: salesAddDays(day, -6), rangeEnd: day };
+    if (rangeId === 'month') {
+      return {
+        rangeStart: new Date(day.getFullYear(), day.getMonth(), 1),
+        rangeEnd: new Date(day.getFullYear(), day.getMonth() + 1, 0),
+      };
+    }
+    let a = customFrom ? fromDateInput(customFrom) : day;
+    let b = customTo ? fromDateInput(customTo) : a;
+    if (a.getTime() > b.getTime()) [a, b] = [b, a];
+    return { rangeStart: a, rangeEnd: b };
+  }, [rangeId, selectedDate, customFrom, customTo]);
+
+  const multiDay = !isSameDay(rangeStart, rangeEnd);
+  const sales = useMemo(() => {
+    const from = rangeStart.getTime();
+    const to = salesAddDays(rangeEnd, 1).getTime();
+    return allSales.filter((v) => v.date.getTime() >= from && v.date.getTime() < to);
+  }, [allSales, rangeStart, rangeEnd]);
+
+  const isSelectedToday = isSameDay(selectedDate, new Date());
+  const rangeOptions: Array<{ id: SalesRangeId; label: string }> = [
+    { id: 'day', label: isSelectedToday ? "Aujourd'hui" : 'Ce jour' },
+    { id: '7d', label: '7 jours' },
+    { id: 'month', label: 'Ce mois' },
+    { id: 'custom', label: 'Personnalisé' },
+  ];
+  const shortDate = (d: Date, withYear = false) =>
+    d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) });
+  const rangeLabel = multiDay
+    ? `${shortDate(rangeStart, rangeStart.getFullYear() !== rangeEnd.getFullYear())} – ${shortDate(rangeEnd, true)}`
+    : selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const [receiptSale, setReceiptSale] = useState<SaleRecord | null>(null);
   const [saleToCancel, setSaleToCancel] = useState<{ sale: SaleRecord; number: number } | null>(null);
 
   const paymentLabel = (id: string) => PAYMENT_METHODS.find((m) => m.id === id)?.label || id;
   const qtyOf = (sale: SaleRecord) => sale.lignes.reduce((n, l) => n + l.qte, 0);
 
-  // Number sales chronologically (1 = first sale of the day), then show newest first.
-  const numbered = useMemo(
-    () =>
-      [...sales]
-        .sort((a, b) => a.date.getTime() - b.date.getTime())
-        .map((sale, index) => ({ sale, number: index + 1 }))
-        .reverse(),
-    [sales]
-  );
+  // Number sales chronologically within each day (1 = first sale of that day), then show newest first.
+  const numbered = useMemo(() => {
+    const counters = new Map<string, number>();
+    return [...sales]
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map((sale) => {
+        const key = dayKey(sale.date);
+        const number = (counters.get(key) ?? 0) + 1;
+        counters.set(key, number);
+        return { sale, number };
+      })
+      .reverse();
+  }, [sales]);
 
   const query = search.trim().toLowerCase();
   const rows = numbered.filter(({ sale, number }) => {
@@ -4842,6 +4896,18 @@ function BranchSalesSection({
   const totalDiscount = countedRows.reduce((sum, { sale }) => sum + (sale.remise ?? 0), 0);
   const isFiltering = query !== '' || paymentFilter !== 'all';
 
+  const dayStats = new Map<string, { count: number; total: number }>();
+  countedRows.forEach(({ sale }) => {
+    const key = dayKey(sale.date);
+    const cur = dayStats.get(key) ?? { count: 0, total: 0 };
+    dayStats.set(key, { count: cur.count + 1, total: cur.total + sale.total });
+  });
+  const isFirstOfDay = (index: number) =>
+    multiDay && (index === 0 || dayKey(rows[index - 1].sale.date) !== dayKey(rows[index].sale.date));
+  const dayTitle = (d: Date) => d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const emptyText = multiDay ? 'Aucune vente pour cette période.' : 'Aucune vente pour cette date.';
+  const totalLabel = isFiltering ? 'Total (résultats)' : multiDay ? 'Total de la période' : 'Total du jour';
+
   const printSale = (sale: SaleRecord) => {
     setReceiptSale(sale);
     window.setTimeout(() => window.print(), 150);
@@ -4860,13 +4926,73 @@ function BranchSalesSection({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
         <div className="min-w-0">
           <h2 className="text-[32px] font-bold leading-10 tracking-tight">Ventes</h2>
-          <div className="text-sm capitalize text-[var(--m3-on-surface-variant)]">
-            {selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </div>
+          <div className="text-sm capitalize text-[var(--m3-on-surface-variant)]">{rangeLabel}</div>
         </div>
         <span className="hidden h-8 items-center rounded-full bg-[var(--m3-secondary-container)] px-3.5 text-sm font-medium tabular-nums text-[var(--m3-on-secondary-container)] sm:inline-flex" aria-live="polite">
           {plural(rows.length, 'vente')}
         </span>
+      </div>
+
+      {/* ── Période : Aujourd'hui / 7 jours / Ce mois / Personnalisé ── */}
+      <div className="mb-4 space-y-3 sm:mb-5">
+        <div
+          role="group"
+          aria-label="Choisir la période"
+          className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden"
+        >
+          {rangeOptions.map((option) => {
+            const selected = rangeId === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setRangeId(option.id)}
+                className={`group relative shrink-0 before:absolute before:inset-x-0 before:-inset-y-1 before:content-[''] ${M3_FOCUS}`}
+              >
+                <span
+                  className={`relative flex h-10 items-center gap-2 overflow-hidden px-4 text-sm font-medium m3-morph ${
+                    selected ? 'rounded-full' : 'rounded-xl'
+                  } ${
+                    selected
+                      ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+                      : 'border border-[var(--m3-outline)] text-[var(--m3-on-surface-variant)]'
+                  }`}
+                >
+                  <M3StateLayer />
+                  {selected ? <Check size={16} /> : option.id === 'custom' ? <CalendarDays size={16} /> : null}
+                  {option.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {rangeId === 'custom' && (
+          <div className="m3-in flex flex-wrap items-center gap-3">
+            {[
+              { id: 'sales-from', label: 'Du', value: customFrom, set: setCustomFrom, max: customTo || undefined, min: undefined as string | undefined },
+              { id: 'sales-to', label: 'Au', value: customTo, set: setCustomTo, min: customFrom || undefined, max: undefined as string | undefined },
+            ].map((field) => (
+              <label
+                key={field.id}
+                htmlFor={field.id}
+                className="flex h-12 min-w-[160px] flex-1 items-center gap-3 rounded-full bg-[var(--m3-surface-container-high)] px-4 text-sm text-[var(--m3-on-surface-variant)] focus-within:ring-2 focus-within:ring-[var(--m3-primary)] sm:max-w-[240px]"
+              >
+                <span className="shrink-0 font-medium">{field.label}</span>
+                <input
+                  id={field.id}
+                  type="date"
+                  value={field.value}
+                  min={field.min}
+                  max={field.max}
+                  onChange={(event) => field.set(event.target.value)}
+                  className="w-full min-w-0 border-none bg-transparent text-base text-[var(--m3-on-surface)] outline-none sm:text-sm"
+                />
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Phone (M3 Expressive): summary hero, search, payment chips, sale cards ── */}
@@ -4874,7 +5000,7 @@ function BranchSalesSection({
         aria-label="Résumé des ventes"
         className="m3-in mb-4 overflow-hidden rounded-[32px] bg-[var(--m3-primary-container)] p-5 text-[var(--m3-on-primary-container)] sm:hidden"
       >
-        <div className="text-sm font-medium opacity-80">{isFiltering ? 'Total (résultats)' : 'Total du jour'}</div>
+        <div className="text-sm font-medium opacity-80">{totalLabel}</div>
         <div className="mt-1 text-[40px] font-bold leading-[48px] tracking-tight tabular-nums">{fmtHTG(totalAmount)}</div>
         <div className="mt-4 flex flex-wrap gap-2">
           <span className="rounded-full bg-[var(--m3-primary)] px-3.5 py-1.5 text-xs font-semibold text-[var(--m3-on-primary)]">
@@ -4954,14 +5080,23 @@ function BranchSalesSection({
       </div>
 
       <ul className="space-y-3 sm:hidden" aria-label="Liste des ventes">
-        {rows.map(({ sale, number }) => {
+        {rows.map(({ sale, number }, rowIndex) => {
           const cancelled = sale.statut === 'annulee';
           const PayIcon = paymentIcon(sale.paiement);
           const discount = sale.remise ?? 0;
           const pct = discount > 0 ? Math.round((discount / (sale.total + discount)) * 1000) / 10 : 0;
+          const dayHeader = isFirstOfDay(rowIndex) ? dayStats.get(dayKey(sale.date)) ?? { count: 0, total: 0 } : null;
           return (
+            <Fragment key={sale.id}>
+              {dayHeader && (
+                <li className="flex items-baseline justify-between gap-3 px-2 pt-2" aria-label={`Ventes du ${dayTitle(sale.date)}`}>
+                  <span className="text-sm font-semibold capitalize text-[var(--m3-on-surface)]">{dayTitle(sale.date)}</span>
+                  <span className="text-xs tabular-nums text-[var(--m3-on-surface-variant)]">
+                    {plural(dayHeader.count, 'vente')} · {fmtHTG(dayHeader.total)}
+                  </span>
+                </li>
+              )}
             <li
-              key={sale.id}
               className={
                 'm3-in overflow-hidden rounded-[28px] p-4 ' +
                 (cancelled ? 'bg-[var(--m3-surface-container-low)]' : 'bg-[var(--m3-surface-container)]')
@@ -5067,6 +5202,7 @@ function BranchSalesSection({
                 </button>
               </div>
             </li>
+            </Fragment>
           );
         })}
       </ul>
@@ -5078,7 +5214,7 @@ function BranchSalesSection({
           </span>
           <div className="text-lg font-semibold">{isFiltering ? 'Aucun résultat' : 'Aucune vente'}</div>
           <div className="mt-1 text-sm text-[var(--m3-on-surface-variant)]">
-            {isFiltering ? 'Aucune vente ne correspond à votre recherche.' : 'Aucune vente pour cette date.'}
+            {isFiltering ? 'Aucune vente ne correspond à votre recherche.' : emptyText}
           </div>
         </div>
       )}
@@ -5091,7 +5227,7 @@ function BranchSalesSection({
               <TrendingUp size={26} />
             </span>
             <div className="min-w-0">
-              <div className="text-sm font-medium opacity-80">{isFiltering ? 'Total (résultats)' : 'Total du jour'}</div>
+              <div className="text-sm font-medium opacity-80">{totalLabel}</div>
               <div className="break-words text-[32px] font-bold leading-9 tracking-tight tabular-nums">{fmtHTG(totalAmount)}</div>
             </div>
           </div>
@@ -5190,14 +5326,27 @@ function BranchSalesSection({
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ sale, number }) => {
+                {rows.map(({ sale, number }, rowIndex) => {
                   const cancelled = sale.statut === 'annulee';
                   const PayIcon = paymentIcon(sale.paiement);
                   const discount = sale.remise ?? 0;
                   const pct = discount > 0 ? Math.round((discount / (sale.total + discount)) * 1000) / 10 : 0;
+                  const dayHeader = isFirstOfDay(rowIndex) ? dayStats.get(dayKey(sale.date)) ?? { count: 0, total: 0 } : null;
                   return (
+                    <Fragment key={sale.id}>
+                    {dayHeader && (
+                      <tr className="bg-[var(--m3-surface-container-high)]">
+                        <td colSpan={10} className="px-4 py-2.5">
+                          <div className="flex items-baseline justify-between gap-4">
+                            <span className="text-sm font-semibold capitalize text-[var(--m3-on-surface)]">{dayTitle(sale.date)}</span>
+                            <span className="text-xs tabular-nums text-[var(--m3-on-surface-variant)]">
+                              {plural(dayHeader.count, 'vente')} · <span className="font-semibold text-[var(--m3-primary)]">{fmtHTG(dayHeader.total)}</span>
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                     <tr
-                      key={sale.id}
                       className={
                         'border-b border-[var(--m3-outline-variant)]/60 align-top transition-colors last:border-b-0 motion-reduce:transition-none ' +
                         (cancelled ? 'bg-[var(--m3-surface-container-low)] text-[var(--m3-on-surface-variant)]' : 'hover:bg-[var(--m3-surface-container-high)]')
@@ -5301,6 +5450,7 @@ function BranchSalesSection({
                         </div>
                       </td>
                     </tr>
+                    </Fragment>
                   );
                 })}
                 {rows.length === 0 && (
@@ -5311,7 +5461,7 @@ function BranchSalesSection({
                           <ShoppingCart size={28} />
                         </span>
                         <span className="text-base font-medium">
-                          {isFiltering ? 'Aucune vente ne correspond à votre recherche.' : 'Aucune vente pour cette date.'}
+                          {isFiltering ? 'Aucune vente ne correspond à votre recherche.' : emptyText}
                         </span>
                       </div>
                     </td>
