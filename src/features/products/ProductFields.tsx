@@ -157,3 +157,55 @@ export function M3BarcodeField({ value, onChange, onScan, onGenerate, error }: M
     </div>
   );
 }
+
+type M3SkuFieldProps = {
+  value: string;
+  onChange: (value: string) => void;
+  onGenerate: () => void;
+  error?: string;
+};
+
+/* Text field with a trailing "generate" button for the internal SKU (QUI-0001). */
+export function M3SkuField({ value, onChange, onGenerate, error }: M3SkuFieldProps) {
+  const errorId = useId();
+  return (
+    <div>
+      <div
+        className={`flex min-w-0 items-center rounded-xl bg-[var(--m3-surface)] pl-4 pr-1 transition-shadow focus-within:ring-2 motion-reduce:transition-none ${
+          error ? 'ring-2 ring-[var(--m3-error,#BA1A1A)]' : 'ring-1 ring-[var(--m3-outline)] focus-within:ring-[var(--m3-primary)]'
+        }`}
+      >
+        <label className="block min-w-0 flex-1 pb-1.5 pt-2">
+          <span className="block text-xs leading-4 text-[var(--m3-on-surface-variant)]">SKU</span>
+          <input
+            value={value}
+            onChange={(event) => onChange(event.target.value.trim().toUpperCase())}
+            placeholder="ex. QUI-0001"
+            autoCapitalize="characters"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
+            className="h-8 w-full min-w-0 bg-transparent p-0 text-base tabular-nums text-[var(--m3-on-surface)] outline-none placeholder:text-[var(--m3-on-surface-variant)]"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={onGenerate}
+          aria-label="Générer un SKU"
+          title="Générer un SKU"
+          className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-primary)] ${M3_FOCUS}`}
+        >
+          <M3StateLayer />
+          <Sparkles size={22} aria-hidden="true" />
+        </button>
+      </div>
+      {error && (
+        <p id={errorId} role="alert" className="mt-1 px-4 text-xs text-[var(--m3-error,#BA1A1A)]">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}

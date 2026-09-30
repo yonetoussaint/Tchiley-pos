@@ -11,6 +11,8 @@ export type Product = {
   image?: string;
   /** EAN/UPC barcode or QR payload, used to find the product by scan. */
   codeBarres?: string;
+  /** Internal stock-keeping reference, e.g. QUI-0001. */
+  sku?: string;
 };
 
 export type ProductMovementKind = 'sale' | 'purchase' | 'restock' | 'manual';

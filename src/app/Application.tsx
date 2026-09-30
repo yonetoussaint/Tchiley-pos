@@ -1602,6 +1602,7 @@ function OwnerBoard({
       seuil: Math.max(0, Number(draft.seuil) || 5),
       unite: draft.unite?.trim() || 'unité',
       codeBarres: draft.codeBarres?.trim() || undefined,
+      sku: draft.sku?.trim() || undefined,
     };
     const newProduct: Product = { id: createdId, ...normalizedDraft };
 
@@ -2246,6 +2247,7 @@ function BranchManagementSections({
       seuil: Math.max(0, Number(draft.seuil) || 5),
       unite: draft.unite?.trim() || 'unité',
       codeBarres: draft.codeBarres?.trim() || undefined,
+      sku: draft.sku?.trim() || undefined,
     };
     const newProduct: Product = { id: createdId, ...normalizedDraft };
     setProducts((prev) => [newProduct, ...prev]);

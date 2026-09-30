@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Check, ChevronDown, Clock, History, PackagePlus, Pencil, Plus, Printer, ScanLine, Search, ShoppingCart, Trash2, TrendingUp, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, Clock, History, PackagePlus, Pencil, ListChecks, Plus, Printer, ScanLine, Search, ShoppingCart, Trash2, TrendingUp, X } from 'lucide-react';
 import { M3_FOCUS } from '../../components/ui/focus';
 import { M3Loading, M3StateLayer, M3_STATUS, M3_VARS } from '../../components/ui/theme';
 import { CATEGORIES, categoryIcon } from './constants';
-import { M3BarcodeField, M3TextField, ProductNumberField, type ProductDraft } from './ProductFields';
+import { M3BarcodeField, M3SkuField, M3TextField, ProductNumberField, type ProductDraft } from './ProductFields';
+import { BulkDeleteDialog, BulkDock, BulkEditDialog, SelectBox, SelectMark, type Snack } from './BulkActions';
+import { generateSkus, plural } from './bulkOps';
 import { BarcodeScannerDialog } from './BarcodeScannerDialog';
 import { lookupProductByCode, normalizeCode } from './barcodeLookup';
 import { generateInternalCode } from './barcodeGen';
@@ -102,6 +104,12 @@ export function BranchProductsSection({
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   /* Label printing dialog: null = closed, otherwise the products ticked on open. */
   const [labelIds, setLabelIds] = useState<string[] | null>(null);
+  /* Bulk selection: phones enter it from the header, desktop via the table checkboxes. */
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [snack, setSnack] = useState<Snack | null>(null);
 
   const productSummaries = useMemo(() => {
     const map: Record<string, { unitMargin: number; stockCost: number; stockSale: number; sales7: number; sales30: number; velocity: number; daysLeft: number | null }> = {};
@@ -139,9 +147,96 @@ export function BranchProductsSection({
     const matchesSearch =
       product.nom.toLowerCase().includes(query) ||
       product.categorie.toLowerCase().includes(query) ||
-      (product.codeBarres ?? '').toLowerCase().includes(query);
+      (product.codeBarres ?? '').toLowerCase().includes(query) ||
+      (product.sku ?? '').toLowerCase().includes(query);
     return matchesCategory && matchesStatus && matchesFocus && matchesSearch;
   });
+
+  /* Only visible (filtered) products count as selected, so a bulk action never touches hidden rows. */
+  const selectedProducts = filteredProducts.filter((product) => selectedIds.has(product.id));
+  const selectedCount = selectedProducts.length;
+  const allVisibleSelected = filteredProducts.length > 0 && selectedCount === filteredProducts.length;
+
+  const toggleSelected = (id: string, keepMode: boolean) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+    setSelectMode(keepMode || next.size > 0);
+  };
+  const toggleAllVisible = () => {
+    if (allVisibleSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filteredProducts.map((product) => product.id)));
+    setSelectMode(true);
+  };
+  const exitSelection = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+  const enterSelection = () => {
+    setExpandedId(null);
+    setEditingId(null);
+    setSelectMode(true);
+  };
+
+  /* Apply patches to several products at once, with a one-tap undo that restores the previous values. */
+  const applyBulkPatches = (message: string, patches: { id: string; patch: Partial<Product> }[]) => {
+    if (!patches.length) return;
+    const byId = new Map(branchProducts.map((product) => [product.id, product]));
+    const reverts = patches.map(({ id, patch }) => {
+      const current = byId.get(id);
+      const back: Record<string, unknown> = {};
+      Object.keys(patch).forEach((key) => {
+        back[key] = current?.[key as keyof Product];
+      });
+      return { id, patch: back as Partial<Product> };
+    });
+    patches.forEach(({ id, patch }) => onUpdateProduct(id, patch));
+    setSnack({
+      message,
+      undo: () => {
+        reverts.forEach(({ id, patch }) => onUpdateProduct(id, patch));
+        setSnack({ message: 'Modification annulée' });
+      },
+    });
+  };
+
+  const needCodes = selectedProducts.filter((product) => !product.codeBarres?.trim()).length;
+  const needSkus = selectedProducts.filter((product) => !product.sku?.trim()).length;
+
+  const handleBulkBarcodes = () => {
+    const targets = selectedProducts.filter((product) => !product.codeBarres?.trim());
+    if (!targets.length) {
+      setSnack({ message: 'Tous les produits sélectionnés ont déjà un code-barres.' });
+      return;
+    }
+    const used = branchProducts.map((product) => product.codeBarres ?? '');
+    const patches = targets.map((product) => {
+      const code = generateInternalCode(used);
+      used.push(code);
+      return { id: product.id, patch: { codeBarres: code } };
+    });
+    applyBulkPatches(`${plural(patches.length, 'code-barres généré', 'codes-barres générés')}`, patches);
+  };
+
+  const handleBulkSkus = () => {
+    const targets = selectedProducts.filter((product) => !product.sku?.trim());
+    if (!targets.length) {
+      setSnack({ message: 'Tous les produits sélectionnés ont déjà un SKU.' });
+      return;
+    }
+    const generated = generateSkus(targets, branchProducts.map((product) => product.sku ?? ''));
+    applyBulkPatches(`${plural(generated.length, 'SKU généré', 'SKU générés')}`, generated.map(({ id, sku }) => ({ id, patch: { sku } })));
+  };
+
+  const confirmBulkDelete = () => {
+    const targets = selectedProducts;
+    setBulkDeleteOpen(false);
+    if (drawerId && targets.some((product) => product.id === drawerId)) setDrawerId(null);
+    targets.forEach((product) => onDeleteProduct(product));
+    exitSelection();
+    setSnack({ message: `${plural(targets.length, 'produit supprimé', 'produits supprimés')}` });
+  };
 
   const totalStockValueCost = branchProducts.reduce((sum, product) => sum + product.prixAchat * product.stockFermeture, 0);
   const totalStockValueSale = branchProducts.reduce((sum, product) => sum + product.prix * product.stockFermeture, 0);
@@ -243,6 +338,13 @@ export function BranchProductsSection({
   const newInternalCode = () => generateInternalCode(branchProducts.map((item) => item.codeBarres ?? ''));
   const applyGeneratedCodes = (assignments: { id: string; code: string }[]) =>
     assignments.forEach((assignment) => onUpdateProduct(assignment.id, { codeBarres: assignment.code }));
+  const newSku = (product: Product) => generateSkus([{ id: product.id, categorie: product.categorie }], branchProducts.map((item) => item.sku ?? ''))[0].sku;
+  const skuDuplicateMessage = (raw: string, exceptId: string) => {
+    const key = raw.trim().toUpperCase();
+    if (!key) return undefined;
+    const match = branchProducts.find((item) => item.id !== exceptId && item.sku?.trim().toUpperCase() === key);
+    return match ? `Déjà utilisé par « ${match.nom} ».` : undefined;
+  };
   const productsWithoutCode = branchProducts.filter((item) => !item.codeBarres?.trim()).length;
 
   const findByCode = (raw: string, exceptId?: string) => {
@@ -467,6 +569,17 @@ export function BranchProductsSection({
         </div>
         <button
           type="button"
+          onClick={() => (selectMode ? exitSelection() : enterSelection())}
+          aria-label={selectMode ? 'Quitter la sélection' : 'Sélectionner plusieurs produits'}
+          aria-pressed={selectMode}
+          title="Sélectionner"
+          className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full ${selectMode ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]' : 'text-[var(--m3-primary)]'} ${M3_FOCUS}`}
+        >
+          <M3StateLayer />
+          <ListChecks size={22} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
           onClick={() => setLabelIds([])}
           aria-label="Imprimer des étiquettes code-barres"
           title="Étiquettes"
@@ -478,7 +591,7 @@ export function BranchProductsSection({
         </button>
         <button
             onClick={() => setAddProductOpen(true)}
-            className={`group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS}       `}
+            className={`${selectMode ? 'hidden ' : ''}group fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-[var(--m3-primary-container)] px-6 text-base font-semibold tracking-[0.01em] text-[var(--m3-on-primary-container)] shadow-[0_3px_8px_3px_rgba(0,0,0,0.15),0_1px_3px_rgba(0,0,0,0.3)] m3-press motion-reduce:transition-none ${M3_FOCUS}       `}
           >
             <M3StateLayer />
             <Plus className="h-6 w-6" />
@@ -657,7 +770,7 @@ export function BranchProductsSection({
       )}
 
       {/* Product cards — tonal surfaces, state layers, tap to expand (1 column on phone, grid on desktop) */}
-      <div className="grid grid-cols-1 items-start gap-2 pb-24    ">
+      <div className={`grid grid-cols-1 items-start gap-2 ${selectMode ? 'pb-56' : 'pb-24'}`}>
           {filteredProducts.map((product) => {
             const soldToday = soldByProductToday[product.id] ?? 0;
             const restockValue = restockByProduct[product.id] ?? 0;
@@ -665,7 +778,8 @@ export function BranchProductsSection({
             const isOutOfStock = product.stockFermeture <= 0;
             const editing = isEditing(product.id);
             const saving = isSaving(product.id);
-            const open = editing || expandedId === product.id;
+            const open = !selectMode && (editing || expandedId === product.id);
+            const picked = selectedIds.has(product.id);
             const showHistory = selectedHistoryProduct?.id === product.id;
             const tone = isOutOfStock ? M3_STATUS.out : isLowStock ? M3_STATUS.low : M3_STATUS.ok;
             const statusLabel = isOutOfStock ? 'Rupture de stock' : isLowStock ? 'Stock bas' : 'En stock';
@@ -681,7 +795,9 @@ export function BranchProductsSection({
                   'overflow-hidden transition-[background-color,border-radius] duration-300 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ' +
                   (open
                     ? 'rounded-[32px] bg-[var(--m3-surface-container-high)]'
-                    : 'rounded-2xl bg-[var(--m3-surface-container)]') +
+                    : picked
+                      ? 'rounded-2xl bg-[var(--m3-secondary-container)]'
+                      : 'rounded-2xl bg-[var(--m3-surface-container)]') +
                   ''
                 }
               >
@@ -707,27 +823,39 @@ export function BranchProductsSection({
                       onGenerate={() => onUpdateProduct(product.id, { codeBarres: newInternalCode() })}
                       error={duplicateMessage(product.codeBarres ?? '', product.id)}
                     />
+                    <M3SkuField
+                      value={product.sku ?? ''}
+                      onChange={(value) => onUpdateProduct(product.id, { sku: value })}
+                      onGenerate={() => onUpdateProduct(product.id, { sku: newSku(product) })}
+                      error={skuDuplicateMessage(product.sku ?? '', product.id)}
+                    />
                   </div>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setExpandedId((prev) => (prev === product.id ? null : product.id))}
-                    aria-expanded={open}
+                    onClick={() => (selectMode ? toggleSelected(product.id, true) : setExpandedId((prev) => (prev === product.id ? null : product.id)))}
+                    {...(selectMode ? { role: 'checkbox', 'aria-checked': picked } : { 'aria-expanded': open })}
                     className={`group relative flex min-h-[72px] w-full items-center gap-4 px-4 py-3 text-left ${M3_FOCUS}`}
                   >
                     <M3StateLayer />
-                    <span
-                      aria-hidden="true"
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}
-                    >
-                      <CategoryIcon size={20} />
-                    </span>
+                    {selectMode ? (
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center">
+                        <SelectMark checked={picked} />
+                      </span>
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}
+                      >
+                        <CategoryIcon size={20} />
+                      </span>
+                    )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-base font-medium leading-6 text-[var(--m3-on-surface)]">
                         {product.nom}
                       </span>
                       <span className="block truncate text-sm leading-5 text-[var(--m3-on-surface-variant)]">
-                        {product.categorie} · {fmtHTG(product.prix)} · Vendu {soldToday}
+                        {product.categorie}{product.sku ? ` · ${product.sku}` : ''} · {fmtHTG(product.prix)} · Vendu {soldToday}
                       </span>
                     </span>
                     <span
@@ -737,14 +865,16 @@ export function BranchProductsSection({
                       <span className="sr-only">{statusLabel} : </span>
                       {product.stockFermeture}
                     </span>
-                    <ChevronDown
-                      size={20}
-                      aria-hidden="true"
-                      className={
-                        'shrink-0 text-[var(--m3-on-surface-variant)] transition-transform duration-300 motion-reduce:transition-none ' +
-                        (open ? 'rotate-180' : '')
-                      }
-                    />
+                    {!selectMode && (
+                      <ChevronDown
+                        size={20}
+                        aria-hidden="true"
+                        className={
+                          'shrink-0 text-[var(--m3-on-surface-variant)] transition-transform duration-300 motion-reduce:transition-none ' +
+                          (open ? 'rotate-180' : '')
+                        }
+                      />
+                    )}
                   </button>
                 )}
 
@@ -942,7 +1072,7 @@ export function BranchProductsSection({
     </div>
 
       {/* ===================== Desktop (sm and up): table + side sheet ===================== */}
-      <div style={M3_VARS} className="hidden font-sans text-[var(--m3-on-surface)] sm:block">
+      <div style={M3_VARS} className={`hidden font-sans text-[var(--m3-on-surface)] sm:block ${selectMode ? 'pb-44' : ''}`}>
         <div className="mb-5 flex items-center gap-4">
           <div className="min-w-0 flex-1">
             <h2 className="text-[32px] font-bold leading-10 tracking-tight">Produits</h2>
@@ -1107,9 +1237,17 @@ export function BranchProductsSection({
 
         <div className="overflow-hidden rounded-[28px] bg-[var(--m3-surface-container)]">
           <div className="max-h-[62vh] overflow-auto">
-            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[800px] border-collapse text-left text-sm">
               <thead className="sticky top-0 z-10 bg-[var(--m3-surface-container-high)] text-xs text-[var(--m3-on-surface-variant)] shadow-[0_1px_0_var(--m3-outline-variant)]">
                 <tr>
+                  <th scope="col" className="w-12 px-2 py-2">
+                    <SelectBox
+                      checked={allVisibleSelected}
+                      indeterminate={selectedCount > 0 && !allVisibleSelected}
+                      onToggle={toggleAllVisible}
+                      label="Tout sélectionner"
+                    />
+                  </th>
                   {sortHead('nom', 'Produit', 'left')}
                   {sortHead('vendu', 'Vendu auj.')}
                   {sortHead('prix', 'Prix vente')}
@@ -1132,6 +1270,7 @@ export function BranchProductsSection({
                   const statusLabel = isOutOfStock ? 'Rupture de stock' : isLowStock ? 'Stock bas' : 'En stock';
                   const CategoryIcon = categoryIcon(product.categorie);
                   const active = drawerId === product.id;
+                  const picked = selectedIds.has(product.id);
                   const iconBtn = `group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-[var(--m3-on-surface-variant)] ${M3_FOCUS}`;
                   return (
                     <tr
@@ -1148,9 +1287,14 @@ export function BranchProductsSection({
                         'cursor-pointer border-b border-[var(--m3-outline-variant)]/60 transition-colors last:border-b-0 focus-visible:bg-[var(--m3-surface-container-high)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--m3-primary)] motion-reduce:transition-none ' +
                         (active
                           ? 'bg-[var(--m3-secondary-container)]'
-                          : 'hover:bg-[var(--m3-surface-container-high)]')
+                          : picked
+                            ? 'bg-[var(--m3-primary-container)]/40 hover:bg-[var(--m3-primary-container)]/60'
+                            : 'hover:bg-[var(--m3-surface-container-high)]')
                       }
                     >
+                      <td className="w-12 px-2 py-2.5" onClick={(event) => event.stopPropagation()}>
+                        <SelectBox checked={picked} onToggle={() => toggleSelected(product.id, false)} label={`Sélectionner ${product.nom}`} />
+                      </td>
                       <td className="max-w-[320px] px-4 py-2.5">
                         <div className="flex items-center gap-3">
                           <span aria-hidden="true" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}>
@@ -1158,7 +1302,10 @@ export function BranchProductsSection({
                           </span>
                           <div className="min-w-0">
                             <div className="truncate font-medium">{product.nom}</div>
-                            <div className="truncate text-xs text-[var(--m3-on-surface-variant)]">{product.categorie}</div>
+                            <div className="truncate text-xs text-[var(--m3-on-surface-variant)]">
+                              {product.categorie}
+                              {product.sku && <span className="tabular-nums"> · {product.sku}</span>}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1203,7 +1350,7 @@ export function BranchProductsSection({
                 })}
                 {sortedProducts.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-16 text-center">
+                    <td colSpan={10} className="px-4 py-16 text-center">
                       <div className="flex flex-col items-center gap-1">
                         <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--m3-primary-container)] text-[var(--m3-on-primary-container)]">
                           <PackagePlus size={28} />
@@ -1294,6 +1441,12 @@ export function BranchProductsSection({
                         onScan={() => setScanTarget({ kind: 'fill', apply: (code) => onUpdateProduct(p.id, { codeBarres: code }) })}
                         onGenerate={() => onUpdateProduct(p.id, { codeBarres: newInternalCode() })}
                         error={duplicateMessage(p.codeBarres ?? '', p.id)}
+                      />
+                      <M3SkuField
+                        value={p.sku ?? ''}
+                        onChange={(value) => onUpdateProduct(p.id, { sku: value })}
+                        onGenerate={() => onUpdateProduct(p.id, { sku: newSku(p) })}
+                        error={skuDuplicateMessage(p.sku ?? '', p.id)}
                       />
                     </div>
                   </section>
@@ -1532,6 +1685,36 @@ export function BranchProductsSection({
           </div>
         </div>,
         document.body
+      )}
+
+      <BulkDock
+        active={selectMode}
+        count={selectedCount}
+        visibleTotal={filteredProducts.length}
+        needCodes={needCodes}
+        needSkus={needSkus}
+        snack={snack}
+        onSnackClose={() => setSnack(null)}
+        onExit={exitSelection}
+        onToggleAll={toggleAllVisible}
+        onGenerateCodes={handleBulkBarcodes}
+        onGenerateSkus={handleBulkSkus}
+        onLabels={() => setLabelIds(selectedProducts.map((product) => product.id))}
+        onEdit={() => setBulkEditOpen(true)}
+        onDelete={() => setBulkDeleteOpen(true)}
+      />
+
+      {bulkEditOpen && (
+        <BulkEditDialog
+          products={selectedProducts}
+          categories={presentCategories}
+          onApply={applyBulkPatches}
+          onClose={() => setBulkEditOpen(false)}
+        />
+      )}
+
+      {bulkDeleteOpen && (
+        <BulkDeleteDialog products={selectedProducts} onConfirm={confirmBulkDelete} onClose={() => setBulkDeleteOpen(false)} />
       )}
 
       {labelIds && (
