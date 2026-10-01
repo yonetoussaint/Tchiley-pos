@@ -533,6 +533,7 @@ export function BranchProductsSection({
   /* Validated count: stock moves by each gap, one history entry per corrected product. */
   const handleValidateCount = (corrections: Correction[], note: string, countedProducts: number) => {
     const now = new Date();
+    const session = `inv-${now.getTime()}`;
     const label = `Inventaire ${now.toLocaleDateString('fr-FR')}${note ? ` · ${note}` : ''}`;
     const applied = corrections.filter((c) => c.delta !== 0);
     applied.forEach((c) => {
@@ -547,6 +548,8 @@ export function BranchProductsSection({
         delta: c.delta,
         note: label,
         amount: Math.abs(c.value),
+        unitCost: c.product.prixAchat,
+        session,
       });
     });
     setCountDraft({});
@@ -569,6 +572,9 @@ export function BranchProductsSection({
             delta: -c.delta,
             note: 'Inventaire annulé',
             amount: Math.abs(c.value),
+            unitCost: c.product.prixAchat,
+            session,
+            reversal: true,
           });
         });
         setSnack({ message: 'Inventaire annulé : stock rétabli.' });

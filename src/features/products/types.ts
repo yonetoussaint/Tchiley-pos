@@ -45,6 +45,10 @@ export type ProductHistoryEntry = {
   /** Sale or purchase that was cancelled afterwards: shown struck through, no effect on stock or totals. */
   cancelled?: boolean;
   client?: string;
+  /** Inventory entries: id shared by every correction of one validated count, so reports can group them. */
+  session?: string;
+  /** Inventory entries: this entry undoes the count `session` (the whole session is then shown as cancelled). */
+  reversal?: boolean;
   /** Rapid successive edits with the same key merge into one entry (typing in a live field). */
   coalesceKey?: string;
   /** Stock level right after this entry (filled in by `withStockBalance`). */

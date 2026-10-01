@@ -4,7 +4,8 @@ import { ArrowDownLeft, ArrowUpRight, Banknote, Check, ChevronDown, Plus, Trash2
 import { M3_FOCUS } from '../../components/ui/focus';
 import { M3StateLayer, M3_STATUS, M3_VARS } from '../../components/ui/theme';
 import type { Branch } from '../../shared/types';
-import type { Product } from '../products/types';
+import type { Product, ProductMovement } from '../products/types';
+import { InventoryAdjustmentsCard } from './InventoryAdjustmentsCard';
 import { PAYMENT_METHODS } from '../sales/paymentMethods';
 import type { SaleRecord } from '../sales/types';
 import { CASH_ENTRY_META, REPORT_TABS, summarizeCash, type CashEntry, type CashEntryType, type CashSummary, type ReportPeriod } from './cash';
@@ -1062,6 +1063,7 @@ export function BranchReportsSection({
   ventes,
   entries,
   products,
+  movements = [],
   onAddEntry,
   onDeleteEntry,
 }: {
@@ -1072,9 +1074,14 @@ export function BranchReportsSection({
   ventes: SaleRecord[];
   entries: CashEntry[];
   products: Product[];
+  /** Product movement log: the validated inventory counts are listed in the reports. */
+  movements?: ProductMovement[];
   onAddEntry: (entry: Omit<CashEntry, 'id' | 'branchId'>) => void;
   onDeleteEntry: (id: string) => void;
 }) {
+  const inventoryCard = (
+    <InventoryAdjustmentsCard period={period} selectedDate={selectedDate} branchId={branch.id} movements={movements} products={products} />
+  );
   const validSales = useMemo(() => ventes.filter((v) => v.statut !== 'annulee'), [ventes]);
   const PERIOD_SHORT: Record<ReportPeriod, string> = { daily: 'Journalier', monthly: 'Mensuel', annual: 'Annuel' };
   const subtitle =
@@ -1138,6 +1145,7 @@ export function BranchReportsSection({
           </div>
         )}
         {period === 'annual' && <PeriodReportMobile mode="annual" ventes={ventes} entries={entries} selectedDate={selectedDate} />}
+        <div className="mt-3">{inventoryCard}</div>
       </div>
 
       {/* Desktop: Material 3 Expressive */}
@@ -1193,6 +1201,7 @@ export function BranchReportsSection({
         {period === 'annual' && (
           <PeriodReportDesktop mode="annual" ventes={ventes} entries={entries} selectedDate={selectedDate} />
         )}
+        {inventoryCard}
       </div>
     </>
   );

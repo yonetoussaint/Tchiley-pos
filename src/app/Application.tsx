@@ -1994,6 +1994,7 @@ function OwnerBoard({
                 ventes={branchVentesAll}
                 entries={cashEntries.filter((e) => e.branchId === activeBranchId)}
                 products={branchProducts}
+                movements={productMovements}
                 onAddEntry={(entry) =>
                   setCashEntries((prev) => [{ ...entry, id: `C${Date.now()}`, branchId: activeBranchId }, ...prev])
                 }
@@ -2365,6 +2366,7 @@ function BranchManagementSections({
           ventes={branchVentesAll}
           entries={cashEntries.filter((e) => e.branchId === branchId)}
           products={branchProducts}
+          movements={productMovements}
           onAddEntry={(entry) => setCashEntries((prev) => [{ ...entry, id: `C${Date.now()}`, branchId }, ...prev])}
           onDeleteEntry={(id) => setCashEntries((prev) => prev.filter((e) => e.id !== id))}
         />
