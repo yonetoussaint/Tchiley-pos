@@ -11,6 +11,8 @@ import { BarcodeScannerDialog } from './BarcodeScannerDialog';
 import { lookupProductByCode, normalizeCode } from './barcodeLookup';
 import { generateInternalCode } from './barcodeGen';
 import { LabelPrintDialog } from './LabelPrintDialog';
+import { ProductHistoryDialog } from './ProductHistoryDialog';
+import { KIND_LABEL, fmtPrice, stockDelta } from './history';
 import type { Product, ProductHistoryEntry, ProductMovement } from './types';
 import { fmtHTG } from '../../shared/currency';
 
@@ -109,14 +111,16 @@ export function BranchProductsSection({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  /* Full history dialog: id of the product whose complete history is open. */
+  const [historyDialogId, setHistoryDialogId] = useState<string | null>(null);
   const [snack, setSnack] = useState<Snack | null>(null);
 
   const productSummaries = useMemo(() => {
     const map: Record<string, { unitMargin: number; stockCost: number; stockSale: number; sales7: number; sales30: number; velocity: number; daysLeft: number | null }> = {};
     branchProducts.forEach((product) => {
       const history = productHistoryById[product.id] ?? [];
-      const sales7 = history.filter((entry) => entry.kind === 'sale' && entry.date.getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000).reduce((sum, entry) => sum + entry.qty, 0);
-      const sales30 = history.filter((entry) => entry.kind === 'sale' && entry.date.getTime() >= Date.now() - 30 * 24 * 60 * 60 * 1000).reduce((sum, entry) => sum + entry.qty, 0);
+      const sales7 = history.filter((entry) => entry.kind === 'sale' && !entry.cancelled && entry.date.getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000).reduce((sum, entry) => sum + entry.qty, 0);
+      const sales30 = history.filter((entry) => entry.kind === 'sale' && !entry.cancelled && entry.date.getTime() >= Date.now() - 30 * 24 * 60 * 60 * 1000).reduce((sum, entry) => sum + entry.qty, 0);
       const velocity = sales30 / 30;
       const daysLeft = velocity > 0 ? product.stockFermeture / velocity : null;
       map[product.id] = {
@@ -485,8 +489,29 @@ export function BranchProductsSection({
       date: new Date(),
       kind: 'manual',
       qty: Math.abs(delta),
+      delta: nextStock - product.stockFermeture,
       note: reason,
       amount: 0,
+    });
+  };
+
+  /* Stock typed straight into the edit form: logged as a manual correction (merged while typing). */
+  const handleStockEdit = (product: Product, value: number) => {
+    const nextStock = Math.max(0, value);
+    const delta = nextStock - product.stockFermeture;
+    if (!delta) return;
+    onUpdateProduct(product.id, { stockFermeture: nextStock });
+    onRecordMovement({
+      id: '',
+      branchId,
+      productId: product.id,
+      date: new Date(),
+      kind: 'manual',
+      qty: Math.abs(delta),
+      delta,
+      note: 'Correction du stock',
+      amount: 0,
+      coalesceKey: `stock-edit-${product.id}`,
     });
   };
 
@@ -903,19 +928,31 @@ export function BranchProductsSection({
                             {recent.length === 0 ? (
                               <div className="text-xs text-[var(--m3-on-surface-variant)]">Aucun mouvement historique pour ce produit.</div>
                             ) : recent.map((entry) => {
-                                const signed = entry.kind === 'sale' ? '-' : '+';
-                                const tone = entry.kind === 'sale' ? 'text-[var(--m3-error,#BA1A1A)]' : 'text-[var(--m3-primary)]';
+                                const delta = stockDelta(entry);
+                                const isPrice = entry.kind === 'price';
+                                const tone = isPrice || delta >= 0 ? 'text-[var(--m3-primary)]' : 'text-[var(--m3-error,#BA1A1A)]';
                                 return (
-                                  <div key={entry.id} className="flex items-center justify-between gap-2 rounded-xl bg-[var(--m3-surface-container)] px-2.5 py-1.5 text-xs">
+                                  <div key={entry.id} className={`flex items-center justify-between gap-2 rounded-xl bg-[var(--m3-surface-container)] px-2.5 py-1.5 text-xs ${entry.cancelled ? 'opacity-60' : ''}`}>
                                     <div className="min-w-0">
-                                      <div className="truncate font-medium text-[var(--m3-on-surface)]">{entry.note}</div>
-                                      <div className="text-[var(--m3-on-surface-variant)]">{entry.kind === 'sale' ? 'Vente' : entry.kind === 'purchase' ? 'Achat' : entry.kind === 'restock' ? 'Réappro.' : 'Ajustement'} · {entry.date.toLocaleDateString('fr-FR')}</div>
+                                      <div className={`truncate font-medium text-[var(--m3-on-surface)] ${entry.cancelled ? 'line-through' : ''}`}>{entry.note}</div>
+                                      <div className="text-[var(--m3-on-surface-variant)]">{KIND_LABEL[entry.kind]} · {entry.date.toLocaleDateString('fr-FR')}{entry.cancelled ? ' · Annulé' : ''}</div>
                                     </div>
-                                    <div className={`tabular-nums font-semibold ${tone}`}>{signed}{entry.qty}</div>
+                                    <div className={`shrink-0 tabular-nums font-semibold ${tone}`}>
+                                      {isPrice ? `${fmtPrice(entry.from ?? 0)} → ${fmtPrice(entry.to ?? 0)}` : `${delta < 0 ? '−' : '+'}${Math.abs(delta || entry.qty)}`}
+                                    </div>
                                   </div>
                                 );
                               })}
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => setHistoryDialogId(product.id)}
+                            className={`group relative mt-3 flex h-10 w-full items-center justify-center gap-2 overflow-hidden rounded-full border border-[var(--m3-outline)] text-sm font-medium text-[var(--m3-primary)] ${M3_FOCUS}`}
+                          >
+                            <M3StateLayer />
+                            <History size={16} aria-hidden="true" />
+                            Tout l'historique ({history.length})
+                          </button>
                         </div>
                       );
                     })()}
@@ -962,7 +999,7 @@ export function BranchProductsSection({
                         label="Fermeture"
                         editing={editing}
                         value={product.stockFermeture}
-                        onChange={(value) => onUpdateProduct(product.id, { stockFermeture: value })}
+                        onChange={(value) => handleStockEdit(product, value)}
                       />
                       <ProductNumberField
                         label="Ajout stock"
@@ -1328,6 +1365,10 @@ export function BranchProductsSection({
                             <M3StateLayer />
                             <PackagePlus size={18} />
                           </button>
+                          <button onClick={() => setHistoryDialogId(product.id)} className={iconBtn} aria-label="Historique" title="Historique">
+                            <M3StateLayer />
+                            <History size={18} />
+                          </button>
                           <button onClick={() => openDrawer(product.id)} className={iconBtn} aria-label="Modifier" title="Modifier">
                             <M3StateLayer />
                             <Pencil size={18} />
@@ -1534,7 +1575,7 @@ export function BranchProductsSection({
                     <h3 className={sectionTitle}>Stock ({p.unite})</h3>
                     <div className="grid grid-cols-2 gap-2">
                       <ProductNumberField label="Ouverture" editing value={p.stockOuverture} onChange={(value) => onUpdateProduct(p.id, { stockOuverture: value })} />
-                      <ProductNumberField label="Fermeture" editing value={p.stockFermeture} onChange={(value) => onUpdateProduct(p.id, { stockFermeture: value })} />
+                      <ProductNumberField label="Fermeture" editing value={p.stockFermeture} onChange={(value) => handleStockEdit(p, value)} />
                       <ProductNumberField label="Seuil d'alerte" tone="yellow" editing value={p.seuil} onChange={(value) => onUpdateProduct(p.id, { seuil: value })} />
                       <ProductNumberField
                         label="Ajout stock"
@@ -1563,6 +1604,11 @@ export function BranchProductsSection({
                     <M3StateLayer />
                     <Trash2 size={18} />
                     Supprimer
+                  </button>
+                  <button type="button" onClick={() => setHistoryDialogId(p.id)} className={`${footBtn} text-[var(--m3-primary)]`}>
+                    <M3StateLayer />
+                    <History size={18} />
+                    Historique
                   </button>
                   <button type="button" onClick={() => setLabelIds([p.id])} className={`${footBtn} text-[var(--m3-primary)]`}>
                     <M3StateLayer />
@@ -1716,6 +1762,13 @@ export function BranchProductsSection({
       {bulkDeleteOpen && (
         <BulkDeleteDialog products={selectedProducts} onConfirm={confirmBulkDelete} onClose={() => setBulkDeleteOpen(false)} />
       )}
+
+      {historyDialogId && (() => {
+        const target = branchProducts.find((item) => item.id === historyDialogId);
+        return target ? (
+          <ProductHistoryDialog product={target} entries={productHistoryById[target.id] ?? []} onClose={() => setHistoryDialogId(null)} />
+        ) : null;
+      })()}
 
       {labelIds && (
         <LabelPrintDialog

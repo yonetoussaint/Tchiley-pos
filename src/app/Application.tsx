@@ -9,7 +9,8 @@ import { DashboardView as FeatureDashboardView } from '../features/dashboard/Das
 import { CATEGORIES } from '../features/products/constants';
 import { BranchProductsSection } from '../features/products/BranchProductsSection';
 import { BranchCreditsSection } from '../features/credits/BranchCreditsSection';
-import type { Product, ProductHistoryEntry, ProductMovement } from '../features/products/types';
+import type { Product, ProductMovement } from '../features/products/types';
+import { buildProductHistory, diffProducts, recordMovement } from '../features/products/history';
 import type { Branch } from '../shared/types';
 import type { PurchaseRecord } from '../features/purchases/types';
 import { applyPurchaseToProducts, BranchPurchasesSection, buildMockPurchases } from '../features/purchases/BranchPurchasesSection';
@@ -470,6 +471,17 @@ function GestionMateriaux() {
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [productMovements, setProductMovements] = useState<ProductMovement[]>([]);
+
+  /* Price edits and new products are logged by comparing each change of the product list with the previous one. */
+  const previousProducts = useRef<Product[]>(products);
+  useEffect(() => {
+    const before = previousProducts.current;
+    previousProducts.current = products;
+    if (before === products) return;
+    const changes = diffProducts(before, products);
+    if (changes.length === 0) return;
+    setProductMovements((prev) => changes.reduce(recordMovement, prev));
+  }, [products]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [categorie, setCategorie] = useState<string>('Tout');
   const [recherche, setRecherche] = useState<string>('');
@@ -1704,56 +1716,10 @@ function OwnerBoard({
 
   const isCurrentDateSelected = selectedDate.toDateString() === new Date().toDateString();
   const selectedHistoryProduct = branchProducts.find((p) => p.id === historyProductId) ?? null;
-  const productHistoryById = useMemo(() => {
-    const map: Record<string, ProductHistoryEntry[]> = {};
-    const add = (productId: string, entry: ProductHistoryEntry) => {
-      if (!map[productId]) map[productId] = [];
-      map[productId].push(entry);
-    };
-
-    branchVentesAll.forEach((sale) => {
-      sale.lignes.forEach((line, index) => {
-        const productId = line.produitId ?? products.find((item) => item.nom.toLowerCase() === line.nom.toLowerCase())?.id;
-        if (!productId) return;
-        add(productId, {
-          id: `sale-${sale.id}-${index}`,
-          branchId: sale.branchId,
-          productId,
-          date: sale.date,
-          kind: 'sale',
-          qty: line.qte,
-          note: sale.id,
-          amount: line.sousTotal,
-        });
-      });
-    });
-
-    achats
-      .filter((purchase) => purchase.branchId === activeBranchId)
-      .forEach((purchase) => {
-        purchase.lignes.forEach((line, index) => {
-          add(line.produitId, {
-            id: `purchase-${purchase.id}-${index}`,
-            branchId: purchase.branchId,
-            productId: line.produitId,
-            date: purchase.date,
-            kind: 'purchase',
-            qty: line.qte,
-            note: purchase.fournisseur,
-            amount: line.sousTotal,
-          });
-        });
-      });
-
-    productMovements
-      .filter((entry) => entry.branchId === activeBranchId)
-      .forEach((entry) => {
-        add(entry.productId, entry);
-      });
-
-    Object.values(map).forEach((entries) => entries.sort((a, b) => b.date.getTime() - a.date.getTime()));
-    return map;
-  }, [achats, activeBranchId, branchVentesAll, productMovements, products]);
+  const productHistoryById = useMemo(
+    () => buildProductHistory({ branchId: activeBranchId, products, sales: branchVentesAll, achats, movements: productMovements }),
+    [activeBranchId, achats, branchVentesAll, productMovements, products]
+  );
 
   const productMetricsById = useMemo(() => {
     const now = Date.now();
@@ -1762,7 +1728,7 @@ function OwnerBoard({
 
     branchProducts.forEach((product) => {
       const sales30 = (productHistoryById[product.id] ?? []).filter(
-        (entry) => entry.kind === 'sale' && entry.date.getTime() >= now - windowMs
+        (entry) => entry.kind === 'sale' && !entry.cancelled && entry.date.getTime() >= now - windowMs
       ).reduce((sum, entry) => sum + entry.qty, 0);
       const velocity = sales30 / 30;
       const daysLeft = velocity > 0 ? product.stockFermeture / velocity : null;
@@ -1936,7 +1902,7 @@ function OwnerBoard({
                 onUpdateProduct={updateProduct}
                 onRestockProduct={handleRestockProduct}
                 onDeleteProduct={handleDeleteProduct}
-                onRecordMovement={(entry) => setProductMovements((prev) => [{ ...entry, id: `M${Date.now()}-${entry.productId}` }, ...prev])}
+                onRecordMovement={(entry) => setProductMovements((prev) => recordMovement(prev, entry))}
                 onViewHistory={handleViewHistory}
               />
             )}
@@ -2153,53 +2119,10 @@ function BranchManagementSections({
   const branchVentesAll = useMemo(() => ventes.filter((v) => v.branchId === branchId), [ventes, branchId]);
   const branchVentes = useMemo(() => branchVentesAll.filter((v) => v.statut !== 'annulee'), [branchVentesAll]);
   const selectedHistoryProduct = branchProducts.find((p) => p.id === historyProductId) ?? null;
-  const productHistoryById = useMemo(() => {
-    const map: Record<string, ProductHistoryEntry[]> = {};
-    const add = (productId: string, entry: ProductHistoryEntry) => {
-      if (!map[productId]) map[productId] = [];
-      map[productId].push(entry);
-    };
-
-    branchVentesAll.forEach((sale) => {
-      sale.lignes.forEach((line, index) => {
-        const productId = line.produitId ?? products.find((item) => item.nom.toLowerCase() === line.nom.toLowerCase())?.id;
-        if (!productId) return;
-        add(productId, {
-          id: `sale-${sale.id}-${index}`,
-          branchId: sale.branchId,
-          productId,
-          date: sale.date,
-          kind: 'sale',
-          qty: line.qte,
-          note: sale.id,
-          amount: line.sousTotal,
-        });
-      });
-    });
-
-    achats
-      .filter((purchase) => purchase.branchId === branchId)
-      .forEach((purchase) => {
-        purchase.lignes.forEach((line, index) => {
-          add(line.produitId, {
-            id: `purchase-${purchase.id}-${index}`,
-            branchId: purchase.branchId,
-            productId: line.produitId,
-            date: purchase.date,
-            kind: 'purchase',
-            qty: line.qte,
-            note: purchase.fournisseur,
-            amount: line.sousTotal,
-          });
-        });
-      });
-
-    const restockEntries = productMovements.filter((entry) => entry.branchId === branchId);
-    restockEntries.forEach((entry) => add(entry.productId, entry));
-
-    Object.values(map).forEach((entries) => entries.sort((a, b) => b.date.getTime() - a.date.getTime()));
-    return map;
-  }, [achats, branchId, branchVentesAll, productMovements, products]);
+  const productHistoryById = useMemo(
+    () => buildProductHistory({ branchId, products, sales: branchVentesAll, achats, movements: productMovements }),
+    [branchId, achats, branchVentesAll, productMovements, products]
+  );
 
   const productMetricsById = useMemo(() => {
     const now = Date.now();
@@ -2208,7 +2131,7 @@ function BranchManagementSections({
 
     branchProducts.forEach((product) => {
       const sales30 = (productHistoryById[product.id] ?? []).filter(
-        (entry) => entry.kind === 'sale' && entry.date.getTime() >= now - windowMs
+        (entry) => entry.kind === 'sale' && !entry.cancelled && entry.date.getTime() >= now - windowMs
       ).reduce((sum, entry) => sum + entry.qty, 0);
       const velocity = sales30 / 30;
       const daysLeft = velocity > 0 ? product.stockFermeture / velocity : null;
@@ -2354,7 +2277,7 @@ function BranchManagementSections({
           onUpdateProduct={updateProduct}
           onRestockProduct={handleRestockProduct}
           onDeleteProduct={handleDeleteProduct}
-          onRecordMovement={(entry) => setProductMovements((prev) => [{ ...entry, id: `M${Date.now()}-${entry.productId}` }, ...prev])}
+          onRecordMovement={(entry) => setProductMovements((prev) => recordMovement(prev, entry))}
           onViewHistory={(product) => setHistoryProductId((prev) => (prev === product.id ? null : product.id))}
         />
       )}
