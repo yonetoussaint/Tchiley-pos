@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Check, ChevronDown, Clock, History, PackagePlus, Pencil, ListChecks, Plus, Printer, ScanLine, Search, ShoppingCart, Trash2, TrendingUp, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ClipboardCheck, Clock, History, PackagePlus, Pencil, ListChecks, Plus, Printer, ScanLine, Search, ShoppingCart, Trash2, TrendingUp, X } from 'lucide-react';
 import { M3_FOCUS } from '../../components/ui/focus';
 import { M3Loading, M3StateLayer, M3_STATUS, M3_VARS } from '../../components/ui/theme';
 import { CATEGORIES, categoryIcon } from './constants';
@@ -12,6 +12,8 @@ import { lookupProductByCode, normalizeCode } from './barcodeLookup';
 import { generateInternalCode } from './barcodeGen';
 import { LabelPrintDialog } from './LabelPrintDialog';
 import { ProductHistoryDialog } from './ProductHistoryDialog';
+import { InventoryCountDialog } from './InventoryCountDialog';
+import { useCountDraft, type Correction } from './inventory';
 import { KIND_LABEL, fmtPrice, stockDelta } from './history';
 import type { Product, ProductHistoryEntry, ProductMovement } from './types';
 import { fmtHTG } from '../../shared/currency';
@@ -113,6 +115,10 @@ export function BranchProductsSection({
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   /* Full history dialog: id of the product whose complete history is open. */
   const [historyDialogId, setHistoryDialogId] = useState<string | null>(null);
+  /* Physical count: dialog visibility + the count in progress (kept per branch, survives closing the dialog). */
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [countDraft, setCountDraft] = useCountDraft(branchId);
+  const countInProgress = Object.keys(countDraft).length;
   const [snack, setSnack] = useState<Snack | null>(null);
 
   const productSummaries = useMemo(() => {
@@ -515,6 +521,61 @@ export function BranchProductsSection({
     });
   };
 
+  const lastCountById = useMemo(() => {
+    const map: Record<string, Date> = {};
+    branchProducts.forEach((product) => {
+      const last = (productHistoryById[product.id] ?? []).find((entry) => entry.kind === 'count' && !entry.cancelled);
+      if (last) map[product.id] = last.date;
+    });
+    return map;
+  }, [branchProducts, productHistoryById]);
+
+  /* Validated count: stock moves by each gap, one history entry per corrected product. */
+  const handleValidateCount = (corrections: Correction[], note: string, countedProducts: number) => {
+    const now = new Date();
+    const label = `Inventaire ${now.toLocaleDateString('fr-FR')}${note ? ` · ${note}` : ''}`;
+    const applied = corrections.filter((c) => c.delta !== 0);
+    applied.forEach((c) => {
+      onUpdateProduct(c.product.id, { stockFermeture: c.newStock });
+      onRecordMovement({
+        id: '',
+        branchId,
+        productId: c.product.id,
+        date: now,
+        kind: 'count',
+        qty: Math.abs(c.delta),
+        delta: c.delta,
+        note: label,
+        amount: Math.abs(c.value),
+      });
+    });
+    setCountDraft({});
+    setInventoryOpen(false);
+    setSnack({
+      message: applied.length === 0
+        ? `Inventaire terminé : ${plural(countedProducts, 'produit compté', 'produits comptés')}, aucun écart.`
+        : `Inventaire validé : ${plural(applied.length, 'correction', 'corrections')} sur ${plural(countedProducts, 'produit compté', 'produits comptés')}.`,
+      undo: applied.length === 0 ? undefined : () => {
+        const undoneAt = new Date();
+        applied.forEach((c) => {
+          onUpdateProduct(c.product.id, { stockFermeture: c.product.stockFermeture });
+          onRecordMovement({
+            id: '',
+            branchId,
+            productId: c.product.id,
+            date: undoneAt,
+            kind: 'count',
+            qty: Math.abs(c.delta),
+            delta: -c.delta,
+            note: 'Inventaire annulé',
+            amount: Math.abs(c.value),
+          });
+        });
+        setSnack({ message: 'Inventaire annulé : stock rétabli.' });
+      },
+    });
+  };
+
   const submitNewProduct = () => {
     const name = addProductDraft.nom.trim();
     if (!name) {
@@ -602,6 +663,17 @@ export function BranchProductsSection({
         >
           <M3StateLayer />
           <ListChecks size={22} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setInventoryOpen(true)}
+          aria-label={countInProgress > 0 ? `Inventaire (${countInProgress} produits comptés)` : 'Inventaire'}
+          title="Inventaire"
+          className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full text-[var(--m3-primary)] ${M3_FOCUS}`}
+        >
+          <M3StateLayer />
+          <ClipboardCheck size={22} aria-hidden="true" />
+          {countInProgress > 0 && <span aria-hidden="true" className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[var(--m3-primary)]" />}
         </button>
         <button
           type="button"
@@ -1119,6 +1191,20 @@ export function BranchProductsSection({
               {outOfStockCount > 0 ? ` · ${outOfStockCount} en rupture` : ''}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setInventoryOpen(true)}
+            className={`group relative flex h-12 shrink-0 items-center gap-2 overflow-hidden rounded-full border border-[var(--m3-outline)] px-5 text-sm font-semibold text-[var(--m3-primary)] ${M3_FOCUS}`}
+          >
+            <M3StateLayer />
+            <ClipboardCheck size={20} aria-hidden="true" />
+            Inventaire
+            {countInProgress > 0 && (
+              <span className="rounded-full bg-[var(--m3-primary-container)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--m3-on-primary-container)]" title="Produits déjà comptés">
+                {countInProgress}
+              </span>
+            )}
+          </button>
           <button
             type="button"
             onClick={() => setLabelIds([])}
@@ -1761,6 +1847,17 @@ export function BranchProductsSection({
 
       {bulkDeleteOpen && (
         <BulkDeleteDialog products={selectedProducts} onConfirm={confirmBulkDelete} onClose={() => setBulkDeleteOpen(false)} />
+      )}
+
+      {inventoryOpen && (
+        <InventoryCountDialog
+          products={branchProducts}
+          draft={countDraft}
+          setDraft={setCountDraft}
+          lastCountById={lastCountById}
+          onValidate={handleValidateCount}
+          onClose={() => setInventoryOpen(false)}
+        />
       )}
 
       {historyDialogId && (() => {

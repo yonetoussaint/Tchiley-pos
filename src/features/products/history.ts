@@ -211,6 +211,7 @@ export const KIND_LABEL: Record<ProductHistoryEntry['kind'], string> = {
   purchase: 'Achat',
   restock: 'Réappro.',
   manual: 'Ajustement',
+  count: 'Inventaire',
   price: 'Prix',
   created: 'Création',
 };

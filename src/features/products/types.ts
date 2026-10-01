@@ -15,7 +15,7 @@ export type Product = {
   sku?: string;
 };
 
-export type ProductMovementKind = 'sale' | 'purchase' | 'restock' | 'manual' | 'price' | 'created';
+export type ProductMovementKind = 'sale' | 'purchase' | 'restock' | 'manual' | 'count' | 'price' | 'created';
 
 export type ProductPriceField = 'prix' | 'prixAchat';
 

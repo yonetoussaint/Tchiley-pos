@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, PackagePlus, ShoppingCart, SlidersHorizontal, Sparkles, Tag, Truck, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, ClipboardCheck, PackagePlus, ShoppingCart, SlidersHorizontal, Sparkles, Tag, Truck, X, type LucideIcon } from 'lucide-react';
 import { M3_FOCUS } from '../../components/ui/focus';
 import { M3StateLayer, M3_VARS } from '../../components/ui/theme';
 import { fmtTime12 } from '../../shared/dates';
@@ -23,6 +23,7 @@ const KIND_ICON: Record<ProductHistoryEntry['kind'], LucideIcon> = {
   purchase: Truck,
   restock: PackagePlus,
   manual: SlidersHorizontal,
+  count: ClipboardCheck,
   price: Tag,
   created: Sparkles,
 };
@@ -106,7 +107,7 @@ function EntryRow({ entry, unit }: { entry: ProductHistoryEntry; unit: string })
     detail = `Vente ${fmtPrice(entry.unitPrice ?? 0)} · Achat ${fmtPrice(entry.unitCost ?? 0)}`;
   } else {
     title = entry.kind === 'restock' ? 'Réapprovisionnement' : entry.note || 'Ajustement';
-    detail = entry.kind === 'manual' && entry.note ? '' : entry.amount ? `Valeur ${fmtHTG(entry.amount)}` : '';
+    detail = (entry.kind === 'manual' || entry.kind === 'count') && entry.note ? (entry.kind === 'count' && entry.amount ? `Écart ${fmtHTG(entry.amount)}` : '') : entry.amount ? `Valeur ${fmtHTG(entry.amount)}` : '';
   }
 
   const tone = isPrice
