@@ -6,6 +6,8 @@ import { M3StateLayer, M3_STATUS, M3_VARS } from '../../components/ui/theme';
 import type { Branch } from '../../shared/types';
 import type { Product, ProductMovement } from '../products/types';
 import { InventoryAdjustmentsCard } from './InventoryAdjustmentsCard';
+import { ReportActions } from './ReportActions';
+import type { ReportInput } from './reportExport';
 import { PAYMENT_METHODS } from '../sales/paymentMethods';
 import type { SaleRecord } from '../sales/types';
 import { CASH_ENTRY_META, REPORT_TABS, summarizeCash, type CashEntry, type CashEntryType, type CashSummary, type ReportPeriod } from './cash';
@@ -1083,6 +1085,7 @@ export function BranchReportsSection({
     <InventoryAdjustmentsCard period={period} selectedDate={selectedDate} branchId={branch.id} movements={movements} products={products} />
   );
   const validSales = useMemo(() => ventes.filter((v) => v.statut !== 'annulee'), [ventes]);
+  const exportInput: ReportInput = { branch, period, selectedDate, ventes, entries, products, movements };
   const PERIOD_SHORT: Record<ReportPeriod, string> = { daily: 'Journalier', monthly: 'Mensuel', annual: 'Annuel' };
   const subtitle =
     period === 'daily'
@@ -1098,9 +1101,12 @@ export function BranchReportsSection({
         style={M3_VARS}
         className="-mx-4 -mb-5 min-h-[calc(100dvh-8rem)] bg-[var(--m3-surface)] px-4 pb-28 pt-4 font-sans text-[var(--m3-on-surface)] sm:hidden"
       >
-        <div className="mb-4">
-          <h2 className="text-[32px] font-bold leading-10 tracking-tight">Rapports</h2>
-          <p className="truncate text-sm capitalize leading-5 text-[var(--m3-on-surface-variant)]">{subtitle}</p>
+        <div className="mb-4 flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[32px] font-bold leading-10 tracking-tight">Rapports</h2>
+            <p className="truncate text-sm capitalize leading-5 text-[var(--m3-on-surface-variant)]">{subtitle}</p>
+          </div>
+          <ReportActions input={exportInput} />
         </div>
 
         {/* Segmented button */}
@@ -1150,6 +1156,7 @@ export function BranchReportsSection({
 
       {/* Desktop: Material 3 Expressive */}
       <div style={M3_VARS} className="hidden space-y-5 font-sans text-[var(--m3-on-surface)] sm:block">
+        <div className="flex flex-wrap items-center justify-between gap-3">
         <div
           role="group"
           aria-label="Période du rapport"
@@ -1181,6 +1188,8 @@ export function BranchReportsSection({
               </button>
             );
           })}
+        </div>
+        <ReportActions input={exportInput} />
         </div>
 
         {period === 'daily' && (
