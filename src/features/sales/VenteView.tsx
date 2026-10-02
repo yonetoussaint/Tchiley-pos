@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, ChevronRight, Minus, Plus, Search, ShoppingCart, Trash2, X } from 'lucide-react';
+import { Check, ChevronRight, LayoutGrid, List, Minus, Plus, Search, ShoppingCart, Trash2, X } from 'lucide-react';
 import { M3_FOCUS } from '../../components/ui/focus';
 import { M3StateLayer, M3_STATUS, M3_VARS } from '../../components/ui/theme';
 import { fmtHTG } from '../../shared/currency';
@@ -182,6 +182,8 @@ export function VenteView({
   ouvrirCheckout,
 }: VenteViewProps) {
   const [feuilleOuverte, setFeuilleOuverte] = useState(false);
+  // Grand écran : liste dense par défaut (la grille de cartes reste disponible et sert sur téléphone / tablette).
+  const [vue, setVue] = useState<'liste' | 'grille'>('liste');
   const nbArticles = lignesPanier.reduce((s, l) => s + l.qte, 0);
   const panierVide = lignesPanier.length === 0;
   const encaissementBloque = panierVide || !!isReadOnly;
@@ -245,6 +247,27 @@ export function VenteView({
           <div className="ml-auto hidden shrink-0 text-sm text-[var(--m3-on-surface-variant)] md:block">
             {produits.length} article{produits.length !== 1 ? 's' : ''}
           </div>
+          <div role="group" aria-label="Affichage du catalogue" className="hidden shrink-0 items-center rounded-full bg-[var(--m3-surface-container-high)] p-1 lg:flex">
+            {([
+              ['liste', 'Liste', List],
+              ['grille', 'Grille', LayoutGrid],
+            ] as const).map(([id, label, Icon]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setVue(id)}
+                aria-pressed={vue === id}
+                aria-label={label}
+                title={label}
+                className={`group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full ${M3_FOCUS} ${
+                  vue === id ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]' : 'text-[var(--m3-on-surface-variant)]'
+                }`}
+              >
+                <M3StateLayer />
+                <Icon size={18} />
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Filtres : défilement horizontal sur téléphone, retour à la ligne sur grand écran */}
@@ -279,8 +302,8 @@ export function VenteView({
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div
             className={`grid grid-cols-2 content-start gap-3 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] ${
-              panierVide ? 'pb-4' : 'pb-24 lg:pb-4'
-            }`}
+              vue === 'liste' ? 'lg:hidden ' : ''
+            }${panierVide ? 'pb-4' : 'pb-24 lg:pb-4'}`}
           >
             {produits.map((p) => {
               const epuise = p.stockFermeture <= 0;
@@ -354,6 +377,112 @@ export function VenteView({
               </div>
             )}
           </div>
+
+          {/* Liste dense (grand écran) */}
+          {vue === 'liste' && (
+            <div className="hidden pb-4 lg:block">
+              {produits.length === 0 ? (
+                <div className="rounded-[28px] bg-[var(--m3-surface-container)] px-6 py-10 text-center">
+                  <div className="text-base font-medium">Aucun article trouvé</div>
+                  <div className="mt-1 text-sm text-[var(--m3-on-surface-variant)]">Aucun article ne correspond à la recherche.</div>
+                </div>
+              ) : (
+                <table className="w-full border-separate border-spacing-0 text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-medium tracking-wide text-[var(--m3-on-surface-variant)]">
+                      {[
+                        ['Article', ''],
+                        ['Catégorie', 'hidden xl:table-cell'],
+                        ['Stock', ''],
+                        ['Prix', 'text-right'],
+                        ['', 'w-[148px]'],
+                      ].map(([h, c], i) => (
+                        <th key={i} scope="col" className={`sticky top-0 z-10 border-b border-[var(--m3-outline-variant)] bg-[var(--m3-surface)] px-3 py-2.5 font-medium ${c}`}>
+                          {h || <span className="sr-only">Action</span>}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {produits.map((p) => {
+                      const epuise = p.stockFermeture <= 0;
+                      const stockBas = !epuise && p.stockFermeture <= p.seuil;
+                      const ligne = lignesPanier.find((l) => l.id === p.id);
+                      const selectionne = !!ligne;
+                      const desactive = epuise || !!isReadOnly;
+                      const tone = epuise ? M3_STATUS.out : M3_STATUS.low;
+                      const cell = 'border-b border-[var(--m3-outline-variant)]/60 px-3 py-2 align-middle';
+                      return (
+                        <tr
+                          key={p.id}
+                          onClick={() => !desactive && basculerProduit(p)}
+                          aria-selected={selectionne}
+                          className={`group/row transition-colors motion-reduce:transition-none ${
+                            selectionne
+                              ? 'bg-[var(--m3-primary-container)]/60'
+                              : desactive
+                                ? 'opacity-50'
+                                : 'cursor-pointer hover:bg-[var(--m3-on-surface)]/[0.06]'
+                          }`}
+                        >
+                          <td className={`${cell} rounded-l-[16px]`}>
+                            <div className="flex min-w-0 items-center gap-3">
+                              <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--m3-surface-container-lowest)]">
+                                {p.image ? (
+                                  <img src={p.image} alt="" className="max-h-full max-w-full object-contain p-0.5" />
+                                ) : (
+                                  <span aria-hidden="true" className="text-sm font-semibold text-[var(--m3-on-secondary-container)]">
+                                    {monogram(p.nom)}
+                                  </span>
+                                )}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="truncate font-medium">{p.nom}</div>
+                                <div className="truncate text-xs text-[var(--m3-on-surface-variant)] xl:hidden">{p.categorie}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className={`${cell} hidden text-[var(--m3-on-surface-variant)] xl:table-cell`}>{p.categorie}</td>
+                          <td className={cell}>
+                            {epuise || stockBas ? (
+                              <span className={`inline-flex h-6 items-center whitespace-nowrap rounded-full px-2.5 text-xs font-medium ${tone.bg} ${tone.fg}`}>
+                                {epuise ? 'Épuisé' : `${p.stockFermeture} ${p.unite}${p.stockFermeture !== 1 ? 's' : ''} · bas`}
+                              </span>
+                            ) : (
+                              <span className="whitespace-nowrap tabular-nums text-[var(--m3-on-surface-variant)]">
+                                {p.stockFermeture} {p.unite}
+                                {p.stockFermeture !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </td>
+                          <td className={`${cell} whitespace-nowrap text-right text-base font-semibold tabular-nums`}>{fmtHTG(p.prix)}</td>
+                          <td className={`${cell} rounded-r-[16px]`} onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-end">
+                              {ligne ? (
+                                <QtyStepper ligne={ligne} disabled={isReadOnly} changerQte={changerQte} />
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={desactive}
+                                  onClick={() => basculerProduit(p)}
+                                  aria-label={`Ajouter ${p.nom}`}
+                                  className={`group relative flex h-10 items-center gap-1.5 overflow-hidden rounded-full bg-[var(--m3-secondary-container)] pl-3 pr-4 text-sm font-medium text-[var(--m3-on-secondary-container)] disabled:cursor-not-allowed disabled:opacity-40 ${M3_FOCUS}`}
+                                >
+                                  <M3StateLayer />
+                                  <Plus size={18} />
+                                  Ajouter
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
