@@ -19,6 +19,7 @@ import { creditBalance } from '../features/sales/creditUtils';
 import type { CreditPayment, SaleLine, SaleRecord } from '../features/sales/types';
 import { ReceiptModal as SalesReceiptModal } from '../features/sales/ReceiptModal';
 import { BranchSalesSection } from '../features/sales/BranchSalesSection';
+import { VenteView } from '../features/sales/VenteView';
 import { REPORT_TABS, type CashEntry, type CashEntryType, type ReportPeriod } from '../features/reports/cash';
 import { BranchReportsSection } from '../features/reports/BranchReportsSection';
 import { BranchCoffreSection } from '../features/vault/BranchCoffreSection';
@@ -45,7 +46,7 @@ import {
 } from '../components/ui/appChrome';
 import {
   ShoppingCart, Boxes, Gauge, AlertTriangle,
-  Plus, Minus, Trash2, X, Search, Printer, ChevronRight,
+  X, Printer, ChevronRight,
   Smartphone, FileClock, Check, Menu, BarChart3,
   Users, Loader2, CalendarDays, Eye, EyeOff, ChevronDown,
   Vault, ArrowLeftRight, Coins, Package, Receipt, ExternalLink, Copy,
@@ -93,23 +94,6 @@ type User = {
   profilePic: string;
   role: UserRole;
   branchId: string | null;
-};
-
-type VenteViewProps = {
-  isReadOnly?: boolean;
-  categorie: string;
-  setCategorie: Dispatch<SetStateAction<string>>;
-  categories: string[];
-  recherche: string;
-  setRecherche: Dispatch<SetStateAction<string>>;
-  produits: Product[];
-  basculerProduit: (produit: Product) => void;
-  lignesPanier: CartLine[];
-  changerQte: (id: string, delta: number) => void;
-  retirerDuPanier: (id: string) => void;
-  viderPanier: () => void;
-  totalPanier: number;
-  ouvrirCheckout: () => void;
 };
 
 type CheckoutModalProps = {
@@ -994,7 +978,7 @@ function GestionMateriaux() {
           ) : (
           <main
             className={
-              view === 'dashboard'
+              view === 'dashboard' || view === 'vente'
                 ? 'flex min-h-0 min-w-0 flex-1 flex-col self-stretch overflow-hidden md:mx-8 md:mb-6'
                 : 'flex min-h-0 min-w-0 flex-1 flex-col self-stretch overflow-hidden border-2 border-[#16181A] bg-[#FBFAF6] shadow-[6px_6px_0_#16181A] md:mx-8 md:mb-6 md:rounded-[28px] md:border md:border-[var(--m3-outline-variant)] md:shadow-none'
             }
@@ -3027,177 +3011,6 @@ function BranchSelectionPhone({
           );
         })}
       </div>
-    </div>
-  );
-}
-
-function VenteView({
-  isReadOnly,
-  categorie,
-  setCategorie,
-  categories,
-  recherche,
-  setRecherche,
-  produits,
-  basculerProduit,
-  lignesPanier,
-  changerQte,
-  retirerDuPanier,
-  viderPanier,
-  totalPanier,
-  ouvrirCheckout,
-}: VenteViewProps) {
-  return (
-    <div className="flex flex-1 overflow-hidden">
-      <section className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex items-center gap-3 border-b-2 border-[#16181A] bg-[#FBFAF6] px-6 py-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4B5560]"
-            />
-            <input
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-              placeholder="Rechercher un article…"
-              className="w-full border-2 border-[#16181A] bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#C1440E]"
-            />
-          </div>
-          <div className="ml-auto text-sm text-[#4B5560]">
-            {produits.length} article{produits.length !== 1 ? 's' : ''}
-          </div>
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto border-b-2 border-[#16181A] bg-[#FBFAF6] px-6 py-3">
-          {categories.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategorie(c)}
-              className={
-                'shrink-0 border-2 px-3 py-1.5 text-[13px] whitespace-nowrap ' +
-                (categorie === c
-                  ? 'border-[#16181A] bg-[#16181A] text-white'
-                  : 'border-[#16181A] bg-white text-[#16181A] hover:bg-[#ECE7DC]')
-              }
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid flex-1 auto-rows-max grid-cols-2 gap-2 overflow-y-auto p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
-          {produits.map((p) => {
-            const stockBas = p.stockFermeture <= p.seuil;
-            const epuise = p.stockFermeture <= 0;
-            const selectionne = lignesPanier.some((l) => l.id === p.id);
-            return (
-              <button
-                key={p.id}
-                disabled={epuise || isReadOnly}
-                onClick={() => basculerProduit(p)}
-                aria-pressed={selectionne}
-                className={
-                  'relative flex aspect-square min-w-0 flex-col border-2 p-2 text-left transition-colors ' +
-                  (epuise || isReadOnly
-                    ? 'cursor-not-allowed opacity-40 border-[#16181A] bg-[#FBFAF6]'
-                    : selectionne
-                      ? 'border-[#C1440E] bg-white'
-                      : 'border-[#16181A] bg-[#FBFAF6] hover:border-[#C1440E] hover:bg-white active:bg-[#ECE7DC]')
-                }
-              >
-                {selectionne && (
-                  <span className="absolute right-0 top-0 z-10 flex h-5 w-5 items-center justify-center bg-[#C1440E] text-white">
-                    <Check size={13} strokeWidth={3} />
-                  </span>
-                )}
-                <div className="min-h-0 flex-1">
-                  {p.image && (
-                    <div className="flex h-full w-full items-center justify-center border border-[#c7c2b4] bg-white">
-                      <img src={p.image} alt={p.nom} className="max-h-full max-w-full object-contain p-1" />
-                    </div>
-                  )}
-                </div>
-                <div className="mt-1 truncate text-[9px] uppercase tracking-wide text-[#4B5560]">{p.categorie}</div>
-                <div className="line-clamp-2 text-[12px] font-medium leading-tight">{p.nom}</div>
-                <div className="mt-0.5 font-serif text-[14px] leading-tight">{fmtHTG(p.prix)}</div>
-                <div className="mt-0.5 flex items-center gap-1 text-[10px] leading-tight">
-                  <span className={stockBas ? 'text-[#C1440E]' : 'text-[#4B5560]'}>
-                    {p.stockFermeture} {p.unite}{p.stockFermeture !== 1 ? 's' : ''} en stock
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-          {produits.length === 0 && (
-            <div className="col-span-full py-16 text-center text-sm text-[#4B5560]">
-              Aucun article ne correspond à la recherche.
-            </div>
-          )}
-        </div>
-      </section>
-
-      <aside className="flex w-[340px] shrink-0 flex-col border-l-2 border-[#16181A] bg-[#FBFAF6]">
-        <div className="flex items-center justify-between border-b-2 border-[#16181A] px-5 py-4">
-          <div className="flex items-center gap-2">
-            <ShoppingCart size={17} />
-            <span className="text-[15px] font-medium">Vente en cours</span>
-          </div>
-          {lignesPanier.length > 0 && (
-            <button onClick={viderPanier} className="text-[12px] text-[#4B5560] hover:text-[#C1440E]">
-              Vider
-            </button>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-5 py-3">
-          {lignesPanier.length === 0 ? (
-            <div className="mt-10 text-center text-sm text-[#4B5560]">
-              Le panier est vide.<br />Touchez un article pour le sélectionner.
-            </div>
-          ) : (
-            lignesPanier.map((l) => (
-              <div key={l.id} className="mb-3 border-2 border-[#16181A] bg-white p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="text-[13px] font-medium leading-snug">{l.produit.nom}</div>
-                  <button onClick={() => retirerDuPanier(l.id)} disabled={isReadOnly} className="shrink-0 text-[#4B5560] hover:text-[#C1440E] disabled:opacity-50">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <div className="flex items-center border-2 border-[#16181A]">
-                    <button onClick={() => changerQte(l.id, -1)} disabled={isReadOnly} className="px-2 py-1 hover:bg-[#ECE7DC] disabled:opacity-50">
-                      <Minus size={13} />
-                    </button>
-                    <span className="min-w-[2rem] px-1 text-center text-[13px]">{l.qte}</span>
-                    <button onClick={() => changerQte(l.id, 1)} disabled={isReadOnly} className="px-2 py-1 hover:bg-[#ECE7DC] disabled:opacity-50">
-                      <Plus size={13} />
-                    </button>
-                  </div>
-                  <div className="text-[14px] font-serif">{fmtHTG(l.sousTotal)}</div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="border-t-2 border-[#16181A] px-5 py-4">
-          <div className="flex items-baseline justify-between">
-            <span className="text-[13px] text-[#4B5560]">Total</span>
-            <span className="font-serif text-2xl">{fmtHTG(totalPanier)}</span>
-          </div>
-          <button
-            disabled={lignesPanier.length === 0 || isReadOnly}
-            onClick={ouvrirCheckout}
-            className={
-              'mt-3 flex w-full items-center justify-center gap-2 border-2 border-[#16181A] py-3 text-[14px] font-medium ' +
-              (lignesPanier.length === 0 || isReadOnly
-                ? 'cursor-not-allowed bg-[#d8d3c6] text-[#8b8f87]'
-                : 'bg-[#C1440E] text-white hover:bg-[#a83a0c]')
-            }
-          >
-            {isReadOnly ? 'Mode lecture seule' : 'Encaisser'}
-            {!isReadOnly && <ChevronRight size={16} />}
-          </button>
-        </div>
-      </aside>
     </div>
   );
 }
